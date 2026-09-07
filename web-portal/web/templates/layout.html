@@ -8,13 +8,13 @@
 <meta name="theme-color" content="#09090b" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)">
 <meta name="robots" content="noindex, nofollow">
-<link rel="stylesheet" href="/static/css/app.css">
-<script src="/static/js/theme-boot.js"></script>
+<link rel="stylesheet" href="/static/css/app.css{{with .BuildCommit}}?v={{.}}{{end}}">
+<script src="/static/js/theme-boot.js{{with .BuildCommit}}?v={{.}}{{end}}"></script>
 <link rel="icon" type="image/png" sizes="32x32" href="/static/img/favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/static/img/favicon-16x16.png">
 <link rel="apple-touch-icon" href="/static/img/apple-touch-icon.png">
 <link rel="manifest" href="/site.webmanifest">
-<script src="/static/js/theme.js" defer></script>
+<script src="/static/js/theme.js{{with .BuildCommit}}?v={{.}}{{end}}" defer></script>
 {{block "head" .}}{{end}}
 </head>
 <body class="shell-{{orDefault .Shell "app"}}">

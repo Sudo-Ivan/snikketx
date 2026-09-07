@@ -244,7 +244,7 @@ func TestGetRoutesRender(t *testing.T) {
 	paths := []string{
 		"/", "/login", "/meta/about.html", "/policies/", "/terms", "/privacy",
 		"/.well-known/security.txt", "/site.webmanifest", "/_health", "/_health/ready",
-		"/metrics", "/static/css/app.css",
+		"/metrics", "/static/css/app.css", "/static/css/app.css?v=abc1234",
 		"/user/", "/user/passwd", "/user/profile", "/user/manage_data", "/user/logout",
 		"/admin/", "/admin/users", "/admin/user/alice/", "/admin/user/alice/delete",
 		"/admin/user/alice/debug", "/admin/users/password-reset/inv1",
