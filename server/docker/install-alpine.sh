@@ -119,7 +119,10 @@ for m in \
   mod_health_report \
   mod_snikket_server_vcard \
   mod_snikket_billing \
-  mod_snikket_version
+  mod_snikket_version \
+  mod_snikket_audit_api \
+  mod_snikket_muc_api \
+  mod_snikket_ops_api
 do
   ln -sfn "/usr/local/lib/snikket-modules/$m" "/etc/prosody/modules/$m"
 done

@@ -145,6 +145,7 @@ modules_enabled = {
 		"rest";
 		"snikket_audit_api";
 		"snikket_muc_api";
+		"snikket_ops_api";
 
 	-- Monitoring & maintenance
 		"measure_process";

@@ -173,6 +173,7 @@
     - mod_snikket_version
     - mod_snikket_audit_api
     - mod_snikket_muc_api
+    - mod_snikket_ops_api
 
 - name: "Install mod_firewall rules"
   copy:
