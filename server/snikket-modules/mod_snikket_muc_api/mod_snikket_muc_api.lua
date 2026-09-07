@@ -23,27 +23,63 @@ local function check_credentials(request)
 	return nil;
 end
 
+local function grant_has_admin(grants)
+	if type(grants) == "string" then
+		return grants:find("prosody:admin", 1, true) ~= nil;
+	end
+	if type(grants) ~= "table" then
+		return false;
+	end
+	if grants["prosody:admin"] or grants["prosody:operator"] then
+		return true;
+	end
+	for key, value in pairs(grants) do
+		if key == "prosody:admin" and value then
+			return true;
+		end
+		if value == "prosody:admin" then
+			return true;
+		end
+	end
+	return false;
+end
+
 local function session_is_admin(session)
 	if not session then
 		return false;
 	end
-	if session.roles and session.roles["prosody:admin"] then
+	if grant_has_admin(session.roles) or grant_has_admin(session.grants) or grant_has_admin(session.scopes) or grant_has_admin(session.scope) then
 		return true;
 	end
-	if session.role and session.role.name == "prosody:admin" then
+	if session.role then
+		local name = session.role;
+		if type(session.role) == "table" then
+			name = session.role.name or session.role.role;
+		end
+		if name == "prosody:admin" or name == "prosody:operator" then
+			return true;
+		end
+	end
+	if session.token_info and (
+		grant_has_admin(session.token_info.grants)
+		or grant_has_admin(session.token_info.scopes)
+		or grant_has_admin(session.token_info.scope)
+	) then
 		return true;
 	end
 	local username = session.username;
+	local host = session.host or module.host;
 	if not username and session.token_info then
 		username = session.token_info.username;
+		host = session.token_info.host or host;
 	end
 	if not username then
 		return false;
 	end
 	if usermanager.user_is_admin then
-		return usermanager.user_is_admin(username, module.host);
+		return usermanager.user_is_admin(username, host);
 	end
-	return usermanager.is_admin(username.."@"..module.host);
+	return usermanager.is_admin(username.."@"..host);
 end
 
 local function require_admin(event)
@@ -60,10 +96,24 @@ end
 
 local function muc_module()
 	local host_session = prosody.hosts[muc_host];
-	if not host_session or not host_session.modules or not host_session.modules.muc then
+	if not host_session then
+		module:log("warn", "MUC host %s is not loaded", muc_host);
 		return nil;
 	end
-	return host_session.modules.muc;
+	if host_session.modules and host_session.modules.muc then
+		return host_session.modules.muc;
+	end
+	if host_session.muc then
+		return host_session.muc;
+	end
+	local ok, muc = pcall(function ()
+		return module:context(muc_host):depends("muc");
+	end);
+	if ok and muc then
+		return muc;
+	end
+	module:log("warn", "MUC module not found on %s", muc_host);
+	return nil;
 end
 
 local function decode_query(query)
