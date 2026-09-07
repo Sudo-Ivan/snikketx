@@ -1,0 +1,9 @@
+snikket.conf
+docker-compose.override.yml
+.env
+*.pyc
+__pycache__/
+.venv/
+venv/
+.direnv/
+web-portal/.env

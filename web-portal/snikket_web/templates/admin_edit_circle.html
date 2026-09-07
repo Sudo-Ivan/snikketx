@@ -1,0 +1,119 @@
+{% extends "admin_app.html" %}
+{% from "library.j2" import form_button, standard_button, value_or_hint, custom_form_button, clipboard_button, icon, render_user with context %}
+{% block head_lead %}
+{{ super() }}
+{% include "copy-snippet.html" %}
+{% endblock %}
+{% block content %}
+<h1>{% trans circle_name=(target_circle | circle_name) %}Edit circle {{ circle_name }}{% endtrans %}</h1>
+<form method="POST">
+{{- form.csrf_token -}}
+{%- if target_circle.id_ == "default" -%}
+<input type="hidden" name="{{ form.name.name }}" value="{{ form.name.data }}">{#- -#}
+<div class="box hint form layout-expanded">
+	<header>{% trans %}This is your main circle{% endtrans %}</header>
+	<p>{% trans %}This circle is managed automatically and cannot be removed or renamed.{% endtrans %}</p>
+</div>
+{%- else -%}
+<div class="form layout-expanded">
+	<h2 class="form-title">{% trans %}Circle information{% endtrans %}</h2>
+	<div class="f-ebox">
+		{{ form.name.label }}
+		{{ form.name }}
+	</div>
+	<div class="f-bbox">
+		{%- call standard_button("back", url_for(".circles"), class="tertiary") -%}
+			{% trans %}Return to circle list{% endtrans %}
+		{%- endcall -%}
+		{%- call form_button("done", form.action_save, class="primary") %}{% endcall -%}
+	</div>
+	<h3 class="form-title">{% trans %}Delete circle{% endtrans %}</h3>
+	<p class="form-desc">{% trans %}Deleting a circle does not delete any users in the circle.{% endtrans %}</p>
+	<div class="f-bbox">
+		{%- call standard_button("delete", url_for(".delete_circle", id_=target_circle.id_), class="secondary danger") %}{% trans %}Delete circle{% endtrans %}{% endcall -%}
+	</div>
+</div>
+{%- endif -%}
+
+<h2 id="chats">{% trans %}Group chats{% endtrans %}</h2>
+<p>{% trans %}These group chats will be available to all members of the circle.{% endtrans %}</p>
+
+{%- if circle_chats -%}
+<div class="el-2 elevated"><table>
+	<thead>
+		<th>{% trans %}Name{% endtrans %}</th>
+		<th>{% trans %}Actions{% endtrans %}</th>
+	</thead>
+	<tbody>
+{%- for chat in circle_chats -%}
+		<tr>
+			<td>{% call value_or_hint(chat.name) %}{% endcall %}</td>
+			<td class="nowrap">
+				{%- call custom_form_button("delete", form.action_remove_group_chat.name, chat.id_, class="primary danger", slim=True) -%}
+					{% trans name=chat.name %}Delete group chat '{{ name }}'{% endtrans %}
+				{%- endcall -%}
+			</td>
+		</tr>
+{%- endfor -%}
+	</tbody>
+</table></div>
+{%- else -%}
+<p>{% trans %}This circle currently has no group chats.{% endtrans %}</p>
+{%- endif -%}
+{%- call standard_button("add", url_for(".edit_circle_add_chat", id_=target_circle.id_), class="secondary") -%}
+	{% trans %}Add group chat{% endtrans %}
+{%- endcall -%}
+
+<h2 id="members">{% trans %}Circle members{% endtrans %}</h2>
+<p>{% trans %}All members of the circle will see each other in their contact list.{% endtrans %}</p>
+
+{%- if circle_members -%}
+<div class="el-2 elevated"><table>
+	<thead>
+		<th>{% trans %}Login name{% endtrans %}</th>
+		<th>{% trans %}Actions{% endtrans %}</th>
+	</thead>
+	<tbody>
+{%- for localpart, member in circle_members -%}
+		<tr>
+			<td>
+				{%- if member -%}
+				{%- call render_user(member) -%}{%- endcall -%}
+				{%- else -%}
+				{{ localpart }}
+				<span class="with-tooltip above" data-tooltip="{% trans %}The user has been deleted from the server.{% endtrans %}"><em> ({% trans %}deleted{% endtrans %})</em></span>
+				{%- endif -%}
+			</td>
+			<td class="nowrap">
+				{%- call custom_form_button("remove_user", form.action_remove_user.name, member.localpart, class="primary danger", slim=True) -%}
+					{% trans username=member.localpart %}Remove user {{ username }} from circle{% endtrans %}
+				{%- endcall -%}
+			</td>
+		</tr>
+{%- endfor -%}
+	</tbody>
+</table></div>
+{%- else -%}
+<p>{% trans %}This circle currently has no members.{% endtrans %}</p>
+{%- endif -%}
+<h3>{% trans %}Invite more members{% endtrans %}</h3>
+{%- if form.user_to_add.choices -%}
+<div class="form layout-expanded">
+	<h4 class="form-title">{% trans %}Add existing user{% endtrans %}</h4>
+	<div class="f-ebox">
+		{{- form.user_to_add.label -}}
+		<div class="select-wrap">{{ form.user_to_add }}</div>
+	</div>
+	<div class="f-bbox">
+		{%- call form_button("add_user", form.action_add_user, class="primary") %}{% endcall -%}
+	</div>
+</div>
+{%- else -%}
+<div class="elevated box success el-2">
+	<header>{% trans %}All users added{% endtrans %}</header>
+	<p>{% trans %}All users on this service are already in this circle.{% endtrans %}</p>
+</div>
+{%- endif -%}
+</form>
+{%- include "admin_create_invite_form.html" -%}
+{% endblock %}

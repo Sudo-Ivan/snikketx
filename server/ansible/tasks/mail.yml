@@ -1,0 +1,12 @@
+---
+
+- name: Install msmtp-mta
+  apt:
+    name: msmtp-mta
+    state: present
+    install_recommends: no
+
+- name: Configure msmtp-mta
+  copy:
+    src: ../files/msmtp.conf
+    dest: /etc/msmtprc

@@ -1,0 +1,33 @@
+server {
+    listen ${SNIKKET_TWEAK_HTTP_PORT};
+    listen [::]:${SNIKKET_TWEAK_HTTP_PORT};
+
+    server_name ${SNIKKET_DOMAIN_ASCII};
+    server_name groups.${SNIKKET_DOMAIN_ASCII};
+    server_name share.${SNIKKET_DOMAIN_ASCII};
+
+    location /.well-known/acme-challenge {
+        alias /var/www/html/.well-known/acme-challenge;
+    }
+
+    location / {
+        return 301 https://$host:${SNIKKET_TWEAK_HTTPS_PORT}$request_uri;
+    }
+}
+
+# Fail requests to unknown domains
+server {
+    listen ${SNIKKET_TWEAK_HTTP_PORT};
+    listen [::]:${SNIKKET_TWEAK_HTTP_PORT};
+
+    error_page 404 /_errors/404_site.html;
+
+    location = /_errors/404_site.html {
+        root /var/www/html;
+        internal;
+    }
+
+    location / {
+        try_files none =404;
+    }
+}

@@ -1,0 +1,33 @@
+{% extends "app.html" %}
+{% from "library.j2" import standard_button, custom_form_button, render_errors %}
+{% block content %}
+<div class="form layout-expanded"><form method="POST">
+	<h1 class="form-title">{% trans %}Change your password{% endtrans %}</h1>
+	<p class="form-desc weak">{% trans %}To change your password, you need to provide the current password as well as the new one. To reduce the chance of typos, we ask for your new password twice.{% endtrans %}</p>
+	{{ form.csrf_token }}
+	{%- call render_errors(form) -%}
+	{%- endcall -%}
+	<div class="f-ebox">
+		{{ form.current_password.label(class="required") }}
+		{{ form.current_password(class=("has-error" if form.current_password.name in form.errors else ""), autocomplete="current-password") }}
+	</div>
+	<div class="f-ebox">
+		{{ form.new_password.label(class="required") }}
+		{{ form.new_password(autocomplete="new-password") }}
+	</div>
+	<div class="f-ebox">
+		{{ form.new_password_confirm.label(class="required") }}
+		{{ form.new_password_confirm(class=("has-error" if form.new_password_confirm.name in form.errors else ""), autocomplete="new-password") }}
+	</div>
+	<div class="box warning">
+		<header>{% trans %}Warning{% endtrans %}</header>
+		<p>{% trans %}After changing your password, you will have to enter the new password on all of your devices.{% endtrans %}</p>
+	</div>
+	<div class="f-bbox">
+		{%- call standard_button("back", url_for('.index'), class="tertiary") %}{% trans %}Back{% endtrans %}{% endcall -%}
+		{%- call custom_form_button("passwd", "", "", class="primary") -%}
+			{% trans %}Change password{% endtrans %}
+		{%- endcall -%}
+	</div>
+</form></div>
+{% endblock %}

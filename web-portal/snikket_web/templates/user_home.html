@@ -1,0 +1,54 @@
+{% extends "app.html" %}
+{% from "library.j2" import clipboard_button, standard_button, avatar with context %}
+{% set body_id = "home" %}
+{% block head_lead %}
+{{ super() }}
+{% include "copy-snippet.html" %}
+{% endblock %}
+{% block content %}
+{% if user_info.is_admin and metrics.users and metrics.users.active_1d <= 1 %}
+<aside class="box hint">
+  <header>{% trans %}Welcome to Snikket!{% endtrans %}</header>
+  <p>{% trans %}Now your Snikket instance is up and running, the next step is to invite people to join it. Family, friends, colleagues... you choose!{% endtrans %}</p>
+  <a href="/admin/invitations">{% trans %}Create new invitation{% endtrans %}</a>
+</aside>
+{% endif %}
+<nav class="welcome">
+	<ul>
+		<li class="wide">
+			<h2>{% trans %}Your account{% endtrans %}</h2>
+			<div class="profile-card">
+				<div class="picture" aria-label="Your profile picture">{% call avatar(user_info.address, user_info.avatar_hash ) %}{% endcall %}</div>
+				<div class="details">
+					<div class="display-name">{{ user_info.display_name | default(user_info.username) }}</div>
+					<div class="address">
+						<input value="{{ user_info.address }}" aria-label="{% trans %}Your XMPP address{% endtrans %}">
+						{% call clipboard_button(user_info.address) %}{% trans %}Copy address{% endtrans %}{% endcall %}
+					</div>
+				</div>
+			</div>
+			{#- -#}
+			{# <p>{% trans %}Change your display name, set a profile picture and control visibility of your personal data to others.{% endtrans %}</p> #}
+			{#- -#}
+			{# <img aria-hidden="true" src="{{ url_for("static", filename="img/illus-profile.svg") }}"> #}
+			{#- -#}
+			<div>
+				<div>{% call standard_button("edit", url_for(".profile"), class="primary") %}{% trans %}Edit profile{% endtrans %}{% endcall %}</div>
+				<div>{% call standard_button("passwd", url_for(".change_pw"), class="secondary") %}{% trans %}Change password{% endtrans %}{% endcall %}</div>
+				<div>{% call standard_button("folder", url_for(".manage_data"), class="secondary") %}{% trans %}Manage your data{% endtrans %}{% endcall %}</div>
+			</div>
+			{#- -#}
+		</li>
+{% if user_info.is_admin %}
+		<li>
+			<h2>{% trans %}Your Snikket{% endtrans %}</h2>
+			{#- -#}
+			<p>{% trans %}Manage users, invitations and circles of your Snikket service.{% endtrans %}</p>
+			{#- -#}
+			<div>{% call standard_button("admin", url_for("admin.index"), class="primary") %}{% trans %}Admin panel{% endtrans %}{% endcall %}</div>
+			{#- -#}
+		</li>
+{% endif %}
+	</ul>
+</nav>
+{% endblock %}

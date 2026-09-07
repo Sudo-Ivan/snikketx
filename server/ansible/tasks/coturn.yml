@@ -1,0 +1,22 @@
+---
+
+- name: "Install coturn package"
+  apt:
+    name: coturn
+    state: present
+    install_recommends: yes
+
+- name: "Disable coturn service"
+  service:
+    name: coturn
+    enabled: no
+    use: sysvinit
+- name: "Stop coturn if running"
+  service:
+    name: coturn
+    state: stopped
+    use: sysvinit
+- name: Configure coturn
+  copy:
+    src: ../files/turnserver.conf
+    dest: /etc/turnserver.conf

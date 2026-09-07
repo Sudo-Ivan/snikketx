@@ -1,0 +1,177 @@
+<script async type="text/javascript">
+/* https://stackoverflow.com/a/30810322/1248008 */
+
+function fallbackCopyTextToClipboard(text, context) {
+  var textArea = document.createElement("textarea");
+  textArea.value = text;
+  context.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+
+  var result = false;
+  try {
+	var successful = document.execCommand('copy');
+	var msg = successful ? 'successful' : 'unsuccessful';
+	console.log('Fallback: Copying text command was ' + msg);
+	result = true;
+  } catch (err) {
+	console.error('Fallback: Oops, unable to copy', err);
+  }
+
+  context.removeChild(textArea);
+  return result;
+}
+function copyTextToClipboard(text, context, callback) {
+  if (!navigator.clipboard) {
+	callback(fallbackCopyTextToClipboard(text, context));
+	return;
+  }
+  navigator.clipboard.writeText(text).then(function() {
+	console.log('Async: Copying to clipboard was successful!');
+	callback(true);
+  }, function(err) {
+	console.error('Async: Could not copy text: ', err);
+	callback(false);
+  });
+}
+/* end of https://stackoverflow.com/a/30810322/1248008 */
+
+var insert_first = function(parent_el, new_el) {
+	var first = parent_el.firstChild;
+	if (!first) {
+		parent_el.appendChild(new_el);
+	} else {
+		parent_el.insertBefore(new_el, first);
+	}
+}
+
+var copy_to_clipboard = function(el) {
+  var text = el.dataset.cliptext;
+  if (!text) {
+	console.error('copy_to_clipboard used on element without text to copy');
+  }
+  copyTextToClipboard(text, el, function(success) {
+	var existing_result_el = document.getElementById("clipboard-result");
+	if (existing_result_el !== null) {
+	  existing_result_el.parentNode.removeChild(existing_result_el);
+	}
+
+	var result_el = document.createElement("span");
+	result_el.id = "clipboard-result";
+	if (success) {
+	  result_el.classList.add("success");
+	  result_el.innerText = "✓";
+	} else {
+	  result_el.classList.add("error");
+	  result_el.innerText = "❌";
+	}
+	insert_first(el, result_el);
+	setTimeout(function() {
+	  el.removeChild(result_el);
+	  el.blur();
+	}, 1500);
+  });
+};
+
+var get_current_icon = function(svg_el) {
+	var use_el = svg_el.firstChild;
+	// don’t ask. I hate js.
+	var tmp = "" + use_el.getAttribute("xlink:href");
+	return tmp.split("#")[1].split("-")[1];
+}
+
+var change_icon = function(svg_el, new_icon) {
+	var use_el = svg_el.firstChild;
+	// don’t ask. I hate js.
+	var tmp = "" + use_el.getAttribute("xlink:href");
+	var base_url = tmp.split("#")[0];
+	use_el.setAttributeNS(
+		"http://www.w3.org/1999/xlink", "xlink:href",
+		base_url + "#icon-" + new_icon
+	);
+}
+
+var copy_to_clipboard_btn = function(el) {
+  var text = el.dataset.cliptext;
+  if (!text) {
+	console.error('copy_to_clipboard used on element without text to copy');
+  }
+  copyTextToClipboard(text, el, function(success) {
+	var existing_result_el = document.getElementById("clipboard-result");
+	if (existing_result_el !== null) {
+	  existing_result_el.parentNode.removeChild(existing_result_el);
+	}
+
+	var icon = "done";
+	if (!success) {
+		icon = "cancel";
+	}
+	var icon_bak = get_current_icon(el.firstChild);
+	change_icon(el.firstChild, icon);
+	setTimeout(function() {
+		change_icon(el.firstChild, icon_bak);
+	  el.blur();
+	}, 1500);
+  });
+};
+
+var copy_to_clipboard_btn = function(el) {
+  var text = el.dataset.cliptext;
+  if (!text) {
+	console.error('copy_to_clipboard used on element without text to copy');
+  }
+  copyTextToClipboard(text, el, function(success) {
+	var existing_result_el = document.getElementById("clipboard-result");
+	if (existing_result_el !== null) {
+	  existing_result_el.parentNode.removeChild(existing_result_el);
+	}
+
+	var icon = "done";
+	if (!success) {
+		icon = "cancel";
+	}
+	var icon_bak = get_current_icon(el.firstChild);
+	change_icon(el.firstChild, icon);
+	setTimeout(function() {
+		change_icon(el.firstChild, icon_bak);
+	  el.blur();
+	}, 1500);
+  });
+};
+
+var share_url_btn = function(el) {
+	let data = {
+		"title": el.dataset.shareTitle,
+		"url": el.dataset.shareUrl,
+	}
+
+	let icon_bak = get_current_icon(el.firstChild);
+
+	new Promise(function (resolve, reject) {
+		if(!navigator.canShare || !navigator.canShare(data)) {
+			return reject();
+		}
+		return resolve(navigator.share(data));
+	}).then(function () {
+		// Success
+		change_icon(el.firstChild, "done");
+	}, function () {
+		// Failure
+		change_icon(el.firstChild, "cancel");
+	}).finally(function () {
+		// Either way, clear status icon after 1.5s
+		setTimeout(function() {
+			change_icon(el.firstChild, icon_bak);
+			el.blur();
+		}, 1500);
+	});
+}
+
+window.addEventListener('load', function() {
+	document.body.classList.remove("no-copy");
+	if(navigator.share) {
+		document.body.classList.remove("no-share");
+	}
+});
+</script>
+

@@ -1,0 +1,20 @@
+---
+# Main playbook
+
+- hosts: all
+  become: yes
+  gather_facts: no
+  vars:
+    prosody:
+      package: "prosody-trunk"
+      snapshot: "2026-07-02"
+    prosody_modules:
+      revision: "15a7749c7acb"
+  tasks:
+    - import_tasks: tasks/prosody.yml
+    - import_tasks: tasks/services.yml
+    - import_tasks: tasks/cron.yml
+    - import_tasks: tasks/certs.yml
+    - import_tasks: tasks/mail.yml
+    - import_tasks: tasks/coturn.yml
+    - import_tasks: tasks/scripts.yml

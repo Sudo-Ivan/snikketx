@@ -1,0 +1,118 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  portal-mypy:
+    runs-on: ubuntu-latest
+    name: "portal: mypy"
+    defaults:
+      run:
+        working-directory: web-portal
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        with:
+          python-version: "3.11"
+      - name: Install
+        run: |
+          set -euo pipefail
+          pip install mypy
+          pip install -r requirements.txt
+          pip install -r build-requirements.txt
+      - name: Typecheck
+        run: python -m mypy --config mypy.ini -p snikket_web
+
+  portal-lint:
+    runs-on: ubuntu-latest
+    name: "portal: flake8"
+    defaults:
+      run:
+        working-directory: web-portal
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        with:
+          python-version: "3.11"
+      - name: Install
+        run: |
+          set -euo pipefail
+          pip install flake8 flake8-print
+      - name: Lint
+        run: make flake8
+
+  portal-i18n:
+    runs-on: ubuntu-latest
+    name: "portal: i18n"
+    defaults:
+      run:
+        working-directory: web-portal
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        with:
+          python-version: "3.11"
+      - name: Install
+        run: |
+          set -euo pipefail
+          pip install flask-babel
+      - name: Check translations
+        run: |
+          sed -ri '/^"POT-Creation-Date: /d;/^"Generated-By: /d' snikket_web/translations/messages.pot
+          git add snikket_web/translations/messages.pot
+          make extract_translations
+          sed -ri '/^"POT-Creation-Date: /d;/^"Generated-By: /d' snikket_web/translations/messages.pot
+          git diff --exit-code --color -- snikket_web/translations/messages.pot
+
+  build:
+    runs-on: ubuntu-latest
+    name: "docker: build ${{ matrix.component }}"
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: server
+            context: ./server
+          - component: web-portal
+            context: ./web-portal
+          - component: web-proxy
+            context: ./web-proxy
+          - component: cert-manager
+            context: ./cert-manager
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@6524bf65af31da8d45b59e8c27de4bd072b392f5 # v3.8.0
+      - name: Build
+        uses: docker/build-push-action@ca877d9245402d1537745e0e356eab47c3520991 # v6.13.0
+        with:
+          context: ${{ matrix.context }}
+          push: false
+          tags: snikketx/${{ matrix.component }}:ci
+          build-args: |
+            BUILD_SERIES=ci
+            BUILD_ID=${{ github.run_number }}

@@ -1,0 +1,88 @@
+root /var/www/html;
+
+location / {
+	try_files $uri /static/$uri @portal;
+}
+
+location /admin_api {
+	try_files none @prosody;
+}
+
+location /invites_api {
+	try_files none @prosody;
+}
+
+location /invites_bootstrap {
+	try_files none @prosody;
+}
+
+location /share {
+	alias /usr/share/javascript;
+}
+
+location /upload {
+	client_max_body_size 104857616; # 100MB + 16 bytes (see Prosody config)
+	proxy_request_buffering off;
+	proxy_http_version 1.1;
+	try_files none @prosody;
+}
+
+location /http-bind {
+	try_files none @prosodyws;
+}
+
+location /xmpp-websocket {
+	try_files none @prosodyws;
+}
+
+location = /.well-known/host-meta {
+	try_files none @prosody;
+}
+
+location = /.well-known/host-meta.json {
+	try_files none @prosody;
+}
+
+location @portal {
+	proxy_pass http://${SNIKKET_TWEAK_PORTAL_INTERNAL_HTTP_HOST}:${SNIKKET_TWEAK_PORTAL_INTERNAL_HTTP_PORT};
+	proxy_set_header  Host            $host;
+	proxy_set_header  X-Forwarded-For $proxy_add_x_forwarded_for;
+	proxy_set_header  X-Forwarded-Proto https;
+}
+
+location @prosody {
+	proxy_pass http://${SNIKKET_TWEAK_INTERNAL_HTTP_HOST}:${SNIKKET_TWEAK_INTERNAL_HTTP_PORT};
+	proxy_set_header  Host            $host;
+	proxy_set_header  X-Forwarded-For $proxy_add_x_forwarded_for;
+	proxy_set_header  X-Forwarded-Proto https;
+}
+
+location @prosodyws {
+	proxy_pass http://${SNIKKET_TWEAK_INTERNAL_HTTP_HOST}:${SNIKKET_TWEAK_INTERNAL_HTTP_PORT};
+	proxy_http_version 1.1;
+	proxy_set_header  Host            $host;
+	proxy_set_header  X-Forwarded-For $proxy_add_x_forwarded_for;
+	proxy_set_header  X-Forwarded-Proto https;
+	proxy_set_header Connection $http_connection;
+	proxy_set_header Upgrade $http_upgrade;
+
+	proxy_read_timeout 900s;
+}
+
+location /_health/portal {
+	proxy_pass http://${SNIKKET_TWEAK_PORTAL_INTERNAL_HTTP_HOST}:${SNIKKET_TWEAK_PORTAL_INTERNAL_HTTP_PORT}/_health;
+	proxy_set_header  Host            $host;
+	proxy_set_header  X-Forwarded-For $proxy_add_x_forwarded_for;
+	proxy_set_header  X-Forwarded-Proto https;
+}
+
+location /_health/xmpp {
+	proxy_pass http://${SNIKKET_TWEAK_INTERNAL_HTTP_HOST}:${SNIKKET_TWEAK_INTERNAL_HTTP_PORT}/host_status_check;
+	proxy_set_header  Host            $host;
+	proxy_set_header  X-Forwarded-For $proxy_add_x_forwarded_for;
+	proxy_set_header  X-Forwarded-Proto https;
+}
+
+error_page 502 /_errors/502.html;
+error_page 503 /_errors/503.html;
+error_page 504 /_errors/504.html;

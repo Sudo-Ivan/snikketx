@@ -1,0 +1,40 @@
+version: "3.3"
+
+services:
+  snikket_proxy:
+    container_name: snikket-proxy
+    image: ghcr.io/sudo-ivan/snikketx/web-proxy:latest
+    env_file: snikket.conf
+    network_mode: host
+    volumes:
+      - snikket_data:/snikket
+      - acme_challenges:/var/www/html/.well-known/acme-challenge
+    restart: "unless-stopped"
+  snikket_certs:
+    container_name: snikket-certs
+    image: ghcr.io/sudo-ivan/snikketx/cert-manager:latest
+    env_file: snikket.conf
+    network_mode: host
+    volumes:
+      - snikket_data:/snikket
+      - acme_challenges:/var/www/.well-known/acme-challenge
+    restart: "unless-stopped"
+  snikket_portal:
+    container_name: snikket-portal
+    image: ghcr.io/sudo-ivan/snikketx/web-portal:latest
+    network_mode: host
+    env_file: snikket.conf
+    restart: "unless-stopped"
+
+  snikket_server:
+    container_name: snikket
+    image: ghcr.io/sudo-ivan/snikketx/server:latest
+    network_mode: host
+    volumes:
+      - snikket_data:/snikket
+    env_file: snikket.conf
+    restart: "unless-stopped"
+
+volumes:
+  acme_challenges:
+  snikket_data:

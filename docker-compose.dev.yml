@@ -1,0 +1,28 @@
+# Local builds from this monorepo. Use with:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+
+services:
+  snikket_proxy:
+    image: ghcr.io/sudo-ivan/snikketx/web-proxy:dev
+    build:
+      context: ./web-proxy
+      args:
+        BUILD_SERIES: dev
+  snikket_certs:
+    image: ghcr.io/sudo-ivan/snikketx/cert-manager:dev
+    build:
+      context: ./cert-manager
+      args:
+        BUILD_SERIES: dev
+  snikket_portal:
+    image: ghcr.io/sudo-ivan/snikketx/web-portal:dev
+    build:
+      context: ./web-portal
+      args:
+        BUILD_SERIES: dev
+  snikket_server:
+    image: ghcr.io/sudo-ivan/snikketx/server:dev
+    build:
+      context: ./server
+      args:
+        BUILD_SERIES: dev

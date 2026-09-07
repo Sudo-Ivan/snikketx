@@ -1,0 +1,12 @@
+---
+
+- name: "Add helper scripts"
+  copy:
+    src: "../files/bin/"
+    dest: "/usr/local/bin/"
+    mode: 0755
+
+- name: "Install qrencode"
+  apt:
+    name: qrencode
+    state: present

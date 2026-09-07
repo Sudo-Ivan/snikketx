@@ -1,0 +1,1961 @@
+# Translations template for PROJECT.
+# Copyright (C) 2023 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2023.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2024-08-11 16:36+0200\n"
+"PO-Revision-Date: 2023-12-25 16:00+0000\n"
+"Last-Translator: Dmytro Vozniuk <plibnik@gmail.com>\n"
+"Language-Team: Ukrainian <http://i18n.sotecware.net/projects/snikket/web-"
+"portal/uk/>\n"
+"Language: uk\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=n%10==1 && n%100!=11 ? 0 : n%10>=2 && n"
+"%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2;\n"
+"X-Generator: Weblate 4.14.1\n"
+"Generated-By: Babel 2.14.0\n"
+
+#: snikket_web/admin.py:69 snikket_web/templates/admin_delete_user.html:10
+#: snikket_web/templates/admin_edit_circle.html:73
+msgid "Login name"
+msgstr "Логін"
+
+#: snikket_web/admin.py:73 snikket_web/templates/admin_delete_user.html:12
+#: snikket_web/user.py:69
+msgid "Display name"
+msgstr "Ім'я для відображення"
+
+#: snikket_web/admin.py:77 snikket_web/admin.py:295
+#: snikket_web/templates/admin_edit_user.html:37
+msgid "Access Level"
+msgstr "Рівень доступу"
+
+#: snikket_web/admin.py:79 snikket_web/admin.py:297
+msgid "Limited"
+msgstr "Обмежений"
+
+#: snikket_web/admin.py:80 snikket_web/admin.py:298
+msgid "Normal user"
+msgstr "Звичайний користувач"
+
+#: snikket_web/admin.py:81 snikket_web/admin.py:299
+msgid "Administrator"
+msgstr "Адміністратор"
+
+#: snikket_web/admin.py:87
+msgid "Update user"
+msgstr "Оновити користувача"
+
+#: snikket_web/admin.py:91
+msgid "Restore account"
+msgstr "Відновити обліковий запис"
+
+#: snikket_web/admin.py:95
+msgid "Unlock account"
+msgstr "Розблокувати обліковий запис"
+
+#: snikket_web/admin.py:99
+msgid "Create password reset link"
+msgstr "Створити посилання для зміни пароля"
+
+#: snikket_web/admin.py:117
+msgid "Password reset link created"
+msgstr "Посилання для зміни пароля створено"
+
+#: snikket_web/admin.py:129
+msgid "User account restored"
+msgstr "Обліковий запис користувача відновлено"
+
+#: snikket_web/admin.py:134
+msgid "User account unlocked"
+msgstr "Обліковий запис користувача розблоковано"
+
+#: snikket_web/admin.py:141
+msgid "Could not restore user account"
+msgstr "Не вдалося відновити обліковий запис користувача"
+
+#: snikket_web/admin.py:146
+msgid "Could not unlock user account"
+msgstr "Не вдалося розблокувати обліковий запис користувача"
+
+#: snikket_web/admin.py:158
+msgid "User information updated."
+msgstr "Інформацію про користувача оновлено."
+
+#: snikket_web/admin.py:180
+msgid "Delete user permanently"
+msgstr "Видалити користувача назавжди"
+
+#: snikket_web/admin.py:193
+msgid "User deleted"
+msgstr "Користувача видалено"
+
+#: snikket_web/admin.py:231
+msgid "Password reset link not found"
+msgstr "Такого посилання для зміни пароля не існує"
+
+#: snikket_web/admin.py:243
+msgid "Password reset link deleted"
+msgstr "Посилання для зміни пароля видалено"
+
+#: snikket_web/admin.py:263
+msgid "Invite to circle"
+msgstr "Запросити до кола"
+
+#: snikket_web/admin.py:269
+msgid "At least one circle must be selected"
+msgstr "Треба обрати хоча б одне коло"
+
+#: snikket_web/admin.py:274
+msgid "Valid for"
+msgstr "Дійсне протягом"
+
+#: snikket_web/admin.py:276
+msgid "One hour"
+msgstr "Одної години"
+
+#: snikket_web/admin.py:277
+msgid "Twelve hours"
+msgstr "12 годин"
+
+#: snikket_web/admin.py:278
+msgid "One day"
+msgstr "Одного дня"
+
+#: snikket_web/admin.py:279
+msgid "One week"
+msgstr "Одного тижня"
+
+#: snikket_web/admin.py:280
+msgid "Four weeks"
+msgstr "Чотирьох тижнів"
+
+#: snikket_web/admin.py:286 snikket_web/templates/admin_edit_invite.html:17
+msgid "Invitation type"
+msgstr "Тип запрошення"
+
+#: snikket_web/admin.py:288 snikket_web/templates/library.j2:158
+msgid "Individual"
+msgstr "Особисте"
+
+#: snikket_web/admin.py:289 snikket_web/templates/library.j2:160
+msgid "Group"
+msgstr "Групове"
+
+#: snikket_web/admin.py:305
+msgid "Comment (optional)"
+msgstr ""
+
+#: snikket_web/admin.py:309
+msgid "New invitation link"
+msgstr "Посилання на нове запрошення"
+
+#: snikket_web/admin.py:371
+msgid "Revoke"
+msgstr "Відкликати"
+
+#: snikket_web/admin.py:399
+msgid "Invitation created"
+msgstr "Запрошення створено"
+
+#: snikket_web/admin.py:415
+msgid "No such invitation exists"
+msgstr "Такого запрошення не існує"
+
+#: snikket_web/admin.py:430
+msgid "Invitation revoked"
+msgstr "Запрошення відкликане"
+
+#: snikket_web/admin.py:447 snikket_web/admin.py:495
+#: snikket_web/templates/admin_delete_circle.html:10
+#: snikket_web/templates/admin_edit_circle.html:44
+msgid "Name"
+msgstr "Назва"
+
+#: snikket_web/admin.py:452 snikket_web/templates/admin_circles.html:47
+msgid "Create circle"
+msgstr "Створити коло"
+
+#: snikket_web/admin.py:482
+msgid "Circle created"
+msgstr "Коло створене"
+
+#: snikket_web/admin.py:500
+msgid "Select user"
+msgstr "Виберіть користувача"
+
+#: snikket_web/admin.py:505
+msgid "Update circle"
+msgstr "Оновити коло"
+
+#: snikket_web/admin.py:511
+msgid "Add user"
+msgstr "Додати користувача"
+
+#: snikket_web/admin.py:529 snikket_web/admin.py:628 snikket_web/admin.py:676
+msgid "No such circle exists"
+msgstr "Такого кола не існує"
+
+#: snikket_web/admin.py:566
+msgid "Circle data updated"
+msgstr "Дані кола оновлено"
+
+#: snikket_web/admin.py:576
+msgid "User added to circle"
+msgstr "Користувача додано у коло"
+
+#: snikket_web/admin.py:585
+msgid "User removed from circle"
+msgstr "Користувача видалено з кола"
+
+#: snikket_web/admin.py:594
+msgid "Chat removed from circle"
+msgstr "Чат видалено з кола"
+
+#: snikket_web/admin.py:612
+msgid "Delete circle permanently"
+msgstr "Видалити коло назавжди"
+
+#: snikket_web/admin.py:639
+msgid "Circle deleted"
+msgstr "Коло видалене"
+
+#: snikket_web/admin.py:653
+msgid "Group chat name"
+msgstr "Назва групового чату"
+
+#: snikket_web/admin.py:658
+msgid "Create group chat"
+msgstr "Створити груповий чат"
+
+#: snikket_web/admin.py:688
+msgid "New group chat added to circle"
+msgstr "У коло додано новий груповий чат"
+
+#: snikket_web/admin.py:755
+msgid "Message contents"
+msgstr "Вміст повідомлення"
+
+#: snikket_web/admin.py:761
+msgid "Only send to online users"
+msgstr "Відправити тільки користувачам, які онлайн"
+
+#: snikket_web/admin.py:765
+msgid "Post to all users"
+msgstr "Опублікувати для усіх користувачів"
+
+#: snikket_web/admin.py:769
+msgid "Send preview to yourself"
+msgstr "Надіслати попередній перегляд собі"
+
+#: snikket_web/admin.py:791
+msgid "Announcement sent!"
+msgstr "Оголошення надіслане!"
+
+#: snikket_web/infra.py:56
+msgid "Main"
+msgstr "Головне"
+
+#: snikket_web/infra.py:78
+msgid "Never"
+msgstr "Ніколи"
+
+#: snikket_web/infra.py:95
+msgid "Today"
+msgstr "Сьогодні"
+
+#: snikket_web/infra.py:101
+msgid "Yesterday"
+msgstr "Вчора"
+
+#: snikket_web/infra.py:105
+#, python-format
+msgid "%(time)s ago"
+msgstr "%(time)s тому"
+
+#: snikket_web/invite.py:35
+msgid ""
+"The account data you tried to import is too large to upload. Please contact "
+"your Snikket operator."
+msgstr ""
+"Дані облікового запису, який ви спробували імпортувати, надто великі для "
+"завантаження. Будь ласка, зверніться до вашого оператора Snikket."
+
+#: snikket_web/invite.py:114
+msgid "Username"
+msgstr "Ім’я користувача"
+
+#: snikket_web/invite.py:118 snikket_web/invite.py:190 snikket_web/main.py:43
+msgid "Password"
+msgstr "Пароль"
+
+#: snikket_web/invite.py:126 snikket_web/invite.py:198
+msgid "Confirm password"
+msgstr "Повторіть пароль"
+
+#: snikket_web/invite.py:130 snikket_web/invite.py:202
+msgid "The passwords must match."
+msgstr "Паролі мають збігатися."
+
+#: snikket_web/invite.py:135
+msgid "Create account"
+msgstr "Створити обліковий запис"
+
+#: snikket_web/invite.py:162
+msgid "That username is already taken."
+msgstr "Це ім’я користувача вже зайняте."
+
+#: snikket_web/invite.py:166 snikket_web/invite.py:235
+msgid "Registration was declined for unknown reasons."
+msgstr "У реєстрації відмовлено з невідомої причини."
+
+#: snikket_web/invite.py:170
+msgid "The username is not valid."
+msgstr "Це ім’я користувача неприпустиме."
+
+#: snikket_web/invite.py:207 snikket_web/templates/user_home.html:37
+#: snikket_web/templates/user_passwd.html:29
+msgid "Change password"
+msgstr "Змінити пароль"
+
+#: snikket_web/invite.py:254
+msgid "Account data file"
+msgstr "Файл даних облікового запису"
+
+#: snikket_web/invite.py:258
+msgid "Import data"
+msgstr "Імпортувати дані"
+
+#: snikket_web/invite.py:279
+#, python-format
+msgid ""
+"The account data you tried to import is in an unknown format. Please upload "
+"an XML file in XEP-0227 format (provided format: %(mimetype)s)."
+msgstr ""
+"Дані облікового запису, які ви пробували імпортувати, мають невідомий "
+"формат. Завантажте XML-файл у форматі XEP-0227 (формат наданих: "
+"%(mimetype)s)."
+
+#: snikket_web/invite.py:299 snikket_web/templates/unauth.html:18
+#: snikket_web/user.py:192
+msgid "Error"
+msgstr "Помилка"
+
+#: snikket_web/main.py:38
+msgid "Address"
+msgstr "Адреса"
+
+#: snikket_web/main.py:48
+msgid "Sign in"
+msgstr "Увійти"
+
+#: snikket_web/main.py:57
+msgid "Invalid username or password."
+msgstr "Хибне ім’я користувача або пароль."
+
+#: snikket_web/main.py:85
+msgid "Login successful!"
+msgstr "Вхід виконано успішно!"
+
+#: snikket_web/user.py:29
+msgid "Current password"
+msgstr "Поточний пароль"
+
+#: snikket_web/user.py:34
+msgid "New password"
+msgstr "Новий пароль"
+
+#: snikket_web/user.py:42
+msgid "Confirm new password"
+msgstr "Підтвердити новий пароль"
+
+#: snikket_web/user.py:47
+msgid "The new passwords must match."
+msgstr "Нові паролі мають співпадати."
+
+#: snikket_web/user.py:56
+msgid "Sign out"
+msgstr "Вийти"
+
+#: snikket_web/user.py:61
+msgid "Nobody"
+msgstr "Ніхто"
+
+#: snikket_web/user.py:62
+msgid "Friends only"
+msgstr "Тільки друзі"
+
+#: snikket_web/user.py:63
+msgid "Everyone"
+msgstr "Усі"
+
+#: snikket_web/user.py:73
+msgid "Avatar"
+msgstr "Аватар"
+
+#: snikket_web/user.py:77
+msgid "Profile visibility"
+msgstr "Хто може бачити профіль"
+
+#: snikket_web/user.py:82
+msgid "Update profile"
+msgstr "Оновити профіль"
+
+#: snikket_web/user.py:88
+msgid "Account data"
+msgstr "Дані облікового запису"
+
+#: snikket_web/user.py:92
+msgid "Upload"
+msgstr "Завантажити"
+
+#: snikket_web/user.py:125
+msgid "Incorrect password."
+msgstr "Хибний пароль."
+
+#: snikket_web/user.py:129
+msgid "Password changed"
+msgstr "Пароль змінено"
+
+#: snikket_web/user.py:137
+msgid ""
+"The chosen avatar is too big. To be able to upload larger avatars, please "
+"use the app."
+msgstr ""
+"Вибраний аватар надто великий. Щоб завантажити аватари великого розміру, "
+"скористуйтесь застосунком."
+
+#: snikket_web/user.py:184
+msgid "Profile updated"
+msgstr "Профіль оновлено"
+
+#: snikket_web/user.py:198
+msgid "Export"
+msgstr "Експортувати"
+
+#: snikket_web/user.py:216
+msgid "You currently have no account data to export."
+msgstr "Наразі у вас немає даних облікового запису, щоб експортувати їх."
+
+#: snikket_web/templates/_footer.html:4
+#, python-format
+msgid "A <a href=\"%(about_url)s\">Snikket</a> service"
+msgstr "Сервіс <a href=\"%(about_url)s\">Snikket</a>"
+
+#: snikket_web/templates/_footer.html:6
+msgid ""
+"“Snikket” and the parrot logo are trademarks of Snikket Community Interest "
+"Company."
+msgstr ""
+"«Snikket» та логотип з папугою — це зареєстровані товарні знаки компанії "
+"Snikket Community Interest Company."
+
+#: snikket_web/templates/about.html:4
+msgid "About Snikket"
+msgstr "Про Snikket"
+
+#: snikket_web/templates/about.html:9
+msgid "About this Service"
+msgstr "Про цю послугу"
+
+#: snikket_web/templates/about.html:10
+#, python-format
+msgid ""
+"This is the Snikket service <em>%(site_name)s</em>, running open-source "
+"software from the Snikket project."
+msgstr ""
+"Це сервіс Snikket <em>%(site_name)s</em>, який працює на програмному "
+"забезпеченні з відкритим початковим кодом з проекту Snikket."
+
+#: snikket_web/templates/about.html:11
+#, python-format
+msgid ""
+"To learn more about Snikket, visit the <a href=\"%(snikket_url)s\">Snikket "
+"website</a>."
+msgstr ""
+"Щоб дізнатися більше про Snikket, відвідайте <a href=\"%(snikket_url)s\">веб-"
+"сайт Snikket</a>."
+
+#: snikket_web/templates/about.html:13
+msgid "View service policies"
+msgstr "Переглянути політики обслуговування"
+
+#: snikket_web/templates/about.html:15
+msgid "Licenses"
+msgstr "Ліцензії"
+
+#: snikket_web/templates/about.html:16
+#, python-format
+msgid ""
+"The web portal software is licensed under the terms of the <a href="
+"\"%(agpl_url)s\">Affero GNU General Public License, version 3.0 or later</"
+"a>. The full terms of the license can be reviewed using the aforementioned "
+"link."
+msgstr ""
+"Програмне забезпечення веб-порталу ліцензується за умовами <a href="
+"\"%(agpl_url)s\">Загальної Публічної ліцензії Affero GNU General Public "
+"License версії 3.0 або пізнішої</a>. Усі положення цієї ліцензії можна "
+"переглянути за наведеним вище посиланням."
+
+#: snikket_web/templates/about.html:17
+#, python-format
+msgid ""
+"The source code of the web portal can be downloaded and viewed in <a href="
+"\"%(source_url)s\">its GitHub repository</a>."
+msgstr ""
+"Початковий код веб-порталу можна завантажити та переглянути у <a href="
+"\"%(source_url)s\">його репозиторії GitHub</a>."
+
+#: snikket_web/templates/about.html:18
+#, python-format
+msgid ""
+"The icons used in the web portal are <a href=\"%(source_url)s\">Google’s "
+"Material Icons</a>, made available by Google under the terms of the <a href="
+"\"%(apache20_url)s\">Apache 2.0 License</a>."
+msgstr ""
+"Піктограми, що використовуються на веб-порталі — це <a href=\"%(source_url)s"
+"\">піктограми Material від Google</a>, доступ до яких надано Google на "
+"умовах <a href=\"%(apache20_url)s\">ліцензії Apache 2.0</a>."
+
+#: snikket_web/templates/about.html:20
+msgid "Trademarks"
+msgstr "Товарні знаки"
+
+#: snikket_web/templates/about.html:21
+#, python-format
+msgid ""
+"“Snikket” and the parrot logo are trademarks of Snikket Community Interest "
+"Company. For more information about the trademarks, visit the <a href="
+"\"%(trademarks_url)s\">Snikket Trademarks information page</a>."
+msgstr ""
+"«Snikket» та логотип з папугою є товарними знаками компанії Snikket "
+"Community Interest Company. Додаткові відомості про ці товарні знаки можна "
+"знайти на <a href=\"%(trademarks_url)s\">сторінці інформації про товарні "
+"знаки Snikket</a>."
+
+#: snikket_web/templates/about.html:23
+msgid "Software Versions"
+msgstr "Версії програмного забезпечення"
+
+#: snikket_web/templates/about.html:37 snikket_web/templates/policies.html:34
+msgid "Back to the main page"
+msgstr "Повернутися на головну сторінку"
+
+#: snikket_web/templates/admin_app.html:5
+msgid "Admin area"
+msgstr "Зона адміністрування"
+
+#: snikket_web/templates/admin_circles.html:4
+#: snikket_web/templates/admin_home.html:23
+msgid "Manage circles"
+msgstr "Керування колами"
+
+#: snikket_web/templates/admin_circles.html:5
+msgid ""
+"<em>Circles</em> aim to help people who are in the same social circle find "
+"each other on your service."
+msgstr ""
+"<em>Кола</em> мають за мету допомогти людям зі спільними колами спілкування "
+"знаходити один одного на вашому сервісі."
+
+#: snikket_web/templates/admin_circles.html:6
+msgid ""
+"Users who are in the same circle will see each other in their contact list. "
+"In addition, each circle may have group chats where the circle members are "
+"included."
+msgstr ""
+"Користувачі зі спільним колом бачитимуть один одного у своїх списках "
+"контактів. Окрім того, у кожному колі можуть бути групові чати, до яких "
+"входять учасники кола."
+
+#: snikket_web/templates/admin_circles.html:13
+msgid "Circle name"
+msgstr "Назва кола"
+
+#: snikket_web/templates/admin_circles.html:14
+msgid "Members"
+msgstr "Учасники"
+
+#: snikket_web/templates/admin_circles.html:15
+#: snikket_web/templates/admin_edit_circle.html:45
+#: snikket_web/templates/admin_edit_circle.html:74
+#: snikket_web/templates/admin_invites.html:25
+#: snikket_web/templates/admin_users.html:10
+msgid "Actions"
+msgstr "Дії"
+
+#: snikket_web/templates/admin_circles.html:25
+#, python-format
+msgid "Create invitation to circle %(circle_name)s"
+msgstr "Створити запрошення до кола %(circle_name)s"
+
+#: snikket_web/templates/admin_circles.html:28
+#, python-format
+msgid "Manage members of %(circle_name)s"
+msgstr "Керування учасниками кола %(circle_name)s"
+
+#: snikket_web/templates/admin_circles.html:31
+#: snikket_web/templates/admin_edit_circle.html:8
+#, python-format
+msgid "Edit circle %(circle_name)s"
+msgstr "Змінити коло %(circle_name)s"
+
+#: snikket_web/templates/admin_circles.html:40
+msgid "No circles"
+msgstr "Немає кіл"
+
+#: snikket_web/templates/admin_circles.html:41
+msgid ""
+"Currently, there are no circles on this service. Use the form below to "
+"create one."
+msgstr ""
+"Наразі у цьому сервісі немає кіл. Скористайтеся формою нижче, щоб створити "
+"коло."
+
+#: snikket_web/templates/admin_circles.html:44
+msgid "New circle"
+msgstr "Нове коло"
+
+#: snikket_web/templates/admin_create_circle_group_chat_form.html:5
+msgid "Create new circle group chat"
+msgstr "Створити новий груповий чат кола"
+
+#: snikket_web/templates/admin_create_circle_group_chat_form.html:6
+msgid "Add a chat to your circle so its members can hold group discussions."
+msgstr ""
+"Додайте у ваше коло чат, щоб його учасники могли вести групові обговорення."
+
+#: snikket_web/templates/admin_create_circle_group_chat_form.html:7
+msgid "Tip:"
+msgstr "Підказка:"
+
+#: snikket_web/templates/admin_create_circle_group_chat_form.html:7
+msgid ""
+"This is only for creating group chats that automatically include <em>all</"
+"em> members of the circle. If you want a normal group chat, create it in the "
+"Snikket app instead."
+msgstr ""
+"ця функція призначена лише для створення групових чатів, котрі автоматично "
+"включатимуть <em>усіх</em> учасників кола. Якщо вам потрібен звичайний "
+"груповий чат, створіть його у застосунку Snikket."
+
+#: snikket_web/templates/admin_create_invite.html:3
+msgid "Create invitation"
+msgstr "Створити запрошення"
+
+#: snikket_web/templates/admin_create_invite_form.html:9
+#: snikket_web/templates/user_home.html:13
+msgid "Create new invitation"
+msgstr "Створити нове запрошення"
+
+#: snikket_web/templates/admin_create_invite_form.html:10
+msgid ""
+"Create a new invitation link to invite more users to your Snikket service by "
+"clicking the button below."
+msgstr ""
+"Створіть нове посилання з запрошенням, щоб запросити більше користувачів до "
+"вашого сервісу Snikket. Для цього натисніть кнопку нижче."
+
+#: snikket_web/templates/admin_create_invite_form.html:16
+msgid ""
+"Choose whether this invitation link will allow more than one person to join."
+msgstr ""
+
+#: snikket_web/templates/admin_create_invite_form.html:21
+#, fuzzy, python-format
+#| msgid "<strong>%(title)s%(icon)s</strong><p>%(description)s</p>"
+msgid ""
+"<span class=\"invite-type\">%(title)s%(icon)s</span><p>%(description)s</p>"
+msgstr "<strong>%(title)s%(icon)s</strong><p>%(description)s</p>"
+
+#: snikket_web/templates/admin_create_invite_form.html:34
+#: snikket_web/templates/admin_edit_user.html:38
+msgid ""
+"The access level of a user determines what interactions are allowed for them "
+"on your Snikket service."
+msgstr ""
+"Рівень доступу користувача визначає, які види взаємодій з вашим сервісом "
+"Snikket йому дозволені."
+
+#: snikket_web/templates/admin_create_invite_form.html:38
+#, fuzzy, python-format
+#| msgid "<strong>%(title)s%(icon)s</strong><p>%(description)s</p>"
+msgid ""
+"<span class=\"access-level\">%(title)s%(icon)s</span><p>%(description)s</p>"
+msgstr "<strong>%(title)s%(icon)s</strong><p>%(description)s</p>"
+
+#: snikket_web/templates/admin_debug_user.html:8
+#, python-format
+msgid "Debug information for %(user_name)s"
+msgstr "Відомості для зневадження для користувача %(user_name)s"
+
+#: snikket_web/templates/admin_debug_user.html:11
+#: snikket_web/templates/user_passwd.html:23
+msgid "Warning"
+msgstr "Попередження"
+
+#: snikket_web/templates/admin_debug_user.html:12
+msgid "The below dump may contain sensitive information."
+msgstr "Наведений нижче дамп може містити конфіденційну інформацію."
+
+#: snikket_web/templates/admin_debug_user.html:15
+msgid "Raw debug dump"
+msgstr "Необроблений дамп зневадження"
+
+#: snikket_web/templates/admin_debug_user.html:17
+msgid "Copy complete output"
+msgstr "Копіювати весь вивід"
+
+#: snikket_web/templates/admin_delete_circle.html:4
+#, python-format
+msgid "Delete circle %(circle_name)s"
+msgstr "Видалити коло %(circle_name)s"
+
+#: snikket_web/templates/admin_delete_circle.html:6
+#: snikket_web/templates/admin_edit_circle.html:30
+#: snikket_web/templates/admin_edit_circle.html:33
+msgid "Delete circle"
+msgstr "Видалити коло"
+
+#: snikket_web/templates/admin_delete_circle.html:8
+msgid "Are you sure you want to delete the following circle?"
+msgstr "Дійсно видалити наступне коло?"
+
+#: snikket_web/templates/admin_delete_circle.html:13
+#: snikket_web/templates/admin_delete_user.html:15
+msgid "Danger"
+msgstr "Небезпека"
+
+#: snikket_web/templates/admin_delete_circle.html:14
+msgid ""
+"The circle and the corresponding chat will be deleted, permanently and "
+"immediately upon pushing the below button. <strong>There is no way back!</"
+"strong>"
+msgstr ""
+"Коло та відповідний чат будуть видалені, негайно та незворотно, якщо ви "
+"натиснете кнопку нижче. <strong>Їх буде неможливо відновити!</strong>"
+
+#: snikket_web/templates/admin_delete_circle.html:17
+#: snikket_web/templates/admin_delete_user.html:19
+#: snikket_web/templates/admin_reset_user_password.html:25
+#: snikket_web/templates/user_logout.html:10
+#: snikket_web/templates/user_manage_data.html:14
+#: snikket_web/templates/user_passwd.html:27
+#: snikket_web/templates/user_profile.html:32
+msgid "Back"
+msgstr "Назад"
+
+#: snikket_web/templates/admin_delete_user.html:4
+#, python-format
+msgid "Delete user %(user_name)s"
+msgstr "Видалити користувача %(user_name)s"
+
+#: snikket_web/templates/admin_delete_user.html:6
+#: snikket_web/templates/admin_edit_user.html:58
+msgid "Delete user"
+msgstr "Видалити користувача"
+
+#: snikket_web/templates/admin_delete_user.html:8
+msgid "Are you sure you want to delete the following user?"
+msgstr "Дійсно видалити наступного користувача?"
+
+#: snikket_web/templates/admin_delete_user.html:16
+msgid ""
+"The user and their data will be deleted irrevocably, permanently and "
+"immediately upon pushing the below button. <strong>There is no way back!</"
+"strong>"
+msgstr ""
+"Користувач та його дані будуть видалені, негайно та незворотно, якщо ви "
+"натиснете кнопку нижче. <strong>Їх буде неможливо відновити!</strong>"
+
+#: snikket_web/templates/admin_edit_circle.html:14
+msgid "This is your main circle"
+msgstr "Це ваше основне коло"
+
+#: snikket_web/templates/admin_edit_circle.html:15
+msgid "This circle is managed automatically and cannot be removed or renamed."
+msgstr ""
+"Керування цим колом відбувається автоматично, і його неможливо видалити чи "
+"перейменувати."
+
+#: snikket_web/templates/admin_edit_circle.html:19
+msgid "Circle information"
+msgstr "Відомості про коло"
+
+#: snikket_web/templates/admin_edit_circle.html:26
+msgid "Return to circle list"
+msgstr "Повернутися до списку кіл"
+
+#: snikket_web/templates/admin_edit_circle.html:31
+msgid "Deleting a circle does not delete any users in the circle."
+msgstr "При видаленні кола жоден з користувачів цього кола не видаляється."
+
+#: snikket_web/templates/admin_edit_circle.html:38
+msgid "Group chats"
+msgstr "Групові чати"
+
+#: snikket_web/templates/admin_edit_circle.html:39
+msgid "These group chats will be available to all members of the circle."
+msgstr "Ці групові чати будуть доступні всім учасникам кола."
+
+#: snikket_web/templates/admin_edit_circle.html:53
+#, python-format
+msgid "Delete group chat '%(name)s'"
+msgstr "Видалити груповий чат '%(name)s'"
+
+#: snikket_web/templates/admin_edit_circle.html:61
+msgid "This circle currently has no group chats."
+msgstr "У цьому колі наразі немає групових чатів."
+
+#: snikket_web/templates/admin_edit_circle.html:64
+msgid "Add group chat"
+msgstr "Додати груповий чат"
+
+#: snikket_web/templates/admin_edit_circle.html:67
+msgid "Circle members"
+msgstr "Учасники кола"
+
+#: snikket_web/templates/admin_edit_circle.html:68
+msgid "All members of the circle will see each other in their contact list."
+msgstr ""
+"Всі учасники цього кола бачитимуть один одного у своїх списках контактів."
+
+#: snikket_web/templates/admin_edit_circle.html:84
+msgid "The user has been deleted from the server."
+msgstr "Користувача видалено з сервера."
+
+#: snikket_web/templates/admin_edit_circle.html:84
+#: snikket_web/templates/library.j2:152
+msgid "deleted"
+msgstr "видалене"
+
+#: snikket_web/templates/admin_edit_circle.html:89
+#, python-format
+msgid "Remove user %(username)s from circle"
+msgstr "Видалити користувача %(username)s з кола"
+
+#: snikket_web/templates/admin_edit_circle.html:97
+msgid "This circle currently has no members."
+msgstr "У цьому колі наразі немає учасників."
+
+#: snikket_web/templates/admin_edit_circle.html:99
+msgid "Invite more members"
+msgstr "Запросити ще учасників"
+
+#: snikket_web/templates/admin_edit_circle.html:102
+msgid "Add existing user"
+msgstr "Додати наявного користувача"
+
+#: snikket_web/templates/admin_edit_circle.html:113
+msgid "All users added"
+msgstr "Усіх користувачів додано"
+
+#: snikket_web/templates/admin_edit_circle.html:114
+msgid "All users on this service are already in this circle."
+msgstr "Всі користувачі цього сервісу вже увійшли до цього кола."
+
+#: snikket_web/templates/admin_edit_invite.html:8
+msgid "View invitation"
+msgstr "Відомості про запрошення"
+
+#: snikket_web/templates/admin_edit_invite.html:13
+#: snikket_web/templates/admin_reset_user_password.html:15
+msgid "Valid until"
+msgstr "Дійсне до"
+
+#: snikket_web/templates/admin_edit_invite.html:15
+#: snikket_web/templates/admin_reset_user_password.html:17
+msgid "Link"
+msgstr "Посилання"
+
+#: snikket_web/templates/admin_edit_invite.html:16
+#, fuzzy
+#| msgid "Invitation type"
+msgid "Invitation to Snikket"
+msgstr "Тип запрошення"
+
+#: snikket_web/templates/admin_edit_invite.html:23
+#: snikket_web/templates/admin_home.html:19
+msgid "Circles"
+msgstr "Кола"
+
+#: snikket_web/templates/admin_edit_invite.html:24
+msgid ""
+"Users joining via this invitation will be added to the following circles:"
+msgstr ""
+"Користувачів, які приєднуються за цим запрошенням, буде додано до наступних "
+"кіл:"
+
+#: snikket_web/templates/admin_edit_invite.html:30
+#: snikket_web/templates/admin_invites.html:22
+msgid "Circle"
+msgstr "Коло"
+
+#: snikket_web/templates/admin_edit_invite.html:36
+msgid "The user will not be added to any circle and will have no contacts."
+msgstr ""
+"Користувача не буде додано до жодного кола, й у нього не буде контактів."
+
+#: snikket_web/templates/admin_edit_invite.html:41
+msgid "Contact"
+msgstr "Контакт"
+
+#: snikket_web/templates/admin_edit_invite.html:42
+#, python-format
+msgid "The user will get added as contact of %(peer_jid)s."
+msgstr "Користувача буде додано як контакт для %(peer_jid)s."
+
+#: snikket_web/templates/admin_edit_invite.html:44
+msgid "Created"
+msgstr "Створене"
+
+#: snikket_web/templates/admin_edit_invite.html:49
+msgid "Return to invitation list"
+msgstr "Повернутися до списку запрошень"
+
+#: snikket_web/templates/admin_edit_user.html:4
+#: snikket_web/templates/admin_users.html:28
+#, python-format
+msgid "Edit user %(user_name)s"
+msgstr "Редагування користувача %(user_name)s"
+
+#: snikket_web/templates/admin_edit_user.html:8
+msgid "This user account is pending deletion"
+msgstr "Цей обліковий запис користувача очікує на видалення"
+
+#: snikket_web/templates/admin_edit_user.html:9
+#, python-format
+msgid ""
+"The owner of the account sent a deletion request on %(date)s using their app."
+msgstr ""
+"Власник цього облікового запису надіслав запит на видалення %(date)s зі "
+"свого застосунку."
+
+#: snikket_web/templates/admin_edit_user.html:10
+#, python-format
+msgid ""
+"The account has been locked, and will be automatically deleted permanently "
+"in %(time)s."
+msgstr ""
+"Обліковий запис заблоковано та буде автоматично й назавжди видалено через "
+"%(time)s."
+
+#: snikket_web/templates/admin_edit_user.html:12
+msgid ""
+"If this was a mistake, you can cancel the deletion and restore the account."
+msgstr ""
+"Якщо це помилка, ви можете скасувати видалення та відновити обліковий запис."
+
+#: snikket_web/templates/admin_edit_user.html:18
+msgid "This user account is locked"
+msgstr "Цей обліковий запис користувача заблоковано"
+
+#: snikket_web/templates/admin_edit_user.html:19
+msgid ""
+"The user will not be able to log in to their account until it is unlocked "
+"again."
+msgstr ""
+"Користувач не зможе здійснити вхід у свій обліковий запис, доки той не буде "
+"розблоковано."
+
+#: snikket_web/templates/admin_edit_user.html:25
+msgid "Edit user"
+msgstr "Редагування користувача"
+
+#: snikket_web/templates/admin_edit_user.html:30
+msgid "The login name cannot be changed."
+msgstr "Ім’я входу змінювати не можна."
+
+#: snikket_web/templates/admin_edit_user.html:45
+#, python-format
+msgid "<strong>%(title)s%(icon)s</strong><p>%(description)s</p>"
+msgstr "<strong>%(title)s%(icon)s</strong><p>%(description)s</p>"
+
+#: snikket_web/templates/admin_edit_user.html:55
+msgid "Return to user list"
+msgstr "Повернутися до списку користувачів"
+
+#: snikket_web/templates/admin_edit_user.html:63
+msgid "Further actions"
+msgstr "Подальші дії"
+
+#: snikket_web/templates/admin_edit_user.html:65
+msgid "Reset password"
+msgstr "Скидання пароля"
+
+#: snikket_web/templates/admin_edit_user.html:68
+msgid ""
+"If the user has lost their password, you can use the button below to create "
+"a special link which allows to change the password of the account, once."
+msgstr ""
+"Якщо користувач забув чи втратив пароль, натисніть кнопку нижче, щоб "
+"створити особливе посилання, за яким можна буде один раз змінити пароль "
+"облікового запису."
+
+#: snikket_web/templates/admin_edit_user.html:73
+msgid "Debug information"
+msgstr "Відомості для зневадження"
+
+#: snikket_web/templates/admin_edit_user.html:75
+msgid ""
+"In some cases, extended information about the user account and the connected "
+"devices is necessary to troubleshoot issues. The button below reveals this "
+"(sensitive) information."
+msgstr ""
+"У деяких випадках для пошуку та усунення несправностей потрібні розширені "
+"відомості про обліковий запис користувача та про підключені пристрої. Кнопка "
+"нижче показує ці (конфіденційні) відомості."
+
+#: snikket_web/templates/admin_edit_user.html:79
+msgid "Show debug information"
+msgstr "Показати відомості для зневадження"
+
+#: snikket_web/templates/admin_home.html:4
+msgid "Welcome to the admin panel!"
+msgstr "Вітаємо у панелі адміністрування!"
+
+#: snikket_web/templates/admin_home.html:5
+#, python-format
+msgid "At your service, %(user_name)s."
+msgstr "Я до ваших послуг, %(user_name)s."
+
+#: snikket_web/templates/admin_home.html:9
+msgid "Users"
+msgstr "Користувачі"
+
+#: snikket_web/templates/admin_home.html:11
+msgid "Create password reset links or delete users."
+msgstr "Створюйте посилання для скидання пароля або видаляйте користувачів."
+
+#: snikket_web/templates/admin_home.html:15
+#: snikket_web/templates/admin_users.html:4
+msgid "Manage users"
+msgstr "Керування користувачами"
+
+#: snikket_web/templates/admin_home.html:21
+msgid "Create and manage social circles represented on your service."
+msgstr ""
+"Створюйте соціальні кола, представлені у вашому сервісі, та керуйте ними."
+
+#: snikket_web/templates/admin_home.html:27
+msgid "Invitations"
+msgstr "Запрошення"
+
+#: snikket_web/templates/admin_home.html:29
+msgid "Create, revoke or copy invitations."
+msgstr "Створюйте, відкликайте або копіюйте запрошення."
+
+#: snikket_web/templates/admin_home.html:31
+#: snikket_web/templates/admin_invites.html:8
+msgid "Manage invitations"
+msgstr "Керування запрошеннями"
+
+#: snikket_web/templates/admin_home.html:35
+msgid "System health"
+msgstr "Працездатність системи"
+
+#: snikket_web/templates/admin_home.html:38
+msgid "View the server status or send a broadcast message to all users."
+msgstr ""
+"Переглядайте стан сервера або надсилайте широкомовні повідомлення усім "
+"користувачам."
+
+#: snikket_web/templates/admin_home.html:40
+msgid "Send a broadcast message to all users."
+msgstr "Надіслати широкомовне повідомлення усім користувачам."
+
+#: snikket_web/templates/admin_home.html:43
+#: snikket_web/templates/admin_system.html:4
+msgid "Manage system"
+msgstr "Керування системою"
+
+#: snikket_web/templates/admin_home.html:48
+msgid "Go back to your user's web portal page."
+msgstr "Повернутися на вашу сторінку користувача на веб-порталі."
+
+#: snikket_web/templates/admin_home.html:50
+msgid "Exit admin panel"
+msgstr "Вийти з панелі адміністрування"
+
+#: snikket_web/templates/admin_invites.html:10
+msgid "Pending invitations"
+msgstr "Запрошення, що очікують"
+
+#: snikket_web/templates/admin_invites.html:21
+msgid "Type"
+msgstr "Тип"
+
+#: snikket_web/templates/admin_invites.html:23
+msgid "Expires"
+msgstr "Строк дії спливає"
+
+#: snikket_web/templates/admin_invites.html:24
+msgid "Comment"
+msgstr ""
+
+#: snikket_web/templates/admin_invites.html:46
+msgid "Show invite details"
+msgstr "Показати подробиці запрошення"
+
+#: snikket_web/templates/admin_invites.html:49
+msgid "Copy invite link to clipboard"
+msgstr "Копіювати посилання з запрошенням у буфер обміну"
+
+#: snikket_web/templates/admin_invites.html:52
+#, fuzzy
+#| msgid "New invitation link"
+msgid "Share invitation link"
+msgstr "Посилання на нове запрошення"
+
+#: snikket_web/templates/admin_invites.html:55
+msgid "Delete invitation"
+msgstr "Видалити запрошення"
+
+#: snikket_web/templates/admin_invites.html:63
+msgid "Currently, there are no pending invitations."
+msgstr "Наразі немає запрошень, що очікують."
+
+#: snikket_web/templates/admin_reset_user_password.html:8
+msgid "Password reset"
+msgstr "Скидання пароля"
+
+#: snikket_web/templates/admin_reset_user_password.html:12
+#, python-format
+msgid "Password reset link for %(user_name)s"
+msgstr "Посилання для скидання пароля для користувача %(user_name)s"
+
+#: snikket_web/templates/admin_reset_user_password.html:13
+msgid ""
+"The following link will allow the user to reset their password on their "
+"device, once."
+msgstr ""
+"Наступне посилання дасть змогу користувачеві один раз скинути пароль зі "
+"свого пристрою."
+
+#: snikket_web/templates/admin_reset_user_password.html:22
+msgid "Destroy link"
+msgstr "Видалити посилання"
+
+#: snikket_web/templates/admin_system.html:6
+msgid "Overall system status"
+msgstr "Загальний стан системи"
+
+#: snikket_web/templates/admin_system.html:9
+msgid "System load (5 minute average)"
+msgstr "Завантаження системи (усереднене за 5 хвилин)"
+
+#: snikket_web/templates/admin_system.html:14
+#: snikket_web/templates/admin_system.html:22
+#: snikket_web/templates/admin_system.html:37
+#: snikket_web/templates/admin_system.html:45
+#: snikket_web/templates/admin_system.html:60
+#: snikket_web/templates/admin_system.html:68
+#: snikket_web/templates/admin_system.html:76
+#: snikket_web/templates/admin_system.html:85
+msgid "unknown"
+msgstr "невідомо"
+
+#: snikket_web/templates/admin_system.html:17
+msgid "Memory use"
+msgstr "Використання пам’яті"
+
+#: snikket_web/templates/admin_system.html:20
+#, python-format
+msgid ""
+"%(percentage_global)s of %(mem_available)s. Of that, Snikket uses "
+"%(percentage_snikket)s."
+msgstr ""
+"%(percentage_global)s з %(mem_available)s. З цього об’єму Snikket "
+"використовує %(percentage_snikket)s."
+
+#: snikket_web/templates/admin_system.html:27
+msgid "Web portal status"
+msgstr "Стан веб-порталу"
+
+#: snikket_web/templates/admin_system.html:30
+#: snikket_web/templates/admin_system.html:53
+msgid "Version"
+msgstr "Версія"
+
+#: snikket_web/templates/admin_system.html:31
+#: snikket_web/templates/admin_system.html:54
+msgid "View all versions"
+msgstr "Переглянути усі версії"
+
+#: snikket_web/templates/admin_system.html:32
+#: snikket_web/templates/admin_system.html:55
+msgid "Average CPU use"
+msgstr "Середнє використання ЦП"
+
+#: snikket_web/templates/admin_system.html:40
+#: snikket_web/templates/admin_system.html:63
+msgid "Current memory use"
+msgstr "Поточне використання пам’яті"
+
+#: snikket_web/templates/admin_system.html:50
+msgid "Snikket server status"
+msgstr "Стан сервера Snikket"
+
+#: snikket_web/templates/admin_system.html:71
+msgid "Storage used by shared files"
+msgstr "Об’єм пам’яті, зайнятої спільними файлами"
+
+#: snikket_web/templates/admin_system.html:79
+#, fuzzy
+#| msgid "Update user"
+msgid "Active users"
+msgstr "Оновити користувача"
+
+#: snikket_web/templates/admin_system.html:83
+#, fuzzy
+#| msgid "Connected devices"
+msgid "Connected now:"
+msgstr "Кількість підключених пристроїв"
+
+#: snikket_web/templates/admin_system.html:88
+msgid "Past 24 hours:"
+msgstr ""
+
+#: snikket_web/templates/admin_system.html:89
+msgid "Past 7 days:"
+msgstr ""
+
+#: snikket_web/templates/admin_system.html:90
+msgid "Past 30 days:"
+msgstr ""
+
+#: snikket_web/templates/admin_system.html:97
+msgid "Broadcast message"
+msgstr "Широкомовна розсилка повідомлення"
+
+#: snikket_web/templates/admin_system.html:99
+msgid ""
+"This form allows you to send a message to all users currently online on your "
+"Snikket server. Use it wisely."
+msgstr ""
+"Ця форма дає змогу надіслати повідомлення усім користувачам, котрі наразі "
+"онлайн на вашому сервері Snikket. Користуйтеся нею розважливо."
+
+#: snikket_web/templates/admin_users.html:8
+msgid "User"
+msgstr "Користувач"
+
+#: snikket_web/templates/admin_users.html:9
+msgid "Last active"
+msgstr "Останні дії"
+
+#: snikket_web/templates/admin_users.html:22
+msgid "Deleted"
+msgstr "Видалений"
+
+#: snikket_web/templates/admin_users.html:24
+msgid "Locked"
+msgstr "Заблокований"
+
+#: snikket_web/templates/app.html:4
+msgid "Snikket Web Portal"
+msgstr "Веб-портал Snikket"
+
+#: snikket_web/templates/app.html:8
+msgid "Log out"
+msgstr "Вийти"
+
+#: snikket_web/templates/backend_error.html:3
+#: snikket_web/templates/exception.html:3
+#: snikket_web/templates/internal_error.html:3
+msgid "Internal error"
+msgstr "Внутрішня помилка"
+
+#: snikket_web/templates/backend_error.html:4
+msgid "The web portal was not able to communicate with the backend."
+msgstr "Веб-портал не зміг зв’язатися зі внутрішнім сервером (бекендом)."
+
+#: snikket_web/templates/backend_error.html:5
+#: snikket_web/templates/internal_error.html:5
+msgid "Please try again later and/or inform your Snikket service admin."
+msgstr ""
+"Спробуйте ще раз та/або повідомте про це адміністраторові вашого сервісу "
+"Snikket."
+
+#: snikket_web/templates/generic_http_error.html:9
+msgid "Go back to the main page"
+msgstr "Повернутися на головну сторінку"
+
+#: snikket_web/templates/internal_error.html:4
+msgid "The web portal encountered an internal error."
+msgstr "На веб-порталі відбулася внутрішня помилка."
+
+#: snikket_web/templates/invite_invalid.html:5
+#: snikket_web/templates/invite_view.html:13
+#, python-format
+msgid "Invite to %(site_name)s"
+msgstr "Запрошуємо у %(site_name)s"
+
+#: snikket_web/templates/invite_invalid.html:6
+#: snikket_web/templates/invite_register.html:10
+#: snikket_web/templates/invite_success.html:11
+#: snikket_web/templates/invite_view.html:14
+#, python-format
+msgid "Powered by <img src=\"%(logo_url)s\" alt=\"Snikket\">"
+msgstr "Працює на технології <img src=\"%(logo_url)s\" alt=\"Snikket\">"
+
+#: snikket_web/templates/invite_invalid.html:8
+msgid "Invite expired"
+msgstr "Термін дії запрошення сплив"
+
+#: snikket_web/templates/invite_invalid.html:9
+msgid "Sorry, it looks like this invitation link has expired!"
+msgstr "Вибачте, схоже, що термін дії посилання із запрошенням вже сплив!"
+
+#: snikket_web/templates/invite_register.html:5
+#, python-format
+msgid "Register on %(site_name)s | Snikket"
+msgstr "Реєстрація у %(site_name)s | Snikket"
+
+#: snikket_web/templates/invite_register.html:9
+#, python-format
+msgid "Register on %(site_name)s"
+msgstr "Реєстрація у %(site_name)s"
+
+#: snikket_web/templates/invite_register.html:11
+#, python-format
+msgid "%(site_name)s is using Snikket - a secure, privacy-friendly chat app."
+msgstr ""
+"%(site_name)s використовує Snikket — безпечний застосунок чату, що сприяє "
+"конфіденційності."
+
+#: snikket_web/templates/invite_register.html:12
+msgid "Create an account"
+msgstr "Створити обліковий запис"
+
+#: snikket_web/templates/invite_register.html:13
+msgid ""
+"Creating an account will allow to communicate with other people using the "
+"Snikket app or compatible software. If you already have the app installed, "
+"we recommend that you continue the account creation process inside the app "
+"by clicking on the button below:"
+msgstr ""
+"Після створення облікового запису ви зможете спілкуватися з іншими, "
+"використовуючи застосунок Snikket або сумісне програмне забезпечення. Якщо "
+"ви вже встановили застосунок, рекомендуємо продовжити створення облікового "
+"запису в застосунку, для цього натисніть кнопку нижче:"
+
+#: snikket_web/templates/invite_register.html:14
+#: snikket_web/templates/invite_view.html:46
+msgid "App already installed?"
+msgstr "Вже встановили застосунок?"
+
+#: snikket_web/templates/invite_register.html:16
+#: snikket_web/templates/invite_reset_view.html:21
+#: snikket_web/templates/invite_view.html:48
+#: snikket_web/templates/invite_view.html:91
+#: snikket_web/templates/invite_view.html:119
+msgid "Open the app"
+msgstr "Відкрити застосунок"
+
+#: snikket_web/templates/invite_register.html:18
+#: snikket_web/templates/invite_view.html:50
+msgid "This button works only if you have the app installed already!"
+msgstr "Ця кнопка працює лише за умови, що ви вже встановили застосунок!"
+
+#: snikket_web/templates/invite_register.html:19
+msgid "Create an account online"
+msgstr "Створити обліковий запис онлайн"
+
+#: snikket_web/templates/invite_register.html:20
+msgid ""
+"If you plan to use a legacy XMPP client, you can register an account online "
+"and enter your credentials into any XMPP-compatible software."
+msgstr ""
+"Якщо ви плануєте використовувати застарілий клієнт XMPP, можна зареєструвати "
+"обліковий запис на веб-сторінці, а потім ввести ваші облікові дані у будь-"
+"якій XMPP-сумісній програмі."
+
+#: snikket_web/templates/invite_register.html:27
+msgid ""
+"Choose a username, this will become the first part of your new chat address."
+msgstr ""
+"Виберіть ім’я користувача — воно стане першою частиною вашої нової адреси у "
+"чаті."
+
+#: snikket_web/templates/invite_register.html:32
+msgid "Enter a secure password that you do not use anywhere else."
+msgstr "Введіть надійний пароль, яким ви не користуєтесь будь-де ще."
+
+#: snikket_web/templates/invite_reset.html:9
+#: snikket_web/templates/invite_reset_view.html:9
+msgid "Reset your password | Snikket"
+msgstr "Скинути пароль | Snikket"
+
+#: snikket_web/templates/invite_reset.html:14
+msgid "Reset your password online"
+msgstr "Скидання пароля онлайн"
+
+#: snikket_web/templates/invite_reset.html:15
+msgid ""
+"To reset your password online, fill out the fields below and confirm using "
+"the button."
+msgstr ""
+"Щоб скинути ваш пароль онлайн, заповніть поля нижче та підтвердіть дію "
+"натиском кнопки."
+
+#: snikket_web/templates/invite_reset_success.html:5
+msgid "Password reset successful | Snikket"
+msgstr "Пароль успішно скинуто | Snikket"
+
+#: snikket_web/templates/invite_reset_success.html:8
+msgid "Password reset successful"
+msgstr "Пароль успішно скинуто"
+
+#: snikket_web/templates/invite_reset_success.html:10
+msgid "Your password has been changed"
+msgstr "Ваш пароль змінено"
+
+#: snikket_web/templates/invite_reset_success.html:11
+msgid "You can now log in using your new password."
+msgstr "Тепер ви можете увійти в систему з використанням свого нового пароля."
+
+#: snikket_web/templates/invite_reset_success.html:12
+msgid "You can now safely close this page."
+msgstr "Цю сторінку можна безпечно закрити."
+
+#: snikket_web/templates/invite_reset_view.html:14
+msgid "Reset your password"
+msgstr "Скидання вашого пароля"
+
+#: snikket_web/templates/invite_reset_view.html:15
+#, python-format
+msgid ""
+"This page allows you to reset the password of your account, <strong>"
+"%(account_jid)s</strong>, once."
+msgstr ""
+"Ця сторінка дає змогу одноразово скинути пароль вашого облікового запису, "
+"<strong>%(account_jid)s</strong>."
+
+#: snikket_web/templates/invite_reset_view.html:17
+msgid "Using the app"
+msgstr "З використанням застосунку"
+
+#: snikket_web/templates/invite_reset_view.html:18
+msgid "To reset your password using the Snikket App, tap the button below."
+msgstr ""
+"Щоб скинути ваш пароль за допомоги застосунку Snikket, натисніть кнопку "
+"нижче."
+
+#: snikket_web/templates/invite_reset_view.html:25
+msgid ""
+"Alternatively, you can scan the below code with the Snikket App using the "
+"Scan button at the top."
+msgstr ""
+"Замість цього також можна відсканувати наведений нижче QR-код із застосунку "
+"Snikket, для цього натисніть кнопку Сканування вгорі застосунку."
+
+#: snikket_web/templates/invite_reset_view.html:26
+msgid ""
+"Your camera will turn on. Point it at the square code below until it is "
+"within the highlighted square on your screen, and wait until the app "
+"recognises it."
+msgstr ""
+"Ваша камера увімкнеться. Наведіть її на квадрат з QR-кодом нижче, щоб він "
+"був у межах виділеного квадрата на вашому екрані, та зачекайте, доки "
+"застосунок розпізнає її."
+
+#: snikket_web/templates/invite_reset_view.html:27
+msgid "You will then be prompted to enter a new password for your account."
+msgstr ""
+"Тоді ви отримаєте запит для вводу нового паролю вашого облікового запису."
+
+#: snikket_web/templates/invite_reset_view.html:29
+#: snikket_web/templates/invite_view.html:52
+msgid "Alternatives"
+msgstr "Альтернативні варіанти"
+
+#: snikket_web/templates/invite_reset_view.html:30
+#, python-format
+msgid ""
+"You can also <a href=\"%(reset_url)s\">reset your password online</a> if the "
+"above button or scanning the QR code does not work for you."
+msgstr ""
+"Також можна <a href=\"%(reset_url)s\">скинути пароль на веб-сторінці</a>, "
+"якщо кнопка вище або сканування QR-коду для вас не спрацювали."
+
+#: snikket_web/templates/invite_success.html:5
+#, python-format
+msgid "Successfully registered on %(site_name)s | Snikket"
+msgstr "Успішна реєстрація на %(site_name)s | Snikket"
+
+#: snikket_web/templates/invite_success.html:10
+#, python-format
+msgid "Successfully registered on %(site_name)s"
+msgstr "Успішна реєстрація на %(site_name)s"
+
+#: snikket_web/templates/invite_success.html:12
+#, python-format
+msgid ""
+"Congratulations! You successfully registered on %(site_name)s as %(jid)s."
+msgstr "Вітаємо! Ви успішно зареєструвалися на %(site_name)s, як %(jid)s."
+
+#: snikket_web/templates/invite_success.html:13
+msgid "Your address"
+msgstr "Ваша адреса"
+
+#: snikket_web/templates/invite_success.html:15
+#: snikket_web/templates/user_home.html:26
+msgid "Copy address"
+msgstr "Копіювати адресу"
+
+#: snikket_web/templates/invite_success.html:17
+msgid ""
+"You can now set up your legacy XMPP client with the above address and the "
+"password you chose during registration."
+msgstr ""
+"Тепер ви можете налаштувати свій застарілий клієнт XMPP. Вкажіть у ньому "
+"зазначену вище адресу та пароль, який ви вибрали під час реєстрації."
+
+#: snikket_web/templates/invite_success.html:18
+#, python-format
+msgid ""
+"You can now safely close this page, or log in to the web portal to <a href="
+"\"%(login_url)s\">manage your account</a>."
+msgstr ""
+"Цю сторінку можна безпечно закрити. Також можна перейти на веб-портал для <a "
+"href=\"%(login_url)s\">управління вашим обліковим записом</a>."
+
+#: snikket_web/templates/invite_success.html:21
+msgid "Import successful"
+msgstr "Імпорт виконано успішно"
+
+#: snikket_web/templates/invite_success.html:22
+msgid "Congratulations! Your account data has been successfully imported."
+msgstr "Вітаємо! Дані вашого облікового запису успішно імпортовані."
+
+#: snikket_web/templates/invite_success.html:26
+msgid "Moving to Snikket?"
+msgstr "Переходите на Snikket?"
+
+#: snikket_web/templates/invite_success.html:27
+msgid ""
+"If you are moving from a different Snikket instance or another XMPP-"
+"compatible service, you may optionally import the data (contacts, profile "
+"information, etc.) from your previous account. When you have exported the "
+"data from your previous account, upload it using the form below."
+msgstr ""
+"Якщо ви переходите з іншого екземпляра Snikket або з іншого XMPP-сумісного "
+"сервісу, ви можете за бажанням імпортувати дані (контакти, відомості профілю "
+"тощо) з вашого попереднього облікового запису. Коли виконаєте експорт даних "
+"зі свого попереднього облікового запису, завантажте їх у форму нижче."
+
+#: snikket_web/templates/invite_success.html:30
+msgid "Upload account data"
+msgstr "Завантаження даних облікового запису"
+
+#: snikket_web/templates/invite_view.html:6
+#, python-format
+msgid "Invite to %(site_name)s | Snikket"
+msgstr "Запрошення на %(site_name)s | Snikket"
+
+#: snikket_web/templates/invite_view.html:16
+#, python-format
+msgid ""
+"You have been invited to chat with %(inviter_name)s using Snikket, a secure, "
+"privacy-friendly chat app on %(site_name)s."
+msgstr ""
+"Вас запросили у чат з %(inviter_name)s у Snikket — безпечний, конфіденційний "
+"застосунок для чату на %(site_name)s."
+
+#: snikket_web/templates/invite_view.html:18
+#, python-format
+msgid ""
+"You have been invited to chat on %(site_name)s using Snikket, a secure, "
+"privacy-friendly chat app."
+msgstr ""
+"Вас запросили у чат на %(site_name)s у Snikket — безпечний, конфіденційний "
+"застосунок чату."
+
+#: snikket_web/templates/invite_view.html:23
+#, python-format
+msgid ""
+"By continuing, you agree to the <a href=\"%(tos_uri)s\">Terms of Service</a> "
+"and <a href=\"%(privacy_uri)s\">Privacy Policy</a>."
+msgstr ""
+"Продовжуючи, ви приймаєте <a href=\"%(tos_uri)s\">Умови використання</a> та "
+"<a href=\"%(privacy_uri)s\">Політику конфіденційності</a>."
+
+#: snikket_web/templates/invite_view.html:27
+msgid "Get started"
+msgstr "Почати"
+
+#: snikket_web/templates/invite_view.html:29
+msgid "Install the Snikket App on your Android or iOS device."
+msgstr "Встановіть застосунок Snikket на ваш пристрій Android або iOS."
+
+#: snikket_web/templates/invite_view.html:31
+#, python-format
+msgid ""
+"Install the Snikket App on your Android device (<a href=\"%(ios_info_url)s\" "
+"rel=\"noopener noreferrer\" target=\"_blank\">iOS coming soon!</a>)."
+msgstr ""
+"Встановіть застосунок Snikket на ваш пристрій Android (<a href="
+"\"%(ios_info_url)s\" rel=\"noopener noreferrer\" target=\"_blank\">невдовзі "
+"стане доступна й версія для iOS!</a>)."
+
+#: snikket_web/templates/invite_view.html:35
+msgid "Get it on Google Play"
+msgstr "Отримати його на Google Play"
+
+#: snikket_web/templates/invite_view.html:37
+#: snikket_web/templates/invite_view.html:87
+msgid "Download on the App Store"
+msgstr "Завантажити з App Store"
+
+#: snikket_web/templates/invite_view.html:39
+msgid "Get it on F-Droid"
+msgstr "Отримати на F-Droid"
+
+#: snikket_web/templates/invite_view.html:42
+msgid "Send to mobile device"
+msgstr "Надіслати на мобільний пристрій"
+
+#: snikket_web/templates/invite_view.html:45
+msgid ""
+"After installation the app should automatically open and prompt you to "
+"create an account. If not, simply click the button below."
+msgstr ""
+"Після встановлення застосунок має автоматично відкритися та запропонувати "
+"вам створити обліковий запис. Якщо цього не трапиться, просто натисніть "
+"кнопку нижче."
+
+#: snikket_web/templates/invite_view.html:53
+#, python-format
+msgid ""
+"You can connect to Snikket using any XMPP-compatible software. If the button "
+"above does not work with your app, you may need to <a href=\"%(register_url)s"
+"\">register an account manually</a>."
+msgstr ""
+"Підключитися до Snikket можна з будь-якої програми, сумісної з XMPP. Якщо "
+"кнопка вище не спрацювала з вашою програмою, може знадобитися <a href="
+"\"%(register_url)s\">зареєструвати обліковий запис вручну</a>."
+
+#: snikket_web/templates/invite_view.html:59
+msgid "Scan invite code"
+msgstr "Сканувати код запрошення"
+
+#: snikket_web/templates/invite_view.html:62
+#: snikket_web/templates/invite_view.html:69
+#: snikket_web/templates/invite_view.html:81
+#: snikket_web/templates/invite_view.html:97
+#: snikket_web/templates/invite_view.html:109
+#: snikket_web/templates/invite_view.html:125
+msgid "Close"
+msgstr "Закрити"
+
+#: snikket_web/templates/invite_view.html:65
+msgid ""
+"You can transfer this invite to your mobile device by scanning a code with "
+"your camera. You can use either a QR scanner app or the Snikket app itself."
+msgstr ""
+"Це запрошення можна перенести на ваш мобільний пристрій — відскануйте код "
+"своєю камерою. Це можна зробити у застосунку сканера QR-кодів або з самого "
+"застосунку Snikket."
+
+#: snikket_web/templates/invite_view.html:78
+msgid "Install on iOS"
+msgstr "Встановити на iOS"
+
+#: snikket_web/templates/invite_view.html:84
+msgid ""
+"After downloading Snikket from the App Store, you have to return to this "
+"invite link and tap on \"Open the app\" to proceed."
+msgstr ""
+"Після завантаження Snikket з App Store поверніться до цього посилання з "
+"запрошенням і натисніть «Відкрити застосунок», щоб продовжити."
+
+#: snikket_web/templates/invite_view.html:86
+msgid "First download Snikket from the App Store using the button below:"
+msgstr "Спочатку завантажте Snikket із App Store — натисніть кнопку нижче:"
+
+#: snikket_web/templates/invite_view.html:88
+#: snikket_web/templates/invite_view.html:116
+msgid ""
+"After the installation is complete, you can return to this page and tap the "
+"\"Open the app\" button to continue with the setup:"
+msgstr ""
+"Коли встановлення завершиться, можна повернутися на цю сторінку та натиснути "
+"кнопку «Відкрити застосунок», щоб продовжити налаштування:"
+
+#: snikket_web/templates/invite_view.html:106
+#: snikket_web/templates/invite_view.html:115
+msgid "Install via F-Droid"
+msgstr "Встановити через F-Droid"
+
+#: snikket_web/templates/invite_view.html:112
+msgid ""
+"After installing Snikket via F-Droid, you have to return to this invite link "
+"and tap on \"Open the app\" to proceed."
+msgstr ""
+"Після встановлення Snikket через F-Droid поверніться до цього посилання з "
+"запрошенням і натисніть «Відкрити застосунок», щоб продовжити."
+
+#: snikket_web/templates/invite_view.html:114
+msgid "First install Snikket from F-Droid using the button below:"
+msgstr ""
+"Спочатку встановіть Snikket з F-Droid, для цього натисніть кнопку нижче:"
+
+#: snikket_web/templates/library.j2:19
+msgid "The user is an administrator."
+msgstr "Цей користувач — адміністратор."
+
+#: snikket_web/templates/library.j2:19
+msgid " (Administrator)"
+msgstr " (Адміністратор)"
+
+#: snikket_web/templates/library.j2:23
+msgid "The user is restricted."
+msgstr "Користувача обмежено."
+
+#: snikket_web/templates/library.j2:23
+msgid " (Restricted)"
+msgstr " (Обмежений)"
+
+#: snikket_web/templates/library.j2:42
+msgid "Copy link"
+msgstr "Копіювати посилання"
+
+#: snikket_web/templates/library.j2:43
+msgid "Share"
+msgstr ""
+
+#: snikket_web/templates/library.j2:125
+msgid "Invalid input"
+msgstr "Введені хибні дані"
+
+#: snikket_web/templates/library.j2:166
+msgid ""
+"Limited users can interact with users on the same Snikket service and be "
+"members of circles."
+msgstr ""
+"Користувачі з обмеженим доступом можуть взаємодіяти з користувачами на тому "
+"ж сервісі Snikket, а також входити у кола."
+
+#: snikket_web/templates/library.j2:168
+msgid ""
+"Like limited users and can also interact with users on other Snikket "
+"services."
+msgstr ""
+"Подібні до користувачів з обмеженим доступом, але також можуть взаємодіяти з "
+"користувачами інших сервісів Snikket."
+
+#: snikket_web/templates/library.j2:170
+msgid "Like normal users and can access the admin panel in the web portal."
+msgstr ""
+"Подібні до звичайних користувачів, але також мають доступ до панелі "
+"адміністрування веб-порталу."
+
+#: snikket_web/templates/library.j2:184
+msgid "Invite a single person (invitation link can only be used once)."
+msgstr ""
+
+#: snikket_web/templates/library.j2:186
+msgid "Invite a group of people (invitation link can be used multiple times)."
+msgstr ""
+
+#: snikket_web/templates/login.html:5
+msgid "Snikket Login"
+msgstr "Вхід у Snikket"
+
+#: snikket_web/templates/login.html:14
+msgid "Enter your Snikket address and password to manage your account."
+msgstr ""
+"Введіть свої адресу Snikket та пароль, щоб керувати вашим обліковим записом."
+
+#: snikket_web/templates/login.html:19
+msgid "Incorrect address"
+msgstr "Хибна адреса"
+
+#: snikket_web/templates/login.html:20
+#, python-format
+msgid ""
+"This Snikket service only hosts addresses ending in <em>@%(snikket_domain)s</"
+"em>. Your password was not sent."
+msgstr ""
+"На цьому сервісі Snikket розміщені тільки адреси, що закінчуються на <em>@"
+"%(snikket_domain)s</em>. Ваш пароль не було надіслано."
+
+#: snikket_web/templates/policies.html:4 snikket_web/templates/policies.html:10
+msgid "Policies"
+msgstr "Політики"
+
+#: snikket_web/templates/policies.html:13
+msgid "Use of this service is subject to the following policies:"
+msgstr "Використання цього сервісу керується наступними політиками та умовами:"
+
+#: snikket_web/templates/policies.html:16
+msgid "Terms of Service"
+msgstr "Умови використання"
+
+#: snikket_web/templates/policies.html:19
+msgid "Privacy Policy"
+msgstr "Політика конфіденційності"
+
+#: snikket_web/templates/policies.html:23
+msgid ""
+"Please contact the administrator of this instance if you have questions "
+"about policies."
+msgstr ""
+"Якщо у вас виникнуть питання стосовно політик, зверніться до адміністратора "
+"цього екземпляра."
+
+#: snikket_web/templates/policies.html:26
+#, python-format
+msgid ""
+"Use of the Snikket apps is subject to the <a href=\"%(url)s\">Snikket Apps "
+"Privacy Policy</a>."
+msgstr ""
+"Використання застосунків Snikket регулюється <a href=\"%(url)s\">Політикою "
+"конфіденційності застосунків Snikket</a>."
+
+#: snikket_web/templates/policies.html:29
+#, python-format
+msgid ""
+"To report policy violations or other abuse from this service, please send an "
+"email to %(email)s. Specify the domain name of this instance (%(domain)s) "
+"and include details of the incident(s)."
+msgstr ""
+"Щоб повідомити про порушення політики чи інші зловживання на цьому сервісі, "
+"надішліть лист на адресу ел. пошти %(email)s. Зазначте доменне ім’я цього "
+"екземпляра (%(domain)s), а також повідомте подробиці інцидента(-ів)."
+
+#: snikket_web/templates/unauth.html:16
+msgid "Operation successful"
+msgstr "Операція успішна"
+
+#: snikket_web/templates/user_home.html:11
+#, fuzzy
+#| msgid "Moving to Snikket?"
+msgid "Welcome to Snikket!"
+msgstr "Переходите на Snikket?"
+
+#: snikket_web/templates/user_home.html:12
+msgid ""
+"Now your Snikket instance is up and running, the next step is to invite "
+"people to join it. Family, friends, colleagues... you choose!"
+msgstr ""
+
+#: snikket_web/templates/user_home.html:19
+msgid "Your account"
+msgstr "Ваш обліковий запис"
+
+#: snikket_web/templates/user_home.html:25
+msgid "Your XMPP address"
+msgstr "Ваша адреса XMPP"
+
+#: snikket_web/templates/user_home.html:36
+msgid "Edit profile"
+msgstr "Редагувати профіль"
+
+#: snikket_web/templates/user_home.html:38
+#: snikket_web/templates/user_manage_data.html:4
+msgid "Manage your data"
+msgstr "Керувати вашими даними"
+
+#: snikket_web/templates/user_home.html:44
+msgid "Your Snikket"
+msgstr "Ваш Snikket"
+
+#: snikket_web/templates/user_home.html:46
+msgid "Manage users, invitations and circles of your Snikket service."
+msgstr ""
+"Керуйте користувачами, запрошеннями та колами на вашому сервісі Snikket."
+
+#: snikket_web/templates/user_home.html:48
+msgid "Admin panel"
+msgstr "Панель адміністрування"
+
+#: snikket_web/templates/user_logout.html:5
+msgid "Sign out of the Snikket Web Portal"
+msgstr "Вийти з веб-порталу Snikket"
+
+#: snikket_web/templates/user_logout.html:6
+msgid ""
+"Click below to log yourself out of the web portal. This does not affect any "
+"other connected devices."
+msgstr ""
+"Натисніть нижче, щоб вийти з веб-порталу. Ця дія не вплине на інші "
+"підключені пристрої."
+
+#: snikket_web/templates/user_manage_data.html:8
+msgid "Export account"
+msgstr "Експорт облікового запису"
+
+#: snikket_web/templates/user_manage_data.html:9
+msgid ""
+"Download your account data as a file for backup purposes or to move your "
+"account to another service."
+msgstr ""
+"Завантажте дані свого облікового запису у файл, щоб мати резервну копію або "
+"перенести ваш обліковий запис на інший сервіс."
+
+#: snikket_web/templates/user_passwd.html:5
+msgid "Change your password"
+msgstr "Змінити ваш пароль"
+
+#: snikket_web/templates/user_passwd.html:6
+msgid ""
+"To change your password, you need to provide the current password as well as "
+"the new one. To reduce the chance of typos, we ask for your new password "
+"twice."
+msgstr ""
+"Щоб змінити пароль, вам треба буде ввести поточний пароль, а також новий. "
+"Для уникнення помилок новий пароль необхідно набрати двічі."
+
+#: snikket_web/templates/user_passwd.html:24
+msgid ""
+"After changing your password, you will have to enter the new password on all "
+"of your devices."
+msgstr ""
+"Після зміни пароля вам доведеться ввести новий пароль на кожному з ваших "
+"пристроїв."
+
+#: snikket_web/templates/user_profile.html:4
+msgid "Update your profile"
+msgstr "Оновити профіль"
+
+#: snikket_web/templates/user_profile.html:6
+msgid "Profile"
+msgstr "Профіль"
+
+#: snikket_web/templates/user_profile.html:23
+msgid "Visibility"
+msgstr "Видимість"
+
+#: snikket_web/templates/user_profile.html:24
+msgid ""
+"This section allows you to control who can see your profile information, "
+"like avatar and nickname."
+msgstr ""
+"Цей розділ дає змогу визначити, хто зможе бачити відомості з вашого профілю, "
+"такі як аватар чи нікнейм."
+
+#~ msgid ""
+#~ "Can be used multiple times to create accounts on this Snikket service."
+#~ msgstr ""
+#~ "Може використовуватися багаторазово для створення облікових записів на "
+#~ "цьому сервісі Snikket."
+
+#~ msgid "Can be used once to create an account on this Snikket service."
+#~ msgstr ""
+#~ "Може бути використане один раз для створення облікового запису на цьому "
+#~ "сервісі Snikket."
+
+#~ msgid "Welcome!"
+#~ msgstr "Вітаємо!"
+
+#, python-format
+#~ msgid "Welcome home, %(user_name)s."
+#~ msgstr "Вітаємо вдома, %(user_name)s."
