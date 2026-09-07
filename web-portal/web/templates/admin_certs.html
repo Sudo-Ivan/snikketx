@@ -1,0 +1,35 @@
+{{define "content"}}
+<div class="page-head">
+	<p class="muted">TLS expiry timeline for the chat domain, groups and share hosts, plus SRV checks.</p>
+</div>
+
+<div class="card card-flush table-wrap">
+	<table class="table">
+		<thead>
+			<tr>
+				<th scope="col">Host</th>
+				<th scope="col">Role</th>
+				<th scope="col">State</th>
+				<th scope="col">Detail</th>
+				<th scope="col">DNS</th>
+				<th scope="col">SRV</th>
+				<th scope="col">Latency</th>
+			</tr>
+		</thead>
+		<tbody>
+			{{range .Hosts}}
+			<tr>
+				<th scope="row" class="mono">{{.Host}}</th>
+				<td>{{.Role}}</td>
+				<td>{{if .OK}}<span class="badge badge-ok">OK</span>{{else}}<span class="badge badge-warn">Check</span>{{end}}</td>
+				<td class="muted">{{.Detail}}{{if .DaysLeft}} ({{.DaysLeft}}d){{end}}</td>
+				<td class="mono muted">{{range .Addresses}}{{.}} {{end}}</td>
+				<td class="mono muted">{{range .SRV}}{{.}} {{else}}-{{end}}</td>
+				<td class="muted mono">{{orDefault .Latency "-"}}</td>
+			</tr>
+			{{end}}
+		</tbody>
+	</table>
+</div>
+<p class="muted">CAA records are not always readable through the portal resolver. Confirm with your DNS host if issuance should be locked down. ACME last-renew timestamps live in the certificate manager logs on the host, not in Prosody.</p>
+{{end}}

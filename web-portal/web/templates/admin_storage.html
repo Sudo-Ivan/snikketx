@@ -1,0 +1,60 @@
+{{define "content"}}
+<div class="page-head">
+	<p class="muted">HTTP upload quota, largest blobs and orphaned files on {{orDefault .Info.Host (printf "share.%s" .Domain)}}.</p>
+	<form method="post" action="/admin/storage" class="toolbar-actions">
+		{{csrf .CSRF}}
+		<input type="hidden" name="mode" value="orphans">
+		<button type="submit" class="btn btn-secondary">{{template "icon" "trash"}}<span>Purge orphans</span></button>
+	</form>
+</div>
+
+{{if .Note}}
+<div class="toast toast-warning" data-toast role="status">
+	{{template "icon" "alert-triangle"}}
+	<p>{{.Note}}</p>
+	<button type="button" class="toast-dismiss" data-toast-dismiss aria-label="Dismiss">{{template "icon" "x"}}</button>
+</div>
+{{end}}
+
+<div class="stats">
+	<div class="stat"><span class="stat-label">Used</span><span class="stat-value">{{formatBytes .Info.UsedBytes}}</span></div>
+	<div class="stat"><span class="stat-label">Files</span><span class="stat-value">{{.Info.FileCount}}</span></div>
+	<div class="stat"><span class="stat-label">Orphans</span><span class="stat-value">{{.Info.OrphanCount}}</span></div>
+	{{with .Info.GlobalQuotaGB}}<div class="stat"><span class="stat-label">Quota</span><span class="stat-value">{{.}} GB</span></div>{{end}}
+	<div class="stat"><span class="stat-label">Retention</span><span class="stat-value">{{.Info.RetentionDays}}d</span></div>
+</div>
+
+<form method="post" action="/admin/storage" class="toolbar" style="margin-top:1rem">
+	{{csrf .CSRF}}
+	<input type="hidden" name="mode" value="expired">
+	<button type="submit" class="btn btn-ghost">{{template "icon" "clock"}}<span>Purge expired</span></button>
+</form>
+
+{{if .Info.Largest}}
+<section class="card card-flush table-wrap">
+	<h2 class="sr-only">Largest files</h2>
+	<table class="table">
+		<thead>
+			<tr>
+				<th scope="col">Name</th>
+				<th scope="col">Uploader</th>
+				<th scope="col">Size</th>
+				<th scope="col">When</th>
+			</tr>
+		</thead>
+		<tbody>
+			{{range .Info.Largest}}
+			<tr>
+				<td class="mono">{{.Name}}</td>
+				<td class="mono">{{orDefault .Uploader "-"}}</td>
+				<td>{{formatBytes .Size}}</td>
+				<td class="muted">{{if .When}}{{.When}}{{else}}-{{end}}</td>
+			</tr>
+			{{end}}
+		</tbody>
+	</table>
+</section>
+{{else}}
+{{template "empty_state" "No upload metadata available yet."}}
+{{end}}
+{{end}}

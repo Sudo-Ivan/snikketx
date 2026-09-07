@@ -69,6 +69,33 @@ func stubProsody(t *testing.T) *httptest.Server {
 		}
 		_, _ = w.Write([]byte(`{"jid":"family@groups.example.test","localpart":"family","name":"Family","description":"Home","occupants":1,"persistent":true,"public":false,"occupants_list":[{"nick":"Alice","jid":"alice@example.test","role":"moderator","affiliation":"owner"}]}`))
 	})
+	mux.HandleFunc("/snikket_ops_api/clients", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"count":1,"clients":[{"user":"alice","client_id":"c1","name":"Conversations","has_push":true,"push_service":"fcm","last_seen":1700000000,"ip":"203.0.113.10"}]}`))
+	})
+	mux.HandleFunc("/snikket_ops_api/clients/", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+	mux.HandleFunc("/snikket_ops_api/uploads", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"host":"share.example.test","available":true,"used_bytes":12345,"file_count":2,"orphan_count":1,"retention_days":7,"largest":[{"id":"f1","name":"photo.jpg","size":12000,"uploader":"alice","when":1700000000}],"orphans":[{"id":"f2","name":"lost.bin","size":345,"when":1700000000}]}`))
+	})
+	mux.HandleFunc("/snikket_ops_api/uploads/purge", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"removed":1,"mode":"orphans"}`))
+	})
+	mux.HandleFunc("/snikket_ops_api/invites/stats", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"outstanding":2,"used":5,"conversion_rate":0.71,"by_source":{"portal":4,"app":3},"tracking":[{"token":"t1","source":"portal","user":"carol","when":1700000000}],"bootstrap":{"records":1,"configured":true}}`))
+	})
+	mux.HandleFunc("/snikket_ops_api/archives", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"mam_total":100,"offline_total":3,"muc_mam_available":true,"retention_days":7,"users":[{"username":"alice","mam":80,"offline":1},{"username":"bob","mam":20,"offline":2}]}`))
+	})
+	mux.HandleFunc("/snikket_ops_api/updates", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"branch":"release","current":{"version":"Snikket release 1.0"},"latest":"1.1","secure":"1.0","check_enabled":true}`))
+	})
+	mux.HandleFunc("/snikket_ops_api/export/", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"format":"snikketx-account-v1","username":"alice","roster":{},"vcard":{}}`))
+	})
+	mux.HandleFunc("/snikket_ops_api/import/", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"username":"alice","written":["roster","vcard"]}`))
+	})
 	mux.HandleFunc("/admin_api/server/metrics", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"memory":123456789,"c2s":7,"uploads":98765432,"cpu":{"value":12.5,"since":1700000000},"users":{"active_1d":3,"active_7d":5,"active_30d":9}}`))
 	})
@@ -201,6 +228,8 @@ func TestGetRoutesRender(t *testing.T) {
 		"/admin/circles", "/admin/circle/-/new", "/admin/circle/g1",
 		"/admin/circle/g1/delete", "/admin/circle/g1/add_chat",
 		"/admin/system/", "/admin/health/", "/admin/audit/", "/admin/mucs", "/admin/muc/-/new", "/admin/muc/family",
+		"/admin/devices", "/admin/storage", "/admin/invites/analytics", "/admin/archives", "/admin/updates",
+		"/admin/certs/", "/admin/limits/", "/admin/backup/", "/admin/backup/export/alice",
 		"/invite/inv1/", "/invite/inv1/register", "/invite/reset-inv/reset",
 		"/invite/reset-inv/", "/invite/success", "/invite/success/reset",
 		"/invite/missing-x/",

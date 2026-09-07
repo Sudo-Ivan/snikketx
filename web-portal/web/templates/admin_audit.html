@@ -14,6 +14,14 @@
 			{{if .Query}}<a class="btn btn-ghost" href="/admin/audit/">Clear</a>{{end}}
 		</div>
 	</form>
+	<p class="muted saved-filters">
+		Saved filters:
+		<a href="/admin/audit/?q=failed+login">failed logins</a>
+		<a href="/admin/audit/?q=destroy">destroys</a>
+		<a href="/admin/audit/?q=lock">locks</a>
+		<a href="/admin/audit/?q=bulk">bulk actions</a>
+		<span class="muted">Paste an IP into search for that address.</span>
+	</p>
 </section>
 
 {{if .Note}}

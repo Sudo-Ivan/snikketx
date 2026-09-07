@@ -1,7 +1,10 @@
 {{define "content"}}
 <div class="page-head">
 	<p class="muted">{{len .Invites}} outstanding invitation links.</p>
-	<a class="btn btn-primary" href="/admin/invitation/-/new">{{template "icon" "plus"}}<span>New invitation</span></a>
+	<div class="toolbar-actions">
+		<a class="btn btn-ghost" href="/admin/invites/analytics">{{template "icon" "activity"}}<span>Analytics</span></a>
+		<a class="btn btn-primary" href="/admin/invitation/-/new">{{template "icon" "plus"}}<span>New invitation</span></a>
+	</div>
 </div>
 
 <div class="grid grid-split">

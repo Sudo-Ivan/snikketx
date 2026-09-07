@@ -116,6 +116,60 @@ func (l *Limiter) Success(ip, localpart string) {
 	delete(l.accountHits, key)
 }
 
+// LockEntry is one portal login lockout visible to administrators.
+type LockEntry struct {
+	Key        string
+	Localpart  string
+	IP         string
+	Until      time.Time
+	RetryAfter time.Duration
+}
+
+// Locks returns the active portal login lockouts.
+func (l *Limiter) Locks() []LockEntry {
+	if l == nil {
+		return nil
+	}
+	now := time.Now()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.gc(now)
+	out := make([]LockEntry, 0, len(l.locks))
+	for key, until := range l.locks {
+		if !until.After(now) {
+			continue
+		}
+		localpart, ip, _ := strings.Cut(key, "|")
+		out = append(out, LockEntry{
+			Key:        key,
+			Localpart:  localpart,
+			IP:         ip,
+			Until:      until,
+			RetryAfter: until.Sub(now).Round(time.Second),
+		})
+	}
+	return out
+}
+
+// Unlock clears a portal login lockout by its composite key.
+func (l *Limiter) Unlock(key string) bool {
+	if l == nil {
+		return false
+	}
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return false
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if _, ok := l.locks[key]; !ok {
+		return false
+	}
+	delete(l.locks, key)
+	delete(l.accountHits, key)
+	return true
+}
+
 func (l *Limiter) bump(m map[string]*counter, key string, limit int, now time.Time) bool {
 	c := m[key]
 	if c == nil || now.After(c.reset) {

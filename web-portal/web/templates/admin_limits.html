@@ -1,0 +1,43 @@
+{{define "content"}}
+<div class="page-head">
+	<p class="muted">{{.Note}}</p>
+</div>
+
+{{if .Locks}}
+<div class="card card-flush table-wrap">
+	<table class="table">
+		<thead>
+			<tr>
+				<th scope="col">Account</th>
+				<th scope="col">IP</th>
+				<th scope="col">Until</th>
+				<th scope="col"><span class="sr-only">Unlock</span></th>
+			</tr>
+		</thead>
+		<tbody>
+			{{range .Locks}}
+			<tr>
+				<td class="mono">{{.Localpart}}</td>
+				<td class="mono">{{.IP}}</td>
+				<td class="muted" title="{{formatTime .Until}}">{{.RetryAfter}}</td>
+				<td>
+					<form method="post" action="/admin/limits/" class="inline-form">
+						{{csrf $.CSRF}}
+						<input type="hidden" name="key" value="{{.Key}}">
+						<button type="submit" class="btn btn-secondary btn-small">{{template "icon" "unlock"}}<span>Unlock</span></button>
+					</form>
+				</td>
+			</tr>
+			{{end}}
+		</tbody>
+	</table>
+</div>
+{{else}}
+{{template "empty_state" "No portal login lockouts are active."}}
+{{end}}
+
+<section class="card">
+	<h2>Prosody limits</h2>
+	<p class="muted">When <span class="mono">limit_auth</span> or firewall modules are enabled, related events show up under <a href="/admin/audit/?q=auth">audit</a>. Unlocking portal lockouts does not clear Prosody-side rate limits.</p>
+</section>
+{{end}}

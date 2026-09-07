@@ -89,6 +89,8 @@ func (a *App) mountAdmin(mux *http.ServeMux) {
 	mux.HandleFunc("POST /admin/muc/-/new", a.handleCreateMUCSubmit)
 	mux.HandleFunc("GET /admin/muc/{localpart}", a.handleMUCDetail)
 	mux.HandleFunc("POST /admin/muc/{localpart}", a.handleMUCDetailSubmit)
+
+	a.mountAdminOps(mux)
 }
 
 // serverMetrics is the subset of the Prosody metrics document the portal shows.

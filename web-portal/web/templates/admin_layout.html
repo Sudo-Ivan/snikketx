@@ -12,6 +12,17 @@
 			<a href="/admin/circles" class="sidenav-link{{if eq .Nav "circles"}} is-active{{end}}">{{template "icon" "users-round"}}<span>{{t "nav.circles"}}</span></a>
 			<a href="/admin/mucs" class="sidenav-link{{if eq .Nav "mucs"}} is-active{{end}}">{{template "icon" "message-square"}}<span>{{t "nav.mucs"}}</span></a>
 			<a href="/admin/invitations" class="sidenav-link{{if eq .Nav "invites"}} is-active{{end}}">{{template "icon" "link"}}<span>{{t "nav.invites"}}</span></a>
+		</nav>
+		<nav class="sidenav" aria-label="Operations">
+			<a href="/admin/devices" class="sidenav-link{{if eq .Nav "devices"}} is-active{{end}}">{{template "icon" "smartphone"}}<span>{{t "nav.devices"}}</span></a>
+			<a href="/admin/storage" class="sidenav-link{{if eq .Nav "storage"}} is-active{{end}}">{{template "icon" "hard-drive"}}<span>{{t "nav.storage"}}</span></a>
+			<a href="/admin/archives" class="sidenav-link{{if eq .Nav "archives"}} is-active{{end}}">{{template "icon" "database"}}<span>{{t "nav.archives"}}</span></a>
+			<a href="/admin/certs/" class="sidenav-link{{if eq .Nav "certs"}} is-active{{end}}">{{template "icon" "shield"}}<span>{{t "nav.certs"}}</span></a>
+			<a href="/admin/limits/" class="sidenav-link{{if eq .Nav "limits"}} is-active{{end}}">{{template "icon" "lock"}}<span>{{t "nav.limits"}}</span></a>
+			<a href="/admin/updates" class="sidenav-link{{if eq .Nav "updates"}} is-active{{end}}">{{template "icon" "refresh"}}<span>{{t "nav.updates"}}</span></a>
+			<a href="/admin/backup/" class="sidenav-link{{if eq .Nav "backup"}} is-active{{end}}">{{template "icon" "download"}}<span>{{t "nav.backup"}}</span></a>
+		</nav>
+		<nav class="sidenav" aria-label="System">
 			<a href="/admin/system/" class="sidenav-link{{if eq .Nav "system"}} is-active{{end}}">{{template "icon" "server"}}<span>{{t "nav.system"}}</span></a>
 			<a href="/admin/health/" class="sidenav-link{{if eq .Nav "health"}} is-active{{end}}">{{template "icon" "heart-pulse"}}<span>{{t "nav.health"}}</span></a>
 			<a href="/admin/audit/" class="sidenav-link{{if eq .Nav "audit"}} is-active{{end}}">{{template "icon" "scroll-text"}}<span>{{t "nav.audit"}}</span></a>

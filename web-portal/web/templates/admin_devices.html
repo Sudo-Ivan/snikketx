@@ -1,0 +1,70 @@
+{{define "content"}}
+<div class="page-head">
+	<p class="muted">Registered clients and push endpoints. Revoking a device removes its client id and push registration.</p>
+</div>
+
+<section class="card search-panel">
+	<form method="get" action="/admin/devices" class="toolbar" role="search">
+		<div class="field field-grow">
+			<label for="device-user">Account</label>
+			<input type="search" id="device-user" name="user" value="{{.Filter}}" placeholder="localpart" autocomplete="off">
+		</div>
+		<div class="toolbar-actions">
+			<button type="submit" class="btn btn-secondary">{{template "icon" "search"}}<span>Filter</span></button>
+			{{if .Filter}}<a class="btn btn-ghost" href="/admin/devices">Clear</a>{{end}}
+		</div>
+	</form>
+</section>
+
+{{if .Note}}
+<div class="toast toast-warning" data-toast role="status">
+	{{template "icon" "alert-triangle"}}
+	<p>{{.Note}}</p>
+	<button type="button" class="toast-dismiss" data-toast-dismiss aria-label="Dismiss">{{template "icon" "x"}}</button>
+</div>
+{{end}}
+
+{{if .Clients}}
+<div class="card card-flush table-wrap">
+	<table class="table">
+		<thead>
+			<tr>
+				<th scope="col">Account</th>
+				<th scope="col">Client</th>
+				<th scope="col">Push</th>
+				<th scope="col">Last seen</th>
+				<th scope="col">IP</th>
+				<th scope="col"><span class="sr-only">Actions</span></th>
+			</tr>
+		</thead>
+		<tbody>
+			{{range .Clients}}
+			<tr>
+				<td class="mono">{{.User}}</td>
+				<td>
+					<div class="cell-stack">
+						<strong>{{orDefault .Name .ClientID}}</strong>
+						<span class="muted mono">{{.ClientID}}</span>
+						{{with .UserAgent}}<span class="muted">{{.}}</span>{{end}}
+					</div>
+				</td>
+				<td>{{if .HasPush}}<span class="badge badge-ok">Push</span>{{with .PushService}}<span class="muted">{{.}}</span>{{end}}{{else}}<span class="muted">-</span>{{end}}</td>
+				<td class="muted">{{printf "%v" .LastSeen}}</td>
+				<td class="mono muted">{{orDefault .IP "-"}}</td>
+				<td>
+					<form method="post" action="/admin/devices" class="inline-form">
+						{{csrf $.CSRF}}
+						<input type="hidden" name="user" value="{{.User}}">
+						<input type="hidden" name="client_id" value="{{.ClientID}}">
+						<button type="submit" class="btn btn-ghost btn-icon btn-danger-ghost" title="Revoke">{{template "icon" "ban"}}</button>
+					</form>
+				</td>
+			</tr>
+			{{end}}
+		</tbody>
+	</table>
+</div>
+{{else}}
+{{template "empty_state" "No registered devices found."}}
+{{end}}
+{{end}}

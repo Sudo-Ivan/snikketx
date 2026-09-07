@@ -1,0 +1,26 @@
+{{define "content"}}
+<div class="page-head">
+	<p class="muted">Update channel from mod_update_check / mod_update_notify, shown here instead of only in server logs.</p>
+</div>
+
+{{if .Note}}
+<div class="toast toast-warning" data-toast role="status">
+	{{template "icon" "alert-triangle"}}
+	<p>{{.Note}}</p>
+	<button type="button" class="toast-dismiss" data-toast-dismiss aria-label="Dismiss">{{template "icon" "x"}}</button>
+</div>
+{{end}}
+
+<section class="card">
+	<h2>Channel</h2>
+	<dl class="details">
+		<dt>Check enabled</dt><dd>{{if .Info.CheckEnabled}}yes{{else}}no{{end}}</dd>
+		<dt>Branch</dt><dd class="mono">{{orDefault .Info.Branch "-"}}</dd>
+		<dt>Current</dt><dd class="mono">{{printf "%v" .Info.Current}}</dd>
+		<dt>Latest</dt><dd class="mono">{{printf "%v" .Info.Latest}}</dd>
+		<dt>Secure</dt><dd class="mono">{{printf "%v" .Info.Secure}}</dd>
+		<dt>Support</dt><dd class="mono">{{printf "%v" .Info.SupportStatus}}</dd>
+		<dt>Message</dt><dd>{{printf "%v" .Info.Message}}</dd>
+	</dl>
+</section>
+{{end}}

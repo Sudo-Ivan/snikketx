@@ -1,0 +1,61 @@
+{{define "content"}}
+<div class="page-head">
+	<p class="muted">Operator tooling for a host config snapshot, per-account export packages and restore. This is not a full disaster-recovery product.</p>
+	<a class="btn btn-secondary" href="/admin/backup/config.json">{{template "icon" "download"}}<span>Host config snapshot</span></a>
+</div>
+
+{{if .Note}}
+<div class="toast toast-warning" data-toast role="status">
+	{{template "icon" "alert-triangle"}}
+	<p>{{.Note}}</p>
+	<button type="button" class="toast-dismiss" data-toast-dismiss aria-label="Dismiss">{{template "icon" "x"}}</button>
+</div>
+{{end}}
+
+<section class="card">
+	<h2>Restore checklist</h2>
+	<ol class="details">
+		<li>Restore DNS and TLS for the domain, <span class="mono">groups.</span> and <span class="mono">share.</span> hosts.</li>
+		<li>Restore Prosody data and the portal secret key before starting services.</li>
+		<li>Confirm ACME renewal and SRV records on the Certificates page.</li>
+		<li>Import account packages only into existing accounts that should receive roster and vcard data.</li>
+		<li>Ask users to re-link push clients after a device wipe.</li>
+	</ol>
+</section>
+
+<section class="card">
+	<h2>Export account package</h2>
+	<p class="muted">Downloads roster, vcard, clients and activity for one account as JSON.</p>
+	{{if .Users}}
+	<ul class="plain-list">
+		{{range .Users}}
+		<li><a class="btn btn-ghost btn-small" href="/admin/backup/export/{{.Localpart}}">{{template "icon" "file-down"}}<span>{{.Localpart}}</span></a></li>
+		{{end}}
+	</ul>
+	{{else}}
+	<p class="muted">No accounts to export.</p>
+	{{end}}
+</section>
+
+<section class="card">
+	<h2>Import account package</h2>
+	<p class="muted">Writes roster and vcard from a previously exported JSON package into an existing account.</p>
+	<form method="post" action="/admin/backup/" enctype="multipart/form-data" class="stack">
+		{{csrf .CSRF}}
+		<div class="field">
+			<label for="import-user">Account</label>
+			<select id="import-user" name="localpart" required>
+				<option value="">Select account</option>
+				{{range .Users}}
+				<option value="{{.Localpart}}">{{.Localpart}}</option>
+				{{end}}
+			</select>
+		</div>
+		<div class="field">
+			<label for="import-file">Package</label>
+			<input type="file" id="import-file" name="package" accept="application/json,.json" required>
+		</div>
+		<button type="submit" class="btn btn-primary">{{template "icon" "upload"}}<span>Import</span></button>
+	</form>
+</section>
+{{end}}

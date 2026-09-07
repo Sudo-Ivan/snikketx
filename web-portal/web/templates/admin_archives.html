@@ -1,0 +1,44 @@
+{{define "content"}}
+<div class="page-head">
+	<p class="muted">Message archive growth and stuck offline queues. Retention is {{.Info.RetentionDays}} days when configured.</p>
+</div>
+
+{{if .Note}}
+<div class="toast toast-warning" data-toast role="status">
+	{{template "icon" "alert-triangle"}}
+	<p>{{.Note}}</p>
+	<button type="button" class="toast-dismiss" data-toast-dismiss aria-label="Dismiss">{{template "icon" "x"}}</button>
+</div>
+{{end}}
+
+<div class="stats">
+	<div class="stat"><span class="stat-label">MAM messages</span><span class="stat-value">{{.Info.MAMTotal}}</span></div>
+	<div class="stat"><span class="stat-label">Offline queue</span><span class="stat-value">{{.Info.OfflineTotal}}</span></div>
+	<div class="stat"><span class="stat-label">MUC MAM</span><span class="stat-value">{{if .Info.MUCMAMAvailable}}available{{else}}n/a{{end}}</span></div>
+</div>
+
+{{if .Info.Users}}
+<div class="card card-flush table-wrap">
+	<table class="table">
+		<thead>
+			<tr>
+				<th scope="col">Account</th>
+				<th scope="col">MAM</th>
+				<th scope="col">Offline</th>
+			</tr>
+		</thead>
+		<tbody>
+			{{range .Info.Users}}
+			<tr>
+				<td class="mono"><a href="/admin/user/{{.Username}}/">{{.Username}}</a></td>
+				<td>{{.MAM}}</td>
+				<td>{{.Offline}}</td>
+			</tr>
+			{{end}}
+		</tbody>
+	</table>
+</div>
+{{else}}
+{{template "empty_state" "No archive volume reported yet."}}
+{{end}}
+{{end}}

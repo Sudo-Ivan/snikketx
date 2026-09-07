@@ -1,0 +1,58 @@
+{{define "content"}}
+<div class="page-head">
+	<p class="muted">Used versus outstanding invitations, conversion and bootstrap state.</p>
+	<a class="btn btn-ghost" href="/admin/invitations">{{template "icon" "arrow-left"}}<span>All invitations</span></a>
+</div>
+
+{{if .Note}}
+<div class="toast toast-warning" data-toast role="status">
+	{{template "icon" "alert-triangle"}}
+	<p>{{.Note}}</p>
+	<button type="button" class="toast-dismiss" data-toast-dismiss aria-label="Dismiss">{{template "icon" "x"}}</button>
+</div>
+{{end}}
+
+<div class="stats">
+	<div class="stat"><span class="stat-label">Outstanding</span><span class="stat-value">{{.Stats.Outstanding}}</span></div>
+	<div class="stat"><span class="stat-label">Used</span><span class="stat-value">{{.Stats.Used}}</span></div>
+	<div class="stat"><span class="stat-label">Conversion</span><span class="stat-value">{{formatPercent .Stats.ConversionRate}}</span></div>
+	<div class="stat"><span class="stat-label">Bootstrap</span><span class="stat-value">{{if .Stats.Bootstrap.Configured}}on{{else}}off{{end}}</span><span class="stat-note">{{.Stats.Bootstrap.Records}} records</span></div>
+</div>
+
+{{if .Stats.BySource}}
+<section class="card">
+	<h2>Sources</h2>
+	<ul class="details">
+		{{range $source, $count := .Stats.BySource}}
+		<li><span class="mono">{{$source}}</span> <strong>{{$count}}</strong></li>
+		{{end}}
+	</ul>
+</section>
+{{end}}
+
+{{if .Stats.Tracking}}
+<section class="card card-flush table-wrap">
+	<h2 class="sr-only">Recent used invites</h2>
+	<table class="table">
+		<thead>
+			<tr>
+				<th scope="col">Token</th>
+				<th scope="col">Source</th>
+				<th scope="col">User</th>
+				<th scope="col">When</th>
+			</tr>
+		</thead>
+		<tbody>
+			{{range .Stats.Tracking}}
+			<tr>
+				<td class="mono">{{.Token}}</td>
+				<td>{{.Source}}</td>
+				<td class="mono">{{orDefault .User "-"}}</td>
+				<td class="muted">{{printf "%v" .When}}</td>
+			</tr>
+			{{end}}
+		</tbody>
+	</table>
+</section>
+{{end}}
+{{end}}
