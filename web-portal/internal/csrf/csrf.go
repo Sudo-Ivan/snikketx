@@ -2,6 +2,7 @@ package csrf
 
 import (
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/hex"
 	"net/http"
 
@@ -14,7 +15,11 @@ func Ensure(sess session.Data) string {
 	if t := sess[session.KeyCSRF]; t != "" {
 		return t
 	}
-	b := make([]byte, 16)
+	return Rotate(sess)
+}
+
+func Rotate(sess session.Data) string {
+	b := make([]byte, 32)
 	_, _ = rand.Read(b)
 	t := hex.EncodeToString(b)
 	sess[session.KeyCSRF] = t
@@ -30,5 +35,12 @@ func Valid(r *http.Request, sess session.Data) bool {
 	if got == "" {
 		got = r.Header.Get("X-CSRF-Token")
 	}
-	return got != "" && got == expected
+	if got == "" {
+		return false
+	}
+	if len(got) != len(expected) {
+		_, _ = subtle.ConstantTimeCompare([]byte(expected), []byte(expected)), false
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(got), []byte(expected)) == 1
 }

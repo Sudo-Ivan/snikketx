@@ -1,4 +1,4 @@
-// Package prosody implements a client for the HTTP APIs exposed by a Snikket
+// Package prosody implements a client for the HTTP APIs exposed by a SnikketX
 // Prosody server: OAuth 2.0 token issuance, mod_rest, mod_admin_api,
 // mod_register_api and mod_xep227.
 package prosody

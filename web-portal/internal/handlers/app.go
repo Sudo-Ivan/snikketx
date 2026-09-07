@@ -1,4 +1,4 @@
-// Package handlers implements the HTTP surface of the Snikket web portal.
+// Package handlers implements the HTTP surface of the SnikketX web portal.
 package handlers
 
 import (
@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sudo-ivan/snikketx/web-portal/internal/authlimit"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/config"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/csrf"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/health"
@@ -43,6 +44,7 @@ type App struct {
 	Templates *webui.Renderer
 	Errors    *health.Ring
 	Metrics   *metrics.Registry
+	LoginGate *authlimit.Limiter
 	Started   time.Time
 	Static    http.Handler
 }

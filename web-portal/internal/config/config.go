@@ -4,17 +4,21 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 )
 
 const (
+	// #nosec G101 -- filesystem path for the secret key file, not a credential
 	defaultSecretKeyFile = "/var/lib/snikket-web-portal/secret_key"
 	defaultAvatarTTL     = 1800
 	defaultMaxAvatar     = 1024 * 1024
 	defaultAppleStore    = "https://apps.apple.com/us/app/snikket/id1544535398"
+	minSecretLen         = 32
 )
 
 type Config struct {
@@ -51,6 +55,9 @@ func Load(version string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(secret) < minSecretLen {
+		return nil, fmt.Errorf("SNIKKET_WEB_SECRET_KEY must be at least %d bytes", minSecretLen)
+	}
 
 	siteName := os.Getenv("SNIKKET_WEB_SITE_NAME")
 	if siteName == "" {
@@ -83,9 +90,27 @@ func Load(version string) (*Config, error) {
 		}
 	}
 
+	metricsToken := os.Getenv("SNIKKET_WEB_METRICS_TOKEN")
+
 	apple := os.Getenv("SNIKKET_WEB_APPLE_STORE_URL")
 	if apple == "" {
 		apple = defaultAppleStore
+	}
+	if err := validateHTTPURL("SNIKKET_WEB_APPLE_STORE_URL", apple); err != nil {
+		return nil, err
+	}
+
+	tos := os.Getenv("SNIKKET_WEB_TOS_URI")
+	privacy := os.Getenv("SNIKKET_WEB_PRIVACY_URI")
+	if tos != "" {
+		if err := validateHTTPURL("SNIKKET_WEB_TOS_URI", tos); err != nil {
+			return nil, err
+		}
+	}
+	if privacy != "" {
+		if err := validateHTTPURL("SNIKKET_WEB_PRIVACY_URI", privacy); err != nil {
+			return nil, err
+		}
 	}
 
 	iface := envOr("SNIKKET_TWEAK_PORTAL_INTERNAL_HTTP_INTERFACE", "0.0.0.0")
@@ -100,14 +125,28 @@ func Load(version string) (*Config, error) {
 		AppleStoreURL:   apple,
 		MaxAvatarSize:   maxAvatar,
 		ShowMetrics:     showMetrics,
-		TOSURI:          os.Getenv("SNIKKET_WEB_TOS_URI"),
-		PrivacyURI:      os.Getenv("SNIKKET_WEB_PRIVACY_URI"),
+		TOSURI:          tos,
+		PrivacyURI:      privacy,
 		AbuseEmail:      os.Getenv("SNIKKET_WEB_ABUSE_EMAIL"),
 		SecurityEmail:   os.Getenv("SNIKKET_WEB_SECURITY_EMAIL"),
 		ListenAddr:      iface + ":" + port,
-		MetricsToken:    os.Getenv("SNIKKET_WEB_METRICS_TOKEN"),
+		MetricsToken:    metricsToken,
 		Version:         version,
 	}, nil
+}
+
+func validateHTTPURL(name, raw string) error {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return fmt.Errorf("%s: %w", name, err)
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return fmt.Errorf("%s: scheme must be http or https", name)
+	}
+	if u.Host == "" {
+		return fmt.Errorf("%s: host is required", name)
+	}
+	return nil
 }
 
 func bridgeSnikketEnv() {
@@ -131,6 +170,11 @@ func loadOrCreateSecret() ([]byte, error) {
 		return []byte(v), nil
 	}
 	path := envOr("SNIKKET_WEB_SECRET_KEY_FILE", defaultSecretKeyFile)
+	path = filepath.Clean(path)
+	if !filepath.IsAbs(path) {
+		return nil, fmt.Errorf("SNIKKET_WEB_SECRET_KEY_FILE must be absolute")
+	}
+	// #nosec G304 -- path is operator-configured absolute path for the secret file
 	data, err := os.ReadFile(path)
 	if err == nil {
 		data = []byte(strings.TrimSpace(string(data)))
@@ -143,21 +187,13 @@ func loadOrCreateSecret() ([]byte, error) {
 		return nil, err
 	}
 	secret := hex.EncodeToString(buf)
-	if err := os.MkdirAll(dirOf(path), 0o750); err != nil && !os.IsExist(err) {
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil && !os.IsExist(err) {
 		return nil, fmt.Errorf("create secret dir: %w", err)
 	}
 	if err := os.WriteFile(path, []byte(secret+"\n"), 0o600); err != nil {
 		return nil, fmt.Errorf("write secret key: %w (set SNIKKET_WEB_SECRET_KEY)", err)
 	}
 	return []byte(secret), nil
-}
-
-func dirOf(path string) string {
-	i := strings.LastIndex(path, "/")
-	if i < 0 {
-		return "."
-	}
-	return path[:i]
 }
 
 func envOr(key, fallback string) string {

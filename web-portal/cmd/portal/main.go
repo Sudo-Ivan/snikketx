@@ -1,4 +1,4 @@
-// Command portal serves the Snikket web portal.
+// Command portal serves the SnikketX web portal.
 package main
 
 import (
@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/sudo-ivan/snikketx/web-portal/internal/authlimit"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/config"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/handlers"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/health"
@@ -93,13 +94,19 @@ func run() error {
 		return err
 	}
 
+	sessStore, err := session.New(cfg.SecretKey, secureCookies())
+	if err != nil {
+		return err
+	}
+
 	app := &handlers.App{
 		Cfg:       cfg,
 		Prosody:   prosody.New(cfg.ProsodyEndpoint, cfg.Domain, version),
-		Sessions:  session.New(cfg.SecretKey, secureCookies()),
+		Sessions:  sessStore,
 		Templates: renderer,
 		Errors:    health.NewRing(errorRingSize),
 		Metrics:   metrics.New(),
+		LoginGate: authlimit.New(),
 		Started:   time.Now(),
 		Static:    staticHandler(staticFS),
 	}

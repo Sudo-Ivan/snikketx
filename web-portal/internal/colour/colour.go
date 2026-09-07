@@ -1,7 +1,7 @@
 package colour
 
 import (
-	"crypto/sha1"
+	"crypto/sha1" // #nosec G505 -- XEP-0392 avatar colour hash is defined as SHA-1
 	"fmt"
 	"math"
 	"sync"
@@ -25,7 +25,7 @@ func TextToCSS(text string) string {
 	}
 	mu.Unlock()
 
-	sum := sha1.Sum([]byte(text))
+	sum := sha1.Sum([]byte(text)) // #nosec G401 -- XEP-0392 requires SHA-1 of the bare JID
 	hue := float64(uint16(sum[0])|uint16(sum[1])<<8) / 65535.0
 	r, g, b := hslToRGB(hue, sat, lit)
 	css := fmt.Sprintf("#%02x%02x%02x", round255(r), round255(g), round255(b))

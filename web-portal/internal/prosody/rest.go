@@ -2,7 +2,7 @@ package prosody
 
 import (
 	"context"
-	"crypto/sha1"
+	"crypto/sha1" // #nosec G505 -- XEP-0084 avatar content addressing uses SHA-1
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -167,7 +167,7 @@ func (c *Client) GetAvatarData(ctx context.Context, token, address, id string) (
 // bytes, and the data node is published before the metadata node so clients
 // never see metadata pointing at missing data.
 func (c *Client) SetUserAvatar(ctx context.Context, token, address string, data []byte, mimetype string) error {
-	sum := sha1.Sum(data)
+	sum := sha1.Sum(data) // #nosec G401 -- XEP-0084 content id is the SHA-1 of the avatar bytes
 	id := hex.EncodeToString(sum[:])
 	encoded := base64.StdEncoding.EncodeToString(data)
 

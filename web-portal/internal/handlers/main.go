@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sudo-ivan/snikketx/web-portal/internal/authlimit"
+	"github.com/sudo-ivan/snikketx/web-portal/internal/csrf"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/health"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/prosody"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/webui"
@@ -73,48 +75,90 @@ func (a *App) handleLoginForm(w http.ResponseWriter, r *http.Request) {
 
 // handleLoginSubmit exchanges the submitted credentials for a bearer token.
 // Only accounts on the configured domain are accepted, so a password meant for
-// another server is never forwarded.
+// another server is never forwarded. Failed attempts are rate limited and take
+// a fixed minimum latency so timing does not reveal which check failed.
 func (a *App) handleLoginSubmit(w http.ResponseWriter, r *http.Request) {
+	started := time.Now()
 	sess := a.Sessions.Get(r)
 	address := strings.TrimSpace(r.FormValue("address"))
 	password := r.FormValue("password")
+	ip := authlimit.ClientIP(r)
 
 	localpart, domain, _ := xmpp.SplitJID(address)
 	if localpart == "" {
 		localpart, domain = domain, a.Cfg.Domain
 	}
+	localpart = strings.ToLower(strings.TrimSpace(localpart))
 
-	fail := func(message string) {
+	gate := a.LoginGate
+	if gate == nil {
+		gate = authlimit.New()
+		a.LoginGate = gate
+	}
+
+	fail := func(message string, status int) {
+		a.padLogin(started, gate.MinLatency())
 		page := a.newPage(w, r, sess, "Sign in", "", webui.ShellBare)
 		page.AddError("%s", message)
-		a.render(w, r, http.StatusUnauthorized, "login.html", loginPage{
+		a.render(w, r, status, "login.html", loginPage{
 			PageData: page,
 			Address:  address,
 		})
 	}
 
-	switch {
-	case localpart == "" || password == "":
-		fail("Enter your username and your password.")
-		return
-	case domain != a.Cfg.Domain:
-		fail(errCredentials)
+	decision := gate.Allow(ip, localpart)
+	if !decision.Allowed {
+		w.Header().Set("Retry-After", strconv.Itoa(int(decision.RetryAfter.Seconds())+1))
+		fail("Too many sign-in attempts. Try again later.", http.StatusTooManyRequests)
 		return
 	}
 
-	jid := localpart + "@" + domain
+	switch {
+	case localpart == "" || password == "":
+		gate.Failure(ip, localpart)
+		fail("Enter your username and your password.", http.StatusUnauthorized)
+		return
+	case len(localpart) > gate.MaxLocalpartLen() || len(password) > gate.MaxPasswordLen():
+		gate.Failure(ip, localpart)
+		fail(errCredentials, http.StatusUnauthorized)
+		return
+	case !strings.EqualFold(domain, a.Cfg.Domain):
+		gate.Failure(ip, localpart)
+		fail(errCredentials, http.StatusUnauthorized)
+		return
+	}
+
+	jid := localpart + "@" + a.Cfg.Domain
 	tokenInfo, err := a.Prosody.Login(r.Context(), jid, password)
 	if err != nil {
+		gate.Failure(ip, localpart)
 		if errors.Is(err, prosody.ErrInvalidCredentials) || prosody.StatusOf(err) == http.StatusUnauthorized {
-			fail(errCredentials)
+			fail(errCredentials, http.StatusUnauthorized)
 			return
 		}
+		a.padLogin(started, gate.MinLatency())
 		a.failAPI(w, r, err)
 		return
 	}
 
+	gate.Success(ip, localpart)
+	sess.RotateAuthSurface()
 	sess.SetAuth(tokenInfo.Token, strings.Join(tokenInfo.Scopes, " "), jid)
+	_ = csrf.Rotate(sess)
+	a.padLogin(started, gate.MinLatency())
 	a.flashRedirect(w, r, sess, "Login successful.", "success", "/user/")
+}
+
+// padLogin waits until the login attempt has taken at least min so early
+// rejects do not become a timing oracle.
+func (a *App) padLogin(started time.Time, min time.Duration) {
+	if min <= 0 {
+		return
+	}
+	if left := min - time.Since(started); left > 0 {
+		timer := time.NewTimer(left)
+		<-timer.C
+	}
 }
 
 // aboutPage lists the software versions of the deployment.
@@ -205,14 +249,14 @@ func (a *App) handleWebManifest(w http.ResponseWriter, r *http.Request) {
 		Display         string `json:"display"`
 		StartURL        string `json:"start_url"`
 	}{
-		Name:      "Snikket",
-		ShortName: "Snikket",
+		Name:      "SnikketX",
+		ShortName: "SnikketX",
 		Icons: []icon{
 			{Src: "/static/img/android-chrome-192x192.png", Sizes: "192x192", Type: "image/png"},
 			{Src: "/static/img/android-chrome-256x256.png", Sizes: "256x256", Type: "image/png"},
 			{Src: "/static/img/android-chrome-512x512.png", Sizes: "512x512", Type: "image/png"},
 		},
-		ThemeColor:      "#1d4ed8",
+		ThemeColor:      "#09090b",
 		BackgroundColor: "#f5f8ff",
 		Display:         "standalone",
 		StartURL:        "/",
@@ -280,7 +324,7 @@ func (a *App) handleAvatar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(data)
+	_, _ = w.Write(data) // #nosec G705 -- avatar bytes served with Content-Type from Prosody metadata
 }
 
 // handleHealth is the liveness probe. It never touches the chat server so a

@@ -14,21 +14,17 @@ import (
 )
 
 const (
-	// softwareID identifies web-portal.snikket.org to the authorisation
+	// softwareID identifies the SnikketX web portal to the authorisation
 	// server during dynamic client registration.
 	softwareID = "22aa246e-4373-51cb-bcaa-9f73bb235b84"
-	clientName = "Snikket web portal"
+	clientName = "SnikketX web portal"
 )
 
 // ErrInvalidCredentials is returned when the authorisation server rejects the
 // password grant.
 var ErrInvalidCredentials = errors.New("prosody: invalid credentials")
 
-// requestedScope is the scope string asked for on every password grant. The
-// server narrows it down to what the account is actually entitled to.
-func requestedScope() string {
-	return strings.Join([]string{ScopeRestricted, ScopeDefault, ScopeAdmin}, " ")
-}
+const requestedScope = ScopeRestricted + " " + ScopeDefault + " " + ScopeAdmin
 
 // IsClientRegistered reports whether OAuth 2.0 client credentials have already
 // been obtained.
@@ -62,7 +58,7 @@ func (c *Client) RegisterClient(ctx context.Context) error {
 		GrantTypes:              []string{"password"},
 		ResponseTypes:           []string{},
 		TokenEndpointAuthMethod: "client_secret_post",
-		Scope:                   requestedScope(),
+		Scope:                   requestedScope,
 		SoftwareID:              softwareID,
 		SoftwareVersion:         c.Version,
 	}
@@ -135,7 +131,7 @@ func (c *Client) bearerToken(ctx context.Context, address, password string) (*To
 	form.Set("grant_type", "password")
 	form.Set("username", localpart)
 	form.Set("password", password)
-	form.Set("scope", requestedScope())
+	form.Set("scope", requestedScope)
 
 	req, err := c.newRequest(ctx, http.MethodPost, c.loginEndpoint(), "", strings.NewReader(form.Encode()))
 	if err != nil {

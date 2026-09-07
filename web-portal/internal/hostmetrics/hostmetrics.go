@@ -61,7 +61,7 @@ func readRSS() int64 {
 	if err != nil {
 		var ms runtime.MemStats
 		runtime.ReadMemStats(&ms)
-		return int64(ms.Sys)
+		return int64(ms.Sys & 0x7fffffffffffffff) // #nosec G115 -- Sys is a size in bytes, clamp to int64 range
 	}
 	fields := strings.Fields(string(data))
 	if len(fields) < 2 {

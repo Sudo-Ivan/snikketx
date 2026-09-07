@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sudo-ivan/snikketx/web-portal/internal/authlimit"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/config"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/health"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/metrics"
@@ -105,7 +106,7 @@ func newTestApp(t *testing.T, endpoint string) *App {
 	}
 
 	cfg := &config.Config{
-		SecretKey:       []byte("test-secret"),
+		SecretKey:       []byte("0123456789abcdef0123456789abcdef"),
 		ProsodyEndpoint: endpoint,
 		Domain:          "example.test",
 		SiteName:        "Example Chat",
@@ -113,6 +114,7 @@ func newTestApp(t *testing.T, endpoint string) *App {
 		AppleStoreURL:   "https://apps.apple.com/app/id1",
 		MaxAvatarSize:   1 << 20,
 		ShowMetrics:     true,
+		MetricsToken:    "metrics-test-token",
 		TOSURI:          "https://example.test/tos",
 		PrivacyURI:      "https://example.test/privacy",
 		AbuseEmail:      "abuse@example.test",
@@ -120,13 +122,19 @@ func newTestApp(t *testing.T, endpoint string) *App {
 		Version:         "test",
 	}
 
+	store, err := session.New(cfg.SecretKey, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	return &App{
 		Cfg:       cfg,
 		Prosody:   prosody.New(endpoint, "example.test", "test"),
-		Sessions:  session.New(cfg.SecretKey, false),
+		Sessions:  store,
 		Templates: renderer,
 		Errors:    health.NewRing(8),
 		Metrics:   metrics.New(),
+		LoginGate: authlimit.NewFast(),
 		Started:   time.Now().Add(-time.Hour),
 		Static:    http.StripPrefix("/static/", http.FileServerFS(staticFS)),
 	}

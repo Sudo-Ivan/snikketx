@@ -215,7 +215,7 @@ func (a *App) handleProfileSubmit(w http.ResponseWriter, r *http.Request) {
 		defer func() { _ = file.Close() }()
 
 		if header.Size > a.Cfg.MaxAvatarSize {
-			fail("The chosen avatar is too big. To upload larger avatars, use the Snikket app.")
+			fail("The chosen avatar is too big. To upload larger avatars, use your chat app.")
 			return
 		}
 		data, err := io.ReadAll(io.LimitReader(file, a.Cfg.MaxAvatarSize+1))
@@ -224,7 +224,7 @@ func (a *App) handleProfileSubmit(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if int64(len(data)) > a.Cfg.MaxAvatarSize {
-			fail("The chosen avatar is too big. To upload larger avatars, use the Snikket app.")
+			fail("The chosen avatar is too big. To upload larger avatars, use your chat app.")
 			return
 		}
 		if len(data) > 0 {
@@ -309,7 +309,7 @@ func (a *App) handleManageDataSubmit(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition",
 		`attachment; filename="account-data.xml"; filename*=UTF-8''`+filename)
 	w.Header().Set("Cache-Control", "no-store")
-	_, _ = io.WriteString(w, document)
+	_, _ = io.WriteString(w, document) // #nosec G705 -- account export is application/xml from Prosody for the signed-in user
 }
 
 // handleLogoutForm shows the sign out confirmation.

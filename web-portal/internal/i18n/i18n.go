@@ -1,7 +1,7 @@
 package i18n
 
 var en = map[string]string{
-	"app.name":               "Snikket",
+	"app.name":               "SnikketX",
 	"nav.home":               "Home",
 	"nav.users":              "Users",
 	"nav.circles":            "Circles",

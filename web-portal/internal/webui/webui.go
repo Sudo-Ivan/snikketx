@@ -209,6 +209,7 @@ func (p PageData) HasErrors() bool {
 
 // funcMap builds the function map shared by every template set.
 func funcMap(opts Options) template.FuncMap {
+	// #nosec G203 -- sprite is a build-time Lucide SVG asset, never user input
 	sprite := template.HTML(opts.Sprite)
 
 	return template.FuncMap{
@@ -247,13 +248,19 @@ func csrfField(token string) template.HTML {
 	b.WriteString(`" value="`)
 	b.WriteString(template.HTMLEscapeString(token))
 	b.WriteString(`">`)
+	// #nosec G203 -- field name and token are HTML-escaped above
 	return template.HTML(b.String())
 }
 
 // Icon renders a reference to a symbol of the inlined SVG sprite.
 func Icon(name string) template.HTML {
+	id := iconID(name)
+	if id == "" {
+		return ""
+	}
+	// #nosec G203 -- id is reduced to [a-z0-9-] only by iconID
 	return template.HTML(`<svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-` +
-		iconID(name) + `"></use></svg>`)
+		id + `"></use></svg>`)
 }
 
 // iconID reduces a symbol name to the characters a sprite id may contain.
@@ -419,10 +426,20 @@ func RoleLabel(role string) string {
 	}
 }
 
-// safeURL marks a URL built by the portal as trusted, for the cases where the
-// contextual escaper cannot tell a scheme it does not know is safe.
+// safeURL marks a URL built by the portal as trusted when the scheme is one
+// of the allowlisted values used by the invite and store links.
 func safeURL(raw string) template.URL {
-	return template.URL(raw)
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme == "" {
+		return ""
+	}
+	switch strings.ToLower(u.Scheme) {
+	case "http", "https", "xmpp", "market", "mailto":
+		// #nosec G203 -- scheme is allowlisted and the value is portal-built
+		return template.URL(raw)
+	default:
+		return ""
+	}
 }
 
 // dict builds a map from alternating key and value arguments so a fragment can

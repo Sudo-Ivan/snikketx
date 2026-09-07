@@ -311,7 +311,7 @@ func (a *App) handleInviteSuccessSubmit(w http.ResponseWriter, r *http.Request) 
 
 	if header.Size > maxImportSize {
 		a.renderInviteSuccess(w, r, sess, false,
-			"The account data you tried to import is too large to upload. Contact your Snikket operator.",
+			"The account data you tried to import is too large to upload. Contact your SnikketX operator.",
 			http.StatusBadRequest)
 		return
 	}
@@ -327,7 +327,7 @@ func (a *App) handleInviteSuccessSubmit(w http.ResponseWriter, r *http.Request) 
 	data, err := io.ReadAll(io.LimitReader(file, maxImportSize+1))
 	if err != nil || int64(len(data)) > maxImportSize {
 		a.renderInviteSuccess(w, r, sess, false,
-			"The account data you tried to import is too large to upload. Contact your Snikket operator.",
+			"The account data you tried to import is too large to upload. Contact your SnikketX operator.",
 			http.StatusBadRequest)
 		return
 	}

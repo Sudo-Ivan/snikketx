@@ -30,6 +30,21 @@ run: build-offline
 test:
 	$(GO) test ./...
 
+.PHONY: race
+race:
+	$(GO) test -race ./...
+
+.PHONY: fuzz
+fuzz:
+	$(GO) test ./internal/session -fuzz=FuzzDecode -fuzztime=10s
+	$(GO) test ./internal/csrf -fuzz=FuzzCSRFValid -fuzztime=10s
+	$(GO) test ./internal/colour -fuzz=FuzzTextToCSS -fuzztime=5s
+	$(GO) test ./internal/xmpp -fuzz=FuzzExtractIQReply -fuzztime=10s
+
+.PHONY: bench
+bench:
+	$(GO) test ./internal/session ./internal/colour -bench=. -benchmem
+
 .PHONY: vet
 vet:
 	$(GO) vet ./...
@@ -38,12 +53,20 @@ vet:
 fmt:
 	$(GO) fmt ./...
 
+.PHONY: fix
+fix:
+	$(GO) fix ./...
+
+.PHONY: gosec
+gosec:
+	gosec -fmt=text ./...
+
 .PHONY: tidy
 tidy:
 	$(GO) mod tidy
 
 .PHONY: check
-check: vet test
+check: fmt fix vet gosec race test
 
 .PHONY: clean
 clean:
