@@ -107,8 +107,17 @@ type Logs struct {
 	Label     string       `json:"label"`
 	Tail      int          `json:"tail"`
 	Lines     []string     `json:"lines"`
+	Entries   []LogEntry   `json:"entries"`
 	Truncated bool         `json:"truncated"`
+	FetchedAt string       `json:"fetched_at"`
 	Services  []LogService `json:"services"`
+}
+
+// LogEntry is one timestamped compose log line.
+type LogEntry struct {
+	Time    string `json:"time"`
+	Display string `json:"display"`
+	Text    string `json:"text"`
 }
 
 // Enabled reports whether the portal should call the updater.

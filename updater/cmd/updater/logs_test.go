@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestResolveLogService(t *testing.T) {
 	svc, ok := resolveLogService("snikket_server")
@@ -39,6 +42,39 @@ func TestSplitLogLines(t *testing.T) {
 	}
 	if len(lines) == 0 {
 		t.Fatal("expected remaining lines")
+	}
+}
+
+func TestParseComposeLogLine(t *testing.T) {
+	entry := parseComposeLogLine("snikket  | 2026-09-07T11:33:33.406097562Z Waiting for certificates")
+	if entry.Display != "11:33:33" {
+		t.Fatalf("display=%q", entry.Display)
+	}
+	if entry.Text != "Waiting for certificates" {
+		t.Fatalf("text=%q", entry.Text)
+	}
+	if entry.Time != "2026-09-07T11:33:33Z" {
+		t.Fatalf("time=%q", entry.Time)
+	}
+	wide := parseComposeLogLine("snikket  | 2026-09-07T11:33:33Z -c          <filename>          Configuration file")
+	if wide.Text != "-c <filename> Configuration file" {
+		t.Fatalf("compact text=%q", wide.Text)
+	}
+	plain := parseComposeLogLine("not a compose line")
+	if plain.Text != "not a compose line" || plain.Display != "" {
+		t.Fatalf("plain=%+v", plain)
+	}
+}
+
+func TestBuildLogEntries(t *testing.T) {
+	entries, lines := buildLogEntries([]string{
+		"snikket  | 2026-09-07T11:33:33.406097562Z hello",
+	})
+	if len(entries) != 1 || len(lines) != 1 {
+		t.Fatalf("len entries=%d lines=%d", len(entries), len(lines))
+	}
+	if !strings.Contains(lines[0], "11:33:33") || !strings.Contains(lines[0], "hello") {
+		t.Fatalf("line=%q", lines[0])
 	}
 }
 

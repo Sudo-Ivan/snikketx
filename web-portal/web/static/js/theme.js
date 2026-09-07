@@ -219,7 +219,153 @@
 		initFilePickers();
 		initBusyForms();
 		initUpdaterPoll();
+		initLogsLive();
 	});
+
+	function initLogsLive() {
+		var panel = document.querySelector("[data-logs-panel]");
+		var autoBtn = document.querySelector("[data-logs-auto]");
+		if (!panel || !autoBtn) {
+			return;
+		}
+		var view = panel.querySelector("[data-logs-view]");
+		var empty = panel.querySelector("[data-logs-empty]");
+		var truncated = panel.querySelector("[data-logs-truncated]");
+		var fetched = document.querySelector("[data-logs-fetched]");
+		var label = autoBtn.querySelector("[data-logs-auto-label]");
+		var iconUse = autoBtn.querySelector("use");
+		var storageKey = "snikketx-logs-auto";
+		var intervalMs = 5000;
+		var timer = null;
+		var busy = false;
+
+		function service() {
+			return panel.getAttribute("data-service") || "snikket_server";
+		}
+
+		function tail() {
+			return panel.getAttribute("data-tail") || "200";
+		}
+
+		function nearBottom() {
+			if (!view) {
+				return true;
+			}
+			return view.scrollHeight - view.scrollTop - view.clientHeight < 48;
+		}
+
+		function setAuto(on) {
+			autoBtn.setAttribute("aria-pressed", on ? "true" : "false");
+			if (label) {
+				label.textContent = on ? "Auto on" : "Auto-refresh";
+			}
+			if (iconUse) {
+				iconUse.setAttribute("href", on ? "#icon-pause" : "#icon-timer");
+			}
+			try {
+				window.localStorage.setItem(storageKey, on ? "1" : "0");
+			} catch (err) {}
+			if (timer) {
+				window.clearInterval(timer);
+				timer = null;
+			}
+			if (on) {
+				timer = window.setInterval(refresh, intervalMs);
+			}
+		}
+
+		function renderEntries(entries) {
+			if (!view) {
+				return;
+			}
+			var stick = nearBottom();
+			view.innerHTML = "";
+			if (!entries || !entries.length) {
+				view.hidden = true;
+				if (empty) {
+					empty.hidden = false;
+				}
+				return;
+			}
+			view.hidden = false;
+			if (empty) {
+				empty.hidden = true;
+			}
+			for (var i = 0; i < entries.length; i++) {
+				var entry = entries[i] || {};
+				var row = document.createElement("div");
+				row.className = "log-line";
+				var timeEl = document.createElement("time");
+				timeEl.className = "log-time";
+				if (entry.time) {
+					timeEl.setAttribute("datetime", entry.time);
+					timeEl.setAttribute("title", entry.time);
+				}
+				timeEl.textContent = entry.display || "--:--:--";
+				row.appendChild(timeEl);
+				var msg = document.createElement("span");
+				msg.className = "log-msg";
+				msg.textContent = entry.text || "";
+				row.appendChild(msg);
+				view.appendChild(row);
+			}
+			if (stick) {
+				view.scrollTop = view.scrollHeight;
+			}
+		}
+
+		function refresh() {
+			if (busy || document.hidden) {
+				return;
+			}
+			busy = true;
+			autoBtn.classList.add("is-refreshing");
+			var url = "/admin/logs/?format=json&service=" + encodeURIComponent(service()) +
+				"&tail=" + encodeURIComponent(tail());
+			fetch(url, {
+				headers: { Accept: "application/json" },
+				credentials: "same-origin"
+			}).then(function (resp) {
+				if (!resp.ok) {
+					throw new Error("refresh failed");
+				}
+				return resp.json();
+			}).then(function (data) {
+				renderEntries(data.entries || []);
+				if (truncated) {
+					truncated.hidden = !data.truncated;
+				}
+				if (fetched && data.fetched_at) {
+					fetched.textContent = "Fetched " + data.fetched_at;
+					fetched.setAttribute("datetime", data.fetched_at);
+				}
+			}).catch(function () {
+			}).then(function () {
+				busy = false;
+				autoBtn.classList.remove("is-refreshing");
+			});
+		}
+
+		autoBtn.addEventListener("click", function () {
+			var on = autoBtn.getAttribute("aria-pressed") !== "true";
+			setAuto(on);
+			if (on) {
+				refresh();
+			}
+		});
+
+		var stored = null;
+		try {
+			stored = window.localStorage.getItem(storageKey);
+		} catch (err) {}
+		if (stored === "1") {
+			setAuto(true);
+		}
+
+		if (view && nearBottom()) {
+			view.scrollTop = view.scrollHeight;
+		}
+	}
 
 	function initFilePickers() {
 		var pickers = document.querySelectorAll("[data-file-picker]");

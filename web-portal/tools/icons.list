@@ -48,6 +48,8 @@ info:info
 bug:bug
 refresh-cw:refresh
 rotate-ccw:restore
+timer:timer
+pause:pause
 arrow-left:arrow-left
 chevron-right:chevron-right
 message-square:message-square

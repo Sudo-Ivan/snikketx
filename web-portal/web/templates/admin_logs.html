@@ -2,15 +2,20 @@
 <div class="page-head">
 	<div>
 		<h1>Logs</h1>
-		<p class="muted">Recent container logs from allowlisted compose services, fetched through the updater. Live follow stays on the host with <span class="mono">make logs</span>.</p>
+		<p class="muted">Recent container logs from allowlisted compose services, fetched through the updater. Times are UTC. Live follow on the host stays with <span class="mono">make logs</span>.</p>
 	</div>
-	<a class="btn btn-secondary" href="/admin/logs/?service={{.Service}}&amp;tail={{.Tail}}">{{template "icon" "refresh"}}<span>Refresh</span></a>
+	<div class="page-head-actions">
+		<button type="button" class="btn btn-secondary" id="log-auto-btn" data-logs-auto aria-pressed="false" title="Auto-refresh every 5 seconds">
+			{{template "icon" "timer"}}<span data-logs-auto-label>Auto-refresh</span>
+		</button>
+		<a class="btn btn-secondary" href="/admin/logs/?service={{.Service}}&amp;tail={{.Tail}}" data-logs-refresh>{{template "icon" "refresh"}}<span>Refresh</span></a>
+	</div>
 </div>
 
 {{if .Note}}{{template "inline_toast" .Note}}{{end}}
 
 <section class="card">
-	<form method="get" action="/admin/logs/" class="toolbar" role="search">
+	<form method="get" action="/admin/logs/" class="toolbar" role="search" id="log-filters">
 		<div class="field field-grow">
 			<label for="log-service">Source</label>
 			<select id="log-service" name="service">
@@ -31,15 +36,23 @@
 			<button type="submit" class="btn btn-secondary">{{template "icon" "search"}}<span>Load</span></button>
 		</div>
 	</form>
+	<p class="hint log-fetched" data-logs-fetched{{if .FetchedAt}} datetime="{{.FetchedAt}}"{{end}}>
+		{{if .FetchedAt}}Fetched {{.FetchedAt}} (times below are UTC){{else}}Not fetched yet{{end}}
+	</p>
 </section>
 
-<section class="card card-flush">
-	{{if .Truncated}}<p class="hint log-truncated">Output was capped for size. Narrow the source or reduce lines.</p>{{end}}
-	{{if .Lines}}
-	<pre class="log-view" tabindex="0">{{range .Lines}}{{.}}
-{{end}}</pre>
+<section class="card card-flush" data-logs-panel data-service="{{.Service}}" data-tail="{{.Tail}}">
+	{{if .Truncated}}<p class="hint log-truncated" data-logs-truncated>Output was capped for size. Narrow the source or reduce lines.</p>{{else}}<p class="hint log-truncated" data-logs-truncated hidden>Output was capped for size. Narrow the source or reduce lines.</p>{{end}}
+	{{if .Entries}}
+	<div class="log-view" id="log-view" tabindex="0" data-logs-view role="log" aria-live="polite">
+		{{range .Entries}}
+		<div class="log-line"><time class="log-time"{{if .Time}} datetime="{{.Time}}" title="{{.Time}}"{{end}}>{{orDefault .Display "--:--:--"}}</time><span class="log-msg">{{.Text}}</span></div>
+		{{end}}
+	</div>
+	<p class="muted empty-logs" data-logs-empty hidden>No log lines for this source yet.</p>
 	{{else}}
-	<p class="muted empty-logs">No log lines for this source yet.</p>
+	<div class="log-view" id="log-view" tabindex="0" data-logs-view hidden role="log" aria-live="polite"></div>
+	<p class="muted empty-logs" data-logs-empty>No log lines for this source yet.</p>
 	{{end}}
 </section>
 {{end}}

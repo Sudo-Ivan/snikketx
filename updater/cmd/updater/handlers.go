@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 )
 
 func (s *server) auth(next http.HandlerFunc) http.HandlerFunc {
@@ -131,13 +132,16 @@ func (s *server) handleLogs(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	}
-	lines, truncated := splitLogLines(raw, 512<<10)
+	rawLines, truncated := splitLogLines(raw, 512<<10)
+	entries, lines := buildLogEntries(rawLines)
 	writeJSON(w, logsResponse{
 		Service:   svc.ID,
 		Label:     svc.Label,
 		Tail:      tail,
 		Lines:     lines,
+		Entries:   entries,
 		Truncated: truncated,
+		FetchedAt: time.Now().UTC().Format(time.RFC3339),
 		Services:  allowedLogServices,
 	})
 }
