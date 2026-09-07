@@ -21,7 +21,7 @@ cp /opt/snikket-build/migrator.cfg.lua /etc/prosody/migrator.cfg.lua
 cp /opt/snikket-build/restricted_users.pfw /etc/prosody/firewall/
 cp /opt/snikket-build/turnserver.conf /etc/turnserver.conf
 cp /opt/snikket-build/msmtp.conf /etc/msmtprc
-cp /opt/snikket-build/snikket-logo.png /usr/local/share/snikket/logo.png
+cp /opt/snikket-build/snikketx-logo.png /usr/local/share/snikket/logo.png
 cp /opt/snikket-build/bin/* /usr/local/bin/
 chmod 755 /usr/local/bin/*
 cp /opt/snikket-build/refresh-certs.cron /etc/cron.daily/refresh-certs

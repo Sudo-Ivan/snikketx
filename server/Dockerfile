@@ -26,7 +26,7 @@ COPY ansible/files/prosody.cfg.lua \
      ansible/files/restricted_users.pfw \
      ansible/files/turnserver.conf \
      ansible/files/msmtp.conf \
-     ansible/files/snikket-logo.png \
+     ansible/files/snikketx-logo.png \
      ansible/files/refresh-certs.cron \
      /opt/snikket-build/
 COPY ansible/files/bin /opt/snikket-build/bin

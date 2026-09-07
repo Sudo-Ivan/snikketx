@@ -14,7 +14,7 @@ In most situations, the configuration options shown in the example config in
 
 - Options *only* documented here may change their behaviour between releases without further notice
 
-  There is no guarantee about any of the options documented *only* here. Some are experimental, some are reserved for specific uncommon use cases (for which the support may be dropped eventually), others only exist to glue Snikket components together and should not be touched at all.
+  There is no guarantee about any of the options documented *only* here. Some are experimental, some are reserved for specific uncommon use cases (for which the support may be dropped eventually), others only exist to glue SnikketX components together and should not be touched at all.
 
 Also, it is very likely not complete.
 {{< /panel >}}
@@ -27,13 +27,13 @@ This reference is in no particular order. Most importantly, it is certainly not 
 
 ### `SNIKKET_DOMAIN`
 
-The domain name of your Snikket instance. Do not change this after it was once set.
+The domain name of your SnikketX instance. Do not change this after it was once set.
 
 ### `SNIKKET_RETENTION_DAYS`
 
 The number of days (as integer) for which your server should preserve messages so that all devices of a user can catch up, even if they end up being disconnected from the internet for a while.
 
-The Snikket Server stores all messages which are sent to any user for the given number of days. As end-to-end encryption is used, no plaintext is generally stored, only encrypted messages. These messages are then decrypted only on the devices of the specific user.
+The SnikketX Server stores all messages which are sent to any user for the given number of days. As end-to-end encryption is used, no plaintext is generally stored, only encrypted messages. These messages are then decrypted only on the devices of the specific user.
 
 It is recommended to set this number not too small. If a device is offline for longer than the number of days this option is set to, it will not receive all messages, which is generally a bad user experience. Note that it does no matter if any other device has received the messages: If a user has only a single device and is offline for more days than the retention period is set to, they will lose messages.
 
@@ -43,9 +43,9 @@ Changing this option to a lower value will delete messages from the server. Chan
 
 ### `SNIKKET_UPLOAD_STORAGE_GB`
 
-Use this option to place a limit on the amount of storage Snikket will use for files shared by users. You can use this to prevent your server's disk capacity being consumed if users upload many large files. By default there is no limit.
+Use this option to place a limit on the amount of storage SnikketX will use for files shared by users. You can use this to prevent your server's disk capacity being consumed if users upload many large files. By default there is no limit.
 
-If the limit is reached, users will be unable to upload new files until older files are cleared by Snikket after the configured retention period (or the limit is increased).
+If the limit is reached, users will be unable to upload new files until older files are cleared by SnikketX after the configured retention period (or the limit is increased).
 
 Example:
 
@@ -81,9 +81,9 @@ A human-friendly name for your server. Defaults to the value of `SNIKKET_DOMAIN`
 
 ### `SNIKKET_UPDATE_CHECK`
 
-By default, Snikket sends anonymous requests for the latest release via DNS, to provide you with a notification when a new release is available (which may contain important security fixes). This behaviour can be disabled by setting the option to `0`.
+By default, SnikketX sends anonymous requests for the latest release via DNS, to provide you with a notification when a new release is available (which may contain important security fixes). This behaviour can be disabled by setting the option to `0`.
 
-This will not expose your server's IP address or domain name to the Snikket org, as it will generally be proxied through your or your hosters Internet Service Provider's DNS servers.
+This will not expose your server's IP address or domain name to the SnikketX org, as it will generally be proxied through your or your hosters Internet Service Provider's DNS servers.
 
 ### `SNIKKET_ADMIN_EMAIL`
 
@@ -111,7 +111,7 @@ Valid options:
 - `old` - compatibility with very old devices, not generally recommended
 
 **Note:** The `modern` profile is not currently compatible with some apps,
-including current versions of Snikket iOS. We intend to switch to the `modern`
+including current versions of SnikketX iOS. We intend to switch to the `modern`
 profile by default in a future release - after we have assessed the impact and
 ensured sufficient compatibility.
 
@@ -145,7 +145,7 @@ rules if you change this.
 ## Advanced Configuration Reference
 
 It should generally not be necessary to use the options in this section. These
-options have a high chance of breaking your Snikket setup (sometimes in subtle
+options have a high chance of breaking your SnikketX setup (sometimes in subtle
 ways) or reducing security, if used incorrectly.
 
 ### `SNIKKET_CERTBOT_OPTIONS`
@@ -185,9 +185,9 @@ See [the firewall docs](../firewall) for details.
 
 ### `SNIKKET_TWEAK_TURNSERVER_INTERNAL_IP`
 
-If your Snikket server is behind a NAT, you can set this option to the
+If your SnikketX server is behind a NAT, you can set this option to the
 internal IP address of your server which will receive incoming traffic
-(otherwise Snikket will pick the first internal IP it finds). Although it's
+(otherwise SnikketX will pick the first internal IP it finds). Although it's
 not ideal to run a TURN server behind a NAT, providing the correct internal IP
 address helps to make TURN more reliable.
 
@@ -259,19 +259,19 @@ Also better do not set this.
 
 Disable IPv6 support by setting to `0`.
 
-By default, IPv6 is enabled because Snikket uses host networking and gracefully handles IPv6 hosts being unreachable.
+By default, IPv6 is enabled because SnikketX uses host networking and gracefully handles IPv6 hosts being unreachable.
 
 ### `SNIKKET_TWEAK_PROMETHEUS`
 
-If you are monitoring your Snikket server using [Prometheus](https://prometheus.io/) and scraping the metrics endpoint, you should set this to `1` and let it at its default otherwise.
+If you are monitoring your SnikketX server using [Prometheus](https://prometheus.io/) and scraping the metrics endpoint, you should set this to `1` and let it at its default otherwise.
 
-If this is set to `1` without Snikket server being scraped by Prometheus, the System Health panel in the web portal will not work correctly. If this is not set to `1` when Snikket is being scraped by Prometheus, the numbers seen by Prometheus may not be accurate at the time they are being sampled, as Snikket server will in that case sample data only every 60s, no matter how often or when you scrape.
+If this is set to `1` without SnikketX server being scraped by Prometheus, the System Health panel in the web portal will not work correctly. If this is not set to `1` when SnikketX is being scraped by Prometheus, the numbers seen by Prometheus may not be accurate at the time they are being sampled, as SnikketX server will in that case sample data only every 60s, no matter how often or when you scrape.
 
 The default is safe for non-Prometheus setups.
 
 ### `SNIKKET_TWEAK_TURNSERVER`
 
-By default, Snikket starts a STUN/TURN server. If this option is set to `0`, it will not do that. You will have to run your own STUN/TURN server and configure `SNIKKET_TWEAK_TURNSERVER_DOMAIN` and `SNIKKET_TWEAK_TURNSERVER_SECRET` accordingly.
+By default, SnikketX starts a STUN/TURN server. If this option is set to `0`, it will not do that. You will have to run your own STUN/TURN server and configure `SNIKKET_TWEAK_TURNSERVER_DOMAIN` and `SNIKKET_TWEAK_TURNSERVER_SECRET` accordingly.
 
 If `SNIKKET_TWEAK_TURNSERVER` is set to `0` and `SNIKKET_TWEAK_TURNSERVER_DOMAIN` is not set, no STUN/TURN server will be offered to your users. Terrible idea to do that, will break audio/video calls in all but the most ideal situations.
 
@@ -279,7 +279,7 @@ If `SNIKKET_TWEAK_TURNSERVER` is set to `0` and `SNIKKET_TWEAK_TURNSERVER_DOMAIN
 
 Hostname of the STUN/TURN server to use.
 
-Defaults to the Snikket domain, as snikket-server runs contains its own STUN/TURN server.
+Defaults to the SnikketX domain, as snikket-server runs contains its own STUN/TURN server.
 
 ### `SNIKKET_TWEAK_TURNSERVER_SECRET`
 

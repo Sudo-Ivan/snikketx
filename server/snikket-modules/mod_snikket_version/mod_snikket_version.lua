@@ -7,7 +7,7 @@ function module.load()
 	local version_filename = paths.join(prosody.paths.source, "snikket.version");
 	local version_fh, err = io.open(version_filename);
 	if not version_fh then
-		module:log("error", "Could not discover Snikket version: %s", err);
+		module:log("error", "Could not discover SnikketX version: %s", err);
 		return
 	end
 	snikket_version = version_fh:read();
@@ -19,7 +19,7 @@ module:hook("iq-get/host/jabber:iq:version:query", function(event)
 	local origin, stanza = event.origin, event.stanza;
 
 	origin.send(st.reply(stanza):query("jabber:iq:version")
-			:text_tag("name", "Snikket")
+			:text_tag("name", "SnikketX")
 			:text_tag("version", snikket_version));
 	return true;
 end);

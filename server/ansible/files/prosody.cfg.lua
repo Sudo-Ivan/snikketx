@@ -306,7 +306,7 @@ site_name = ENV_SNIKKET_SITE_NAME or DOMAIN
 site_logo = "/usr/local/share/snikket/logo.png"
 
 -- Update check configuration
-software_name = "Snikket"
+software_name = "SnikketX"
 update_notify_version_url = "https://snikket.org/updates/{branch}/{version}"
 update_notify_support_url = "https://snikket.org/notices/{branch}/"
 update_notify_message_url = "https://snikket.org/notices/{branch}/{message}"

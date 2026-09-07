@@ -4,7 +4,7 @@ title: User roles
 
 # User roles
 
-Snikket allows you to select a role for users, each role granting different
+SnikketX allows you to select a role for users, each role granting different
 permissions.
 
 Each user may have one of three roles:
@@ -16,7 +16,7 @@ probably you!).
 
 Administrators have full control over the server, settings, users and circles.
 These features can be accessed primarily through the admin panel in the
-Snikket web interface.
+SnikketX web interface.
 
 ## Normal
 
@@ -47,7 +47,7 @@ messages and contact requests from other servers, even though they cannot send
 them to other servers. It is expected that we will restrict incoming traffic
 for limited users in a future release, after further testing.
 
-Also note that limited accounts may have issues using non-Snikket mobile apps
+Also note that limited accounts may have issues using non-SnikketX mobile apps
 that use push notifications, depending on the design of the app. This is
 because the restrictions may prevent the app communicating with its'
 developer's push notification services over XMPP.

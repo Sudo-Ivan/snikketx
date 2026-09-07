@@ -1,17 +1,17 @@
 ---
-title: Upgrading your Snikket instance
+title: Upgrading your SnikketX instance
 linktitle: Upgrading
-description: "Upgrading your Snikket instance is easy."
+description: "Upgrading your SnikketX instance is easy."
 date: 2021-05-19T14:32:02Z
 weight: 20
 ---
 
-We periodically announce new releases of the Snikket server software on our
+We periodically announce new releases of the SnikketX server software on our
 [blog][], [Mastodon][] and [Twitter][]. You will also receive [update
 notifications][] directly from your instance when it is time to upgrade.
 
-Upgrading to a new Snikket release is typically very easy. The correct process
-to use depends on the method you initially used to set up your Snikket
+Upgrading to a new SnikketX release is typically very easy. The correct process
+to use depends on the method you initially used to set up your SnikketX
 instance. Each method is explained here.
 
 
@@ -28,7 +28,7 @@ section of the troubleshooting guide before you upgrade:
 
 ## Upgrading
 
-### Snikket quick-start
+### SnikketX quick-start
 
 If you are using a version installed from the [original quick-start][] guide
 on the website (most likely), then use these commands:
@@ -41,7 +41,7 @@ on the website (most likely), then use these commands:
 
 ### snikket-selfhosted
 
-If you installed Snikket using the [snikket-selfhosted][] repository, simply
+If you installed SnikketX using the [snikket-selfhosted][] repository, simply
 run:
 
 ```
@@ -50,7 +50,7 @@ run:
     ./scripts/update.sh
 ```
 
-### Snikket hosting
+### SnikketX hosting
 
 If you're using our hosting service, you can upgrade by visiting your
 [hosting dashboard][] and clicking the 'Update' button next to your instance.
@@ -61,18 +61,18 @@ Typically you will receive a notification when an update is available.
 
 ## Check your version
 
-There are several ways to check the version of the Snikket server you are
+There are several ways to check the version of the SnikketX server you are
 currently using:
 
 ### Using the web interface
 
 1. Log into the web interface using your admin account
-2. In the footer of the page click on "Snikket service"
+2. In the footer of the page click on "SnikketX service"
 3. Scroll to the section "Software versions"
 
 ### Using the command-line
 
-SSH into the system where Snikket is installed, and run the following command:
+SSH into the system where SnikketX is installed, and run the following command:
 
 ```shell
 docker exec snikket prosodyctl about | head -n1

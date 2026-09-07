@@ -1,6 +1,6 @@
 # server
 
-Prosody-based Snikket server image for the snikketx monorepo.
+Prosody-based SnikketX server image for the snikketx monorepo.
 
 Build from the repo root with `make docker-server`, or from this directory
 with `make docker`. The image is tagged

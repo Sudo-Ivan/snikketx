@@ -219,7 +219,7 @@
   with_fileglob:
     - "../files/patches/prosody/modules/*.patch"
 
-- name: Create Snikket resources directory
+- name: Create SnikketX resources directory
   file:
     state: directory
     path: /usr/local/share/snikket
@@ -227,9 +227,9 @@
     group: root
     mode: 0755
 
-- name: Install Snikket logo
+- name: Install SnikketX logo
   copy:
-    src: ../files/snikket-logo.png
+    src: ../files/snikketx-logo.png
     dest: /usr/local/share/snikket/logo.png
     owner: root
     group: root

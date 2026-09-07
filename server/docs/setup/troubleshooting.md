@@ -1,36 +1,36 @@
 ---
 title: "Troubleshooting"
-subtitle: Self-hosted Snikket troubleshooting
+subtitle: Self-hosted SnikketX troubleshooting
 weight: 30
 ---
 
-Problems with your Snikket setup? Don't worry! Most people don't experience
+Problems with your SnikketX setup? Don't worry! Most people don't experience
 any issues, but if you do, it's likely something simple. This page describes
 problems you might encounter, and how to solve them.
 
 ## General problems
 
-### "Snikket is starting" page does not go away
+### "SnikketX is starting" page does not go away
 
 If this page stays for more than a few minutes, there was probably an
-issue obtaining certificates for your Snikket service. For more
+issue obtaining certificates for your SnikketX service. For more
 information on diagnosing certificate issues, see the
 ['Certificates' section](#certificate-problems) later on this page.
 
 ### Unable to share large files
 
-If you find that your users cannot share large files through Snikket,
+If you find that your users cannot share large files through SnikketX,
 there could be a couple of reasons:
 
-- If you are using Snikket behind a reverse proxy, ensure that the proxy
+- If you are using SnikketX behind a reverse proxy, ensure that the proxy
   does not place a limit on the size of uploads. Check our [reverse proxy
   guide](../../advanced/reverse_proxy/) for more information.
-- If the file is over 100MB, Snikket will attempt a direct device-to-device
+- If the file is over 100MB, SnikketX will attempt a direct device-to-device
   transfer. This requires you and your recipient to be online at the
   same time, and it only works between two users (not in groups). Also
   note that direct transfers are not currently supported to or from iOS
   devices.
-- To share files over 100MB with a Snikket group or iOS users, we
+- To share files over 100MB with a SnikketX group or iOS users, we
   recommend a dedicated file transfer service. You can find a list of
   standalone [self-hosted file transfer services](https://github.com/awesome-selfhosted/awesome-selfhosted#file-transfer---single-click--drag-n-drop-upload), use a system
   such as NextCloud, or select one of the many free online file transfer
@@ -42,9 +42,9 @@ If all invitation links show as expired immediately after you create them:
 
 - Check you copied the entire URL correctly.
 - Ensure that you don't have an XMPP server or other service running on
-  the same system as Snikket using port 5280.
+  the same system as SnikketX using port 5280.
 - If you use a reverse proxy, check that it is correctly forwarding
-  requests to Snikket. See our [reverse proxy guide](../../advanced/reverse_proxy/)
+  requests to SnikketX. See our [reverse proxy guide](../../advanced/reverse_proxy/)
   for more info.
 
 ### Not responsible for this domain
@@ -53,7 +53,7 @@ If you see an error in the app reporting that the server is "not
 responsible for this domain":
 
 - Check that you do not have another XMPP server running on the same
-  system as Snikket. It may be using the ports that Snikket needs.
+  system as SnikketX. It may be using the ports that SnikketX needs.
 - Check that your DNS setup is correct, and you do not have SRV records
   left over from a previous XMPP installation on the same domain. If you
   recently modified your DNS records, you may need to wait a while for
@@ -61,22 +61,22 @@ responsible for this domain":
 
 ### Host compatibility
 
-Although Docker mostly isolates Snikket from the host system that you install
+Although Docker mostly isolates SnikketX from the host system that you install
 it on, it does depend on certain capabilities of the host. This section lists
 any known compatibility issues.
 
 #### Docker version compatibility
 
-Certain old versions of Docker are incompatible with Snikket releases from
+Certain old versions of Docker are incompatible with SnikketX releases from
 January 2024 and later. We recommend ensuring that you have Docker 20.10.10
-or later installed on the host system. Otherwise, you might see that Snikket
+or later installed on the host system. Otherwise, you might see that SnikketX
 has trouble starting, obtaining certificates or other functionality may not
 work.
 
 #### Problems on Debian/Raspbian 10 ("buster") on Raspberry Pi or ARM devices
 
 If you use Debian or Raspbian version 10 ("buster") on a Raspberry Pi or other
-ARM-based system, you may experience Snikket's containers failing to start with
+ARM-based system, you may experience SnikketX's containers failing to start with
 errors such as `"Operation Not Permitted"` or `"init_interp_main: can't initialize time"`.
 
 #### Cause
@@ -115,9 +115,9 @@ There are two options to fix this:
 ## Certificate problems
 
 Certificates are an important part of securing connections to your
-Snikket.
+SnikketX.
 
-Snikket automatically obtains certificates from Let's Encrypt, and keeps
+SnikketX automatically obtains certificates from Let's Encrypt, and keeps
 them up to date. This usually works without problems, but it can be
 sensitive to a number of things that might cause it to fail.
 
@@ -127,7 +127,7 @@ Common causes of an inability to obtain or renew certificates:
 
 #### Missing or incorrect DNS records
 
-Snikket needs 3 DNS records to be added. Ensure you followed the steps
+SnikketX needs 3 DNS records to be added. Ensure you followed the steps
 from the installation guide correctly, particularly the
 [DNS configuration](https://snikket.org/service/quickstart/#step-1-dns).
 
@@ -137,7 +137,7 @@ AAAA record).
 #### Port 80 blocked
 
 Ensure that port 80 is open and accessible. You can review a [list of
-ports required by Snikket](../../advanced/firewall/). Port 80 is required
+ports required by SnikketX](../../advanced/firewall/). Port 80 is required
 to be open by Let's Encrypt so they can verify your domain.
 
 On a VPS or in a cloud environment, your provider may require you to
@@ -149,22 +149,22 @@ nftables).
 
 #### Incorrect reverse proxy configuration
 
-If you have a reverse proxy set up (e.g. to run Snikket on the same server
+If you have a reverse proxy set up (e.g. to run SnikketX on the same server
 as other websites or services), it needs to correctly forward requests
-to Snikket on both http and https.
+to SnikketX on both http and https.
 
-See our [Snikket reverse proxy documentation](../../advanced/reverse_proxy/)
+See our [SnikketX reverse proxy documentation](../../advanced/reverse_proxy/)
 for more information on correctly configuring reverse proxies.
 
 #### IPv6-only network
 
-If your Snikket instance is on an IPv6-only network, ensure you are using the
+If your SnikketX instance is on an IPv6-only network, ensure you are using the
 latest docker-compose.yml. Specifically, there should be a `network_mode: host`
 under the `snikket_certs:` line.
 
 #### Incompatible Docker version
 
-Certain old versions of Docker prevent Snikket from starting properly. Ensure
+Certain old versions of Docker prevent SnikketX from starting properly. Ensure
 you have Docker 20.10.10 or later.
 
 ### Certificate debugging commands
