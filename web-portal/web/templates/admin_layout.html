@@ -45,7 +45,7 @@
 				<h1 class="admin-title">{{orDefault .Title (t "admin.welcome")}}</h1>
 			</div>
 			<div class="admin-search" data-admin-search>
-				<label class="visually-hidden" for="admin-search-input">{{t "nav.search"}}</label>
+				<label class="sr-only" for="admin-search-input">{{t "nav.search"}}</label>
 				<div class="admin-search-field">
 					{{template "icon" "search"}}
 					<input type="search" id="admin-search-input" data-admin-search-input placeholder="{{t "nav.search_placeholder"}}" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="admin-search-results" aria-autocomplete="list">
