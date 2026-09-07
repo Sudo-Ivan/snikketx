@@ -201,6 +201,8 @@ type updaterView struct {
 	AutoUpdate    bool
 	Services      []updater.Service
 	Detail        string
+	ImagePrefix   string
+	VerifyEnabled bool
 }
 
 func (a *App) handleUpdates(w http.ResponseWriter, r *http.Request) {
@@ -288,6 +290,8 @@ func (a *App) loadUpdaterView(ctx context.Context) updaterView {
 		AutoUpdate:    status.AutoUpdate,
 		Services:      status.Services,
 		Detail:        status.Detail,
+		ImagePrefix:   status.ImagePrefix,
+		VerifyEnabled: status.VerifyEnabled,
 	}
 }
 

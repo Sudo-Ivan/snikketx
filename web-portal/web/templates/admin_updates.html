@@ -1,6 +1,6 @@
 {{define "content"}}
 <div class="page-head">
-	<p class="muted">Software channel from Prosody, plus container image updates when the updater service is configured.</p>
+	<p class="muted">Software channel from Prosody, plus container image updates from <span class="mono">ghcr.io/sudo-ivan/snikketx</span> with Cosign keyless verification.</p>
 </div>
 
 {{if .Note}}{{template "inline_toast" .Note}}{{end}}
@@ -27,7 +27,9 @@
 		<div class="stat"><span class="stat-label">Last check</span><span class="stat-value">{{orDefault .Updater.LastCheck "-"}}</span></div>
 		<div class="stat"><span class="stat-label">Interval</span><span class="stat-value">{{.Updater.IntervalHours}}h</span></div>
 		<div class="stat"><span class="stat-label">Auto-update</span><span class="stat-value">{{if .Updater.AutoUpdate}}on{{else}}off{{end}}</span></div>
+		<div class="stat"><span class="stat-label">Signatures</span><span class="stat-value">{{if .Updater.VerifyEnabled}}cosign keyless{{else}}off{{end}}</span></div>
 	</div>
+	{{with .Updater.ImagePrefix}}<p class="muted">Image prefix <span class="mono">{{.}}</span></p>{{end}}
 	{{if .Updater.Services}}
 	<div class="table-wrap">
 		<table class="table">
@@ -35,6 +37,7 @@
 				<tr>
 					<th scope="col">Service</th>
 					<th scope="col">Image</th>
+					<th scope="col">Signature</th>
 					<th scope="col">State</th>
 				</tr>
 			</thead>
@@ -43,6 +46,17 @@
 				<tr>
 					<td class="mono">{{.Name}}</td>
 					<td class="mono muted">{{.Image}}</td>
+					<td>
+						{{$sig := .SignatureState}}
+						{{if eq $sig "verified"}}
+						<span class="badge badge-ok">verified</span>
+						{{else if eq $sig "failed"}}
+						<span class="badge badge-warn">failed</span>
+						{{else}}
+						<span class="muted">n/a</span>
+						{{end}}
+						{{with .SignatureDetail}}<span class="muted">{{.}}</span>{{end}}
+					</td>
 					<td>{{if .UpdateAvailable}}<span class="badge badge-warn">update available</span>{{else}}<span class="badge badge-ok">current</span>{{end}}</td>
 				</tr>
 				{{end}}
@@ -74,7 +88,7 @@
 	</form>
 	{{if .Updater.Detail}}<p class="muted">{{.Updater.Detail}}</p>{{end}}
 	{{else}}
-	<p class="muted">Updater service is not configured. Set <span class="mono">SNIKKET_WEB_UPDATER_ENDPOINT</span> and <span class="mono">SNIKKET_WEB_UPDATER_TOKEN</span>, and run the <span class="mono">snikket_updater</span> container.</p>
+	<p class="muted">Updater defaults to <span class="mono">http://snikket_updater:9191</span> with token <span class="mono">snikket-updater-local</span>. Start the <span class="mono">snikket_updater</span> service (images from <span class="mono">ghcr.io/sudo-ivan/snikketx</span>).</p>
 	{{end}}
 </section>
 {{end}}

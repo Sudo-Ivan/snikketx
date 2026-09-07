@@ -18,6 +18,34 @@ type Client struct {
 	HTTP     *http.Client
 }
 
+// Service is one compose service image row.
+type Service struct {
+	Name            string `json:"name"`
+	Image           string `json:"image"`
+	Digest          string `json:"digest"`
+	UpdateAvailable bool   `json:"update_available"`
+	SignatureOK     *bool  `json:"signature_ok"`
+	SignatureDetail string `json:"signature_detail"`
+	Registry        string `json:"registry"`
+}
+
+// SignatureState is verified, failed, or n/a when the image was not checked.
+func (s Service) SignatureState() string {
+	if s.SignatureOK == nil {
+		return "n/a"
+	}
+	if *s.SignatureOK {
+		return "verified"
+	}
+	return "failed"
+}
+
+// Settings controls check cadence and auto-apply.
+type Settings struct {
+	IntervalHours int  `json:"interval_hours"`
+	AutoUpdate    bool `json:"auto_update"`
+}
+
 // Status is the updater status document.
 type Status struct {
 	Status        string    `json:"status"`
@@ -29,19 +57,8 @@ type Status struct {
 	Services      []Service `json:"services"`
 	Detail        string    `json:"detail"`
 	Configured    bool      `json:"configured"`
-}
-
-// Service is one compose service image row.
-type Service struct {
-	Name            string `json:"name"`
-	Image           string `json:"image"`
-	UpdateAvailable bool   `json:"update_available"`
-}
-
-// Settings controls check cadence and auto-apply.
-type Settings struct {
-	IntervalHours int  `json:"interval_hours"`
-	AutoUpdate    bool `json:"auto_update"`
+	ImagePrefix   string    `json:"image_prefix"`
+	VerifyEnabled bool      `json:"verify_enabled"`
 }
 
 // Enabled reports whether the portal should call the updater.
