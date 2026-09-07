@@ -86,13 +86,13 @@ func stubProsody(t *testing.T) *httptest.Server {
 		w.WriteHeader(http.StatusNoContent)
 	})
 	mux.HandleFunc("/snikket_ops_api/uploads", func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`{"host":"share.example.test","available":true,"used_bytes":12345,"file_count":2,"orphan_count":1,"retention_days":7,"largest":[{"id":"f1","name":"photo.jpg","size":12000,"uploader":"alice","when":1700000000}],"orphans":[{"id":"f2","name":"lost.bin","size":345,"when":1700000000}]}`))
+		_, _ = w.Write([]byte(`{"host":"share.example.test","available":true,"used_bytes":12345,"file_count":2,"orphan_count":1,"retention_days":7,"largest":[{"id":"f1","name":"photo.jpg","size":12000,"uploader":"alice","when":1700000000}],"orphans":[{"id":"f2","name":"lost.bin","size":345,"when":1700000000}],"by_user":[{"user":"alice","bytes":12000,"files":1}]}`))
 	})
 	mux.HandleFunc("/snikket_ops_api/uploads/purge", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"removed":1,"mode":"orphans"}`))
 	})
 	mux.HandleFunc("/snikket_ops_api/invites/stats", func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`{"outstanding":2,"used":5,"conversion_rate":0.71,"by_source":{"portal":4,"app":3},"tracking":[{"token":"t1","source":"portal","user":"carol","when":1700000000}],"bootstrap":{"records":1,"configured":true}}`))
+		_, _ = w.Write([]byte(`{"outstanding":2,"used":5,"conversion_rate":0.71,"by_source":{"portal":4,"app":3},"tracking":[{"token":"t1","source":"portal","user":"carol","when":1700000000}],"daily":[{"day":"2026-09-01","used":2},{"day":"2026-09-02","used":3}],"bootstrap":{"records":1,"configured":true}}`))
 	})
 	mux.HandleFunc("/snikket_ops_api/archives", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"mam_total":100,"offline_total":3,"muc_mam_available":true,"retention_days":7,"users":[{"username":"alice","mam":80,"offline":1},{"username":"bob","mam":20,"offline":2}]}`))
@@ -237,7 +237,7 @@ func TestGetRoutesRender(t *testing.T) {
 		"/admin/invitations", "/admin/invitation/-/new", "/admin/invitation/inv1",
 		"/admin/circles", "/admin/circle/-/new", "/admin/circle/g1",
 		"/admin/circle/g1/delete", "/admin/circle/g1/add_chat",
-		"/admin/system/", "/admin/health/", "/admin/audit/", "/admin/mucs", "/admin/muc/-/new", "/admin/muc/family",
+		"/admin/system/", "/admin/health/", "/admin/audit/", "/admin/audit/export.csv", "/admin/audit/export.json", "/admin/mucs", "/admin/muc/-/new", "/admin/muc/family",
 		"/admin/devices", "/admin/storage", "/admin/invites/analytics", "/admin/archives", "/admin/updates",
 		"/admin/certs/", "/admin/limits/", "/admin/backup/", "/admin/backup/export/alice",
 		"/invite/inv1/", "/invite/inv1/register", "/invite/reset-inv/reset",

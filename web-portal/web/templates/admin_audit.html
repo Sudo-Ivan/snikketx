@@ -4,23 +4,41 @@
 </div>
 
 <section class="card search-panel">
-	<form method="get" action="/admin/audit/" class="toolbar" role="search">
-		<div class="field field-grow">
-			<label for="audit-q">Search</label>
-			<input type="search" id="audit-q" name="q" value="{{.Query}}" placeholder="Actor, action, target, IP, user agent, detail" autocomplete="off">
+	<form method="get" action="/admin/audit/" class="form" role="search">
+		<div class="grid-split">
+			<div class="field field-grow">
+				<label for="audit-q">Search</label>
+				<input type="search" id="audit-q" name="q" value="{{.Query}}" placeholder="Actor, action, target, IP, user agent, detail" autocomplete="off">
+			</div>
+			<div class="field">
+				<label for="audit-source">Source</label>
+				<input type="text" id="audit-source" name="source" value="{{.Source}}" placeholder="portal, prosody" autocomplete="off">
+			</div>
+			<div class="field">
+				<label for="audit-actor">Actor</label>
+				<input type="text" id="audit-actor" name="actor" value="{{.Actor}}" placeholder="admin@…" autocomplete="off">
+			</div>
+			<div class="field">
+				<label for="audit-action">Action</label>
+				<input type="text" id="audit-action" name="action" value="{{.Action}}" placeholder="login, destroy…" autocomplete="off">
+			</div>
 		</div>
 		<div class="toolbar-actions">
 			<button type="submit" class="btn btn-secondary">{{template "icon" "search"}}<span>Search</span></button>
-			{{if .Query}}<a class="btn btn-ghost" href="/admin/audit/">Clear</a>{{end}}
+			{{if or .Query .Source .Actor .Action}}<a class="btn btn-ghost" href="/admin/audit/">Clear</a>{{end}}
+			<a class="btn btn-ghost" href="{{.ExportCSV}}">{{template "icon" "download"}}<span>CSV</span></a>
+			<a class="btn btn-ghost" href="{{.ExportJSON}}">{{template "icon" "download"}}<span>JSON</span></a>
 		</div>
 	</form>
+	{{template "copy_field" dict "ID" "audit-share-url" "Label" "Share this filter" "Value" .ShareURL}}
 	<p class="muted saved-filters">
 		Saved filters:
 		<a href="/admin/audit/?q=failed+login">failed logins</a>
 		<a href="/admin/audit/?q=destroy">destroys</a>
 		<a href="/admin/audit/?q=lock">locks</a>
 		<a href="/admin/audit/?q=bulk">bulk actions</a>
-		<span class="muted">Paste an IP into search for that address.</span>
+		<a href="/admin/audit/?source=portal">portal only</a>
+		<a href="/admin/audit/?source=prosody">prosody only</a>
 	</p>
 </section>
 

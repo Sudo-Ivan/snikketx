@@ -1,6 +1,19 @@
 {{define "content"}}
 <p class="muted">{{t "admin.ops_summary"}} for <strong>{{.Domain}}</strong>. Portal uptime {{.Uptime}}.</p>
 
+{{if .SLO}}
+<section class="slo-strip" aria-label="Service health">
+	{{range .SLO}}
+	<a class="slo-item slo-{{.Level}}" href="{{.Href}}" title="{{.Detail}}">
+		<span class="slo-dot" aria-hidden="true"></span>
+		<span class="slo-name">{{.Name}}</span>
+		<span class="slo-label">{{.Label}}</span>
+		<span class="slo-detail muted">{{.Detail}}</span>
+	</a>
+	{{end}}
+</section>
+{{end}}
+
 <div class="stats stats-lead">
 	<a class="stat stat-link" href="/admin/users">
 		<span class="stat-label">{{template "icon" "users"}}<span>Accounts</span></span>

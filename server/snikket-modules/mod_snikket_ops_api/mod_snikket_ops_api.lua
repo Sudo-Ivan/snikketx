@@ -364,11 +364,28 @@ local function handle_uploads(event)
 	end);
 
 	local orphans = {};
+	local by_user_map = {};
 	for _, file in ipairs(files) do
 		if not file.uploader or file.uploader == "" then
 			orphans[#orphans+1] = file;
+		else
+			local key = tostring(file.uploader);
+			local row = by_user_map[key];
+			if not row then
+				row = { user = key, bytes = 0, files = 0, orphans = 0 };
+				by_user_map[key] = row;
+			end
+			row.bytes = row.bytes + (file.size or 0);
+			row.files = row.files + 1;
 		end
 	end
+	local by_user = {};
+	for _, row in pairs(by_user_map) do
+		by_user[#by_user+1] = row;
+	end
+	table.sort(by_user, function (a, b)
+		return (a.bytes or 0) > (b.bytes or 0);
+	end);
 
 	return json_ok(event, {
 		host = share_host;
@@ -378,6 +395,7 @@ local function handle_uploads(event)
 		orphan_count = #orphans;
 		largest = list(slice(files, 1, 25));
 		orphans = list(slice(orphans, 1, 50));
+		by_user = list(slice(by_user, 1, 100));
 		stats = upload_stats;
 		global_quota_gb = tonumber(os.getenv("SNIKKET_UPLOAD_STORAGE_GB"));
 		daily_quota_gb = tonumber(os.getenv("SNIKKET_DAILY_UPLOAD_LIMIT_PER_USER_GB"));
@@ -391,6 +409,7 @@ local function handle_uploads_purge(event)
 
 	local params = decode_query(event.request.url.query);
 	local mode = params.mode or "orphans";
+	local filter_user = params.user;
 	local retention_days = tonumber(os.getenv("SNIKKET_RETENTION_DAYS")) or 7;
 	local cutoff = os.time() - (retention_days * 86400);
 	local removed = 0;
@@ -411,6 +430,11 @@ local function handle_uploads_purge(event)
 				drop = true;
 			elseif mode == "expired" and when and when < cutoff then
 				drop = true;
+			elseif mode == "user" and filter_user and uploader and tostring(uploader) == filter_user then
+				drop = true;
+			elseif mode == "user_orphans" and filter_user and (not uploader or uploader == "") then
+				-- no-op for true orphans when filtering by user
+				drop = false;
 			end
 			if drop then
 				archive:delete(nil, id);
@@ -418,7 +442,7 @@ local function handle_uploads_purge(event)
 			end
 		end
 	end
-	return json_ok(event, { removed = removed, mode = mode });
+	return json_ok(event, { removed = removed, mode = mode, user = filter_user });
 end
 
 local function handle_invite_stats(event)
@@ -474,6 +498,20 @@ local function handle_invite_stats(event)
 		return tonumber(a.when or 0) > tonumber(b.when or 0);
 	end);
 
+	local daily_map = {};
+	for _, row in ipairs(tracking) do
+		local ts = tonumber(row.when or 0) or 0;
+		if ts > 0 then
+			local day = os.date("!%Y-%m-%d", ts);
+			daily_map[day] = (daily_map[day] or 0) + 1;
+		end
+	end
+	local daily = {};
+	for i = 29, 0, -1 do
+		local day = os.date("!%Y-%m-%d", os.time() - (i * 86400));
+		daily[#daily+1] = { day = day, used = daily_map[day] or 0 };
+	end
+
 	local total = outstanding + used;
 	return json_ok(event, {
 		outstanding = outstanding;
@@ -481,6 +519,7 @@ local function handle_invite_stats(event)
 		conversion_rate = total > 0 and (used / total) or 0;
 		by_source = by_source;
 		tracking = list(slice(tracking, 1, 100));
+		daily = list(daily);
 		bootstrap = bootstrap_status;
 	});
 end

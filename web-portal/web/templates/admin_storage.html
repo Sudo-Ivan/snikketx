@@ -1,6 +1,6 @@
 {{define "content"}}
 <div class="page-head">
-	<p class="muted">HTTP upload quota, largest blobs and orphaned files on {{orDefault .Info.Host (printf "share.%s" .Domain)}}.</p>
+	<p class="muted">HTTP upload quota, per-user usage, largest blobs and orphaned files on {{orDefault .Info.Host (printf "share.%s" .Domain)}}.</p>
 	<form method="post" action="/admin/storage" class="toolbar-actions">
 		{{csrf .CSRF}}
 		<input type="hidden" name="mode" value="orphans">
@@ -24,9 +24,58 @@
 	<button type="submit" class="btn btn-ghost">{{template "icon" "clock"}}<span>Purge expired</span></button>
 </form>
 
+{{if .Users}}
+<section class="card">
+	<h2>Per-user usage</h2>
+	<div class="quota-chart" role="img" aria-label="Upload usage by account">
+		{{range .Users}}
+		<div class="quota-row">
+			<div class="quota-meta">
+				<span class="mono">{{.User}}</span>
+				<span class="muted">{{formatBytes .Bytes}} · {{.Files}} files</span>
+			</div>
+			<div class="quota-bar" title="{{formatBytes .Bytes}}">
+				<span style="width: {{.Percent}}%"></span>
+			</div>
+			<form method="post" action="/admin/storage" class="inline-form">
+				{{csrf $.CSRF}}
+				<input type="hidden" name="mode" value="user">
+				<input type="hidden" name="user" value="{{.User}}">
+				<button type="submit" class="btn btn-ghost btn-small" onclick="return confirm('Delete this account upload records?');">{{template "icon" "trash"}}<span>Purge</span></button>
+			</form>
+		</div>
+		{{end}}
+	</div>
+</section>
+{{end}}
+
+{{if .Info.Orphans}}
+<section class="card card-flush table-wrap">
+	<h2>Orphans</h2>
+	<table class="table">
+		<thead>
+			<tr>
+				<th scope="col">Name</th>
+				<th scope="col">Size</th>
+				<th scope="col">When</th>
+			</tr>
+		</thead>
+		<tbody>
+			{{range .Info.Orphans}}
+			<tr>
+				<td class="mono">{{.Name}}</td>
+				<td>{{formatBytes .Size}}</td>
+				<td class="muted">{{formatUnixInt .When}}</td>
+			</tr>
+			{{end}}
+		</tbody>
+	</table>
+</section>
+{{end}}
+
 {{if .Info.Largest}}
 <section class="card card-flush table-wrap">
-	<h2 class="sr-only">Largest files</h2>
+	<h2>Largest files</h2>
 	<table class="table">
 		<thead>
 			<tr>
@@ -42,7 +91,7 @@
 				<td class="mono">{{.Name}}</td>
 				<td class="mono">{{orDefault .Uploader "-"}}</td>
 				<td>{{formatBytes .Size}}</td>
-				<td class="muted">{{if .When}}{{.When}}{{else}}-{{end}}</td>
+				<td class="muted">{{formatUnixInt .When}}</td>
 			</tr>
 			{{end}}
 		</tbody>

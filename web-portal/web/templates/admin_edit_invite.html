@@ -1,5 +1,7 @@
 {{define "content"}}
 {{$invite := .Invite.Invite}}
+<script src="/static/js/qrcode.min.js" defer></script>
+<script src="/static/js/invite.js" defer></script>
 <p><a class="btn btn-ghost btn-small" href="/admin/invitations">{{template "icon" "arrow-left"}}<span>All invitations</span></a></p>
 
 <section class="card card-narrow">
@@ -10,6 +12,11 @@
 
 	<p class="muted">Share this link with the person you are inviting. Opening it walks them through installing the app and joining {{.SiteName}}.</p>
 	{{template "copy_field" dict "ID" "invite-link" "Label" "Invitation link" "Value" .Invite.URL}}
+
+	<div class="invite-qr-panel">
+		<div class="invite-qr" data-qrdata="{{.Invite.URL}}" data-qr-download></div>
+		<button type="button" class="btn btn-secondary" data-qr-download-btn>{{template "icon" "download"}}<span>Download QR PNG</span></button>
+	</div>
 
 	<dl class="details">
 		<dt>Type</dt><dd>{{if eq $invite.Type "roster"}}Group invitation{{else}}New account{{end}}</dd>

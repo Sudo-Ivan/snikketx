@@ -66,13 +66,13 @@
 	<div class="section-head">
 		<div>
 			<h2>Active sessions</h2>
-			<p class="muted">Devices and apps signed in with your account. Signing out a device removes its registration and push endpoint.</p>
+			<p class="muted">This portal session plus registered chat apps. Signing out a chat device removes its registration and push endpoint.</p>
 		</div>
-		{{if .Sessions}}
+		{{if gt (len .Sessions) 1}}
 		<form method="post" action="/user/profile/sessions" class="inline-form">
 			{{csrf .CSRF}}
-			<input type="hidden" name="action" value="revoke_all">
-			<button type="submit" class="btn btn-secondary" onclick="return confirm('Sign out every device? You will need to sign in again on each one.');">{{template "icon" "ban"}}<span>Sign out all</span></button>
+			<input type="hidden" name="action" value="revoke_others">
+			<button type="submit" class="btn btn-secondary" onclick="return confirm('Sign out every chat device except this portal session?');">{{template "icon" "ban"}}<span>Sign out others</span></button>
 		</form>
 		{{end}}
 	</div>
@@ -90,25 +90,42 @@
 			</thead>
 			<tbody>
 				{{range .Sessions}}
-				<tr>
+				<tr{{if .IsCurrent}} class="row-current"{{end}}>
 					<td>
-						<div class="cell-stack">
-							<strong>{{orDefault .Name .ClientID}}</strong>
-							<span class="muted mono">{{.ClientID}}</span>
-							{{with .UserAgent}}<span class="muted">{{.}}</span>{{end}}
-							{{with .Resource}}<span class="muted mono">{{.}}</span>{{end}}
+						<div class="cell-stack session-client">
+							<span class="session-icon" aria-hidden="true">{{template "icon" .Icon}}</span>
+							<div>
+								<strong>{{.Name}}</strong>
+								{{if .IsPortal}}<span class="badge badge-ok">this portal session</span>{{end}}
+								<span class="muted">{{.Kind}}</span>
+								{{with .ClientID}}{{if ne . "portal"}}<span class="muted mono">{{.}}</span>{{end}}{{end}}
+								{{with .UserAgent}}<span class="muted">{{.}}</span>{{end}}
+							</div>
 						</div>
 					</td>
 					<td>{{if .HasPush}}<span class="badge badge-ok">Push</span>{{with .PushService}}<span class="muted">{{.}}</span>{{end}}{{else}}<span class="muted">-</span>{{end}}</td>
 					<td class="muted">{{printf "%v" .LastSeen}}</td>
-					<td class="mono muted">{{orDefault .IP "-"}}</td>
 					<td>
+						{{if .IP}}
+						<span class="mono">{{.IP}}</span>
+						{{with .MapURL}}
+						<a class="btn btn-ghost btn-icon" href="{{.}}" rel="noopener noreferrer" target="_blank" title="Open IP map">{{template "icon" "external-link"}}</a>
+						{{end}}
+						{{else}}
+						<span class="muted">-</span>
+						{{end}}
+					</td>
+					<td>
+						{{if .IsPortal}}
+						<span class="muted">current</span>
+						{{else}}
 						<form method="post" action="/user/profile/sessions" class="inline-form">
 							{{csrf $.CSRF}}
 							<input type="hidden" name="action" value="revoke">
 							<input type="hidden" name="client_id" value="{{.ClientID}}">
 							<button type="submit" class="btn btn-ghost btn-icon btn-danger-ghost" title="Sign out">{{template "icon" "ban"}}</button>
 						</form>
+						{{end}}
 					</td>
 				</tr>
 				{{end}}

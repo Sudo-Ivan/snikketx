@@ -34,19 +34,34 @@ type UploadFile struct {
 	When     int64  `json:"when"`
 }
 
+// UploadUserUsage is per-uploader storage volume.
+type UploadUserUsage struct {
+	User    string `json:"user"`
+	Bytes   int64  `json:"bytes"`
+	Files   int    `json:"files"`
+	Orphans int    `json:"orphans"`
+}
+
 // UploadsInfo is the share storage summary from mod_snikket_ops_api.
 type UploadsInfo struct {
-	Host          string         `json:"host"`
-	Available     bool           `json:"available"`
-	UsedBytes     int64          `json:"used_bytes"`
-	FileCount     int            `json:"file_count"`
-	OrphanCount   int            `json:"orphan_count"`
-	Largest       []UploadFile   `json:"largest"`
-	Orphans       []UploadFile   `json:"orphans"`
-	Stats         map[string]any `json:"stats"`
-	GlobalQuotaGB *float64       `json:"global_quota_gb"`
-	DailyQuotaGB  *float64       `json:"daily_quota_gb"`
-	RetentionDays int            `json:"retention_days"`
+	Host          string            `json:"host"`
+	Available     bool              `json:"available"`
+	UsedBytes     int64             `json:"used_bytes"`
+	FileCount     int               `json:"file_count"`
+	OrphanCount   int               `json:"orphan_count"`
+	Largest       []UploadFile      `json:"largest"`
+	Orphans       []UploadFile      `json:"orphans"`
+	ByUser        []UploadUserUsage `json:"by_user"`
+	Stats         map[string]any    `json:"stats"`
+	GlobalQuotaGB *float64          `json:"global_quota_gb"`
+	DailyQuotaGB  *float64          `json:"daily_quota_gb"`
+	RetentionDays int               `json:"retention_days"`
+}
+
+// InviteDaily is one day of invite conversions.
+type InviteDaily struct {
+	Day  string `json:"day"`
+	Used int    `json:"used"`
 }
 
 // InviteStats summarises invitation conversion and sources.
@@ -56,6 +71,7 @@ type InviteStats struct {
 	ConversionRate float64         `json:"conversion_rate"`
 	BySource       map[string]int  `json:"by_source"`
 	Tracking       []InviteTrack   `json:"tracking"`
+	Daily          []InviteDaily   `json:"daily"`
 	Bootstrap      InviteBootstrap `json:"bootstrap"`
 }
 
@@ -291,6 +307,7 @@ func (c *Client) GetUploadsInfo(ctx context.Context, token string) (*UploadsInfo
 		OrphanCount   int             `json:"orphan_count"`
 		Largest       json.RawMessage `json:"largest"`
 		Orphans       json.RawMessage `json:"orphans"`
+		ByUser        json.RawMessage `json:"by_user"`
 		Stats         map[string]any  `json:"stats"`
 		GlobalQuotaGB *float64        `json:"global_quota_gb"`
 		DailyQuotaGB  *float64        `json:"daily_quota_gb"`
@@ -307,6 +324,10 @@ func (c *Client) GetUploadsInfo(ctx context.Context, token string) (*UploadsInfo
 	if err != nil {
 		return nil, err
 	}
+	byUser, err := decodeJSONList[UploadUserUsage](raw.ByUser)
+	if err != nil {
+		return nil, err
+	}
 	return &UploadsInfo{
 		Host:          raw.Host,
 		Available:     raw.Available,
@@ -315,6 +336,7 @@ func (c *Client) GetUploadsInfo(ctx context.Context, token string) (*UploadsInfo
 		OrphanCount:   raw.OrphanCount,
 		Largest:       largest,
 		Orphans:       orphans,
+		ByUser:        byUser,
 		Stats:         raw.Stats,
 		GlobalQuotaGB: raw.GlobalQuotaGB,
 		DailyQuotaGB:  raw.DailyQuotaGB,
@@ -322,12 +344,15 @@ func (c *Client) GetUploadsInfo(ctx context.Context, token string) (*UploadsInfo
 	}, nil
 }
 
-// PurgeUploads deletes orphaned or expired upload metadata rows.
-func (c *Client) PurgeUploads(ctx context.Context, token, mode string) (int, error) {
+// PurgeUploads deletes orphaned, expired, or per-user upload metadata rows.
+func (c *Client) PurgeUploads(ctx context.Context, token, mode, user string) (int, error) {
 	if mode == "" {
 		mode = "orphans"
 	}
 	endpoint := c.opsEndpoint("uploads/purge") + "?mode=" + url.QueryEscape(mode)
+	if user != "" {
+		endpoint += "&user=" + url.QueryEscape(user)
+	}
 	resp, err := c.requestJSON(ctx, http.MethodPost, endpoint, token, nil)
 	if err != nil {
 		return 0, err
@@ -367,12 +392,17 @@ func (c *Client) GetInviteStats(ctx context.Context, token string) (*InviteStats
 		ConversionRate float64         `json:"conversion_rate"`
 		BySource       map[string]int  `json:"by_source"`
 		Tracking       json.RawMessage `json:"tracking"`
+		Daily          json.RawMessage `json:"daily"`
 		Bootstrap      InviteBootstrap `json:"bootstrap"`
 	}
 	if err := decodeJSONBody(resp, &raw); err != nil {
 		return nil, err
 	}
 	tracking, err := decodeJSONList[InviteTrack](raw.Tracking)
+	if err != nil {
+		return nil, err
+	}
+	daily, err := decodeJSONList[InviteDaily](raw.Daily)
 	if err != nil {
 		return nil, err
 	}
@@ -386,6 +416,7 @@ func (c *Client) GetInviteStats(ctx context.Context, token string) (*InviteStats
 		ConversionRate: raw.ConversionRate,
 		BySource:       bySource,
 		Tracking:       tracking,
+		Daily:          daily,
 		Bootstrap:      raw.Bootstrap,
 	}, nil
 }

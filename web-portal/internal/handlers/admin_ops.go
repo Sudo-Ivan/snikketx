@@ -92,10 +92,18 @@ func (a *App) handleDevicesSubmit(w http.ResponseWriter, r *http.Request) {
 	a.flashRedirect(w, r, sess, "Device revoked.", "success", "/admin/devices")
 }
 
+type storageUserView struct {
+	User    string
+	Bytes   int64
+	Files   int
+	Percent int
+}
+
 type storagePage struct {
 	webui.PageData
-	Info *prosody.UploadsInfo
-	Note string
+	Info  *prosody.UploadsInfo
+	Users []storageUserView
+	Note  string
 }
 
 func (a *App) handleStorage(w http.ResponseWriter, r *http.Request) {
@@ -109,10 +117,24 @@ func (a *App) handleStorage(w http.ResponseWriter, r *http.Request) {
 		note = "Upload storage unavailable: " + apiErrorMessage(err)
 		info = &prosody.UploadsInfo{}
 	}
+	users := make([]storageUserView, 0, len(info.ByUser))
+	for _, row := range info.ByUser {
+		pct := 0
+		if info.UsedBytes > 0 {
+			pct = int((row.Bytes * 100) / info.UsedBytes)
+		}
+		users = append(users, storageUserView{
+			User:    row.User,
+			Bytes:   row.Bytes,
+			Files:   row.Files,
+			Percent: pct,
+		})
+	}
 	page := a.newPage(w, r, sess, "Shared storage", "storage", webui.ShellAdmin)
 	a.render(w, r, http.StatusOK, "admin_storage.html", storagePage{
 		PageData: page,
 		Info:     info,
+		Users:    users,
 		Note:     note,
 	})
 }
@@ -126,18 +148,30 @@ func (a *App) handleStorageSubmit(w http.ResponseWriter, r *http.Request) {
 	if mode == "" {
 		mode = "orphans"
 	}
-	removed, err := a.Prosody.PurgeUploads(r.Context(), sess.Token(), mode)
+	user := strings.TrimSpace(r.FormValue("user"))
+	removed, err := a.Prosody.PurgeUploads(r.Context(), sess.Token(), mode, user)
 	if err != nil {
 		a.flashRedirect(w, r, sess, apiErrorMessage(err), "alert", "/admin/storage")
 		return
 	}
-	a.recordAudit(r, sess, "storage.purge", mode, strconv.Itoa(removed))
-	a.flashRedirect(w, r, sess, fmt.Sprintf("Purged %d upload records (%s).", removed, mode), "success", "/admin/storage")
+	target := mode
+	if user != "" {
+		target = mode + ":" + user
+	}
+	a.recordAudit(r, sess, "storage.purge", target, strconv.Itoa(removed))
+	a.flashRedirect(w, r, sess, fmt.Sprintf("Purged %d upload records (%s).", removed, target), "success", "/admin/storage")
+}
+
+type inviteDayView struct {
+	Day    string
+	Used   int
+	Height int
 }
 
 type inviteAnalyticsPage struct {
 	webui.PageData
 	Stats *prosody.InviteStats
+	Daily []inviteDayView
 	Note  string
 }
 
@@ -152,10 +186,25 @@ func (a *App) handleInviteAnalytics(w http.ResponseWriter, r *http.Request) {
 		note = "Invite analytics unavailable: " + apiErrorMessage(err)
 		stats = &prosody.InviteStats{BySource: map[string]int{}}
 	}
+	maxDaily := 1
+	for _, day := range stats.Daily {
+		if day.Used > maxDaily {
+			maxDaily = day.Used
+		}
+	}
+	daily := make([]inviteDayView, 0, len(stats.Daily))
+	for _, day := range stats.Daily {
+		h := 4
+		if maxDaily > 0 {
+			h = 4 + (day.Used*96)/maxDaily
+		}
+		daily = append(daily, inviteDayView{Day: day.Day, Used: day.Used, Height: h})
+	}
 	page := a.newPage(w, r, sess, "Invite analytics", "invites", webui.ShellAdmin)
 	a.render(w, r, http.StatusOK, "admin_invite_analytics.html", inviteAnalyticsPage{
 		PageData: page,
 		Stats:    stats,
+		Daily:    daily,
 		Note:     note,
 	})
 }
@@ -206,10 +255,12 @@ type updaterView struct {
 	LastApplyAgo  string
 	IntervalHours int
 	AutoUpdate    bool
+	PinDigests    bool
 	Services      []updater.Service
 	Detail        string
 	ImagePrefix   string
 	VerifyEnabled bool
+	Job           *updater.Job
 }
 
 func (a *App) handleUpdates(w http.ResponseWriter, r *http.Request) {
@@ -257,12 +308,20 @@ func (a *App) handleUpdatesSubmit(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		a.recordAudit(r, sess, "updater.apply", "", "")
-		a.flashRedirect(w, r, sess, "Container update applied.", "success", "/admin/updates")
+		a.flashRedirect(w, r, sess, "Container update started.", "success", "/admin/updates")
+	case "clear_pins":
+		if err := a.Updater.ClearPins(r.Context()); err != nil {
+			a.flashRedirect(w, r, sess, err.Error(), "alert", "/admin/updates")
+			return
+		}
+		a.recordAudit(r, sess, "updater.clear_pins", "", "")
+		a.flashRedirect(w, r, sess, "Digest pins cleared.", "success", "/admin/updates")
 	case "settings":
 		hours, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("interval_hours")))
 		settings := updater.Settings{
 			IntervalHours: hours,
 			AutoUpdate:    r.FormValue("auto_update") == "1",
+			PinDigests:    r.FormValue("pin_digests") == "1",
 		}
 		if err := a.Updater.SaveSettings(r.Context(), settings); err != nil {
 			a.flashRedirect(w, r, sess, err.Error(), "alert", "/admin/updates")
@@ -311,10 +370,12 @@ func (a *App) loadUpdaterView(ctx context.Context) updaterView {
 		LastApplyAgo:  webui.FormatRFC3339Ago(status.LastApply),
 		IntervalHours: status.IntervalHours,
 		AutoUpdate:    status.AutoUpdate,
+		PinDigests:    status.PinDigests,
 		Services:      status.Services,
 		Detail:        status.Detail,
 		ImagePrefix:   status.ImagePrefix,
 		VerifyEnabled: status.VerifyEnabled,
+		Job:           status.Job,
 	}
 }
 

@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"context"
+	"encoding/csv"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"slices"
@@ -82,6 +84,8 @@ func (a *App) mountAdmin(mux *http.ServeMux) {
 	mux.HandleFunc("GET /admin/system/", a.handleSystemForm)
 	mux.HandleFunc("POST /admin/system/", a.handleSystemSubmit)
 	mux.HandleFunc("GET /admin/health/", a.handleAdminHealth)
+	mux.HandleFunc("GET /admin/audit/export.csv", a.handleAuditExportCSV)
+	mux.HandleFunc("GET /admin/audit/export.json", a.handleAuditExportJSON)
 	mux.HandleFunc("GET /admin/audit/", a.handleAuditLog)
 	mux.HandleFunc("GET /admin/mucs", a.handleMUCs)
 	mux.HandleFunc("POST /admin/mucs", a.handleMUCsSubmit)
@@ -179,6 +183,15 @@ func (a *App) adminMetrics(ctx context.Context, token string) map[string]any {
 	return raw
 }
 
+// sloItem is one green/yellow/red tile on the admin home SLO strip.
+type sloItem struct {
+	Name   string
+	Level  string
+	Label  string
+	Detail string
+	Href   string
+}
+
 // adminHomePage is the data behind the admin overview.
 type adminHomePage struct {
 	webui.PageData
@@ -195,6 +208,7 @@ type adminHomePage struct {
 	HealthyOK    int
 	HealthyTotal int
 	HealthRows   []health.Component
+	SLO          []sloItem
 }
 
 // handleAdminHome shows the instance overview with the account, invitation and
@@ -243,6 +257,8 @@ func (a *App) handleAdminHome(w http.ResponseWriter, r *http.Request) {
 		data.RecentErrors = len(a.Errors.Recent())
 	}
 
+	data.SLO = a.buildHealthSLO(r.Context())
+
 	hostStats := hostmetrics.Collect()
 	rows := []health.Component{
 		{Name: "web portal", OK: true, Detail: "running version " + a.Cfg.Version},
@@ -263,6 +279,86 @@ func (a *App) handleAdminHome(w http.ResponseWriter, r *http.Request) {
 
 	data.PageData = a.newPage(w, r, sess, "Admin", "home", webui.ShellAdmin)
 	a.render(w, r, http.StatusOK, "admin_home.html", data)
+}
+
+// buildHealthSLO returns Prosody, portal, updater and cert tiles for the home strip.
+func (a *App) buildHealthSLO(ctx context.Context) []sloItem {
+	portal := sloItem{
+		Name:   "Portal",
+		Level:  "ok",
+		Label:  "OK",
+		Detail: "uptime " + time.Since(a.Started).Round(time.Second).String(),
+		Href:   "/admin/health/",
+	}
+	if a.Errors != nil && len(a.Errors.Recent()) > 0 {
+		portal.Level = "warn"
+		portal.Label = "Warn"
+		portal.Detail = fmt.Sprintf("%d recent errors", len(a.Errors.Recent()))
+	}
+
+	prosodyProbe := a.probeProsody(ctx)
+	prosody := sloItem{
+		Name:   "Prosody",
+		Href:   "/admin/health/",
+		Detail: prosodyProbe.Detail,
+	}
+	if prosodyProbe.OK {
+		prosody.Level = "ok"
+		prosody.Label = "OK"
+	} else {
+		prosody.Level = "bad"
+		prosody.Label = "Down"
+	}
+
+	updater := sloItem{Name: "Updater", Href: "/admin/updates"}
+	switch {
+	case a.Updater == nil || !a.Updater.Enabled():
+		updater.Level = "warn"
+		updater.Label = "Off"
+		updater.Detail = "not configured"
+	default:
+		if err := a.Updater.Healthz(ctx); err != nil {
+			updater.Level = "bad"
+			updater.Label = "Down"
+			updater.Detail = err.Error()
+		} else if status, err := a.Updater.Status(ctx); err != nil {
+			updater.Level = "warn"
+			updater.Label = "Warn"
+			updater.Detail = err.Error()
+		} else if status.Status == "busy" || status.Phase == "checking" || status.Phase == "applying" {
+			updater.Level = "warn"
+			updater.Label = "Busy"
+			updater.Detail = firstNonEmpty(status.Phase, status.Status)
+		} else if status.Available {
+			updater.Level = "warn"
+			updater.Label = "Update"
+			updater.Detail = "container updates available"
+		} else {
+			updater.Level = "ok"
+			updater.Label = "OK"
+			updater.Detail = "reachable"
+		}
+	}
+
+	certProbe := health.ProbeTLS(ctx, a.Cfg.Domain)
+	certs := sloItem{
+		Name:   "Certs",
+		Href:   "/admin/certs/",
+		Detail: certProbe.Detail,
+	}
+	switch {
+	case !certProbe.OK:
+		certs.Level = "bad"
+		certs.Label = "Bad"
+	case strings.Contains(certProbe.Detail, "renew soon"):
+		certs.Level = "warn"
+		certs.Label = "Renew"
+	default:
+		certs.Level = "ok"
+		certs.Label = "OK"
+	}
+
+	return []sloItem{prosody, portal, updater, certs}
 }
 
 // adminUsersPage is the data behind the account list.
@@ -1315,21 +1411,107 @@ func (a *App) probeStorage() health.Component {
 
 // auditEventView is one row on the audit log page.
 type auditEventView struct {
-	When      time.Time
-	Source    string
-	Actor     string
-	Action    string
-	Target    string
-	Detail    string
-	IP        string
-	UserAgent string
-	Request   string
+	When      time.Time `json:"when"`
+	Source    string    `json:"source"`
+	Actor     string    `json:"actor"`
+	Action    string    `json:"action"`
+	Target    string    `json:"target"`
+	Detail    string    `json:"detail"`
+	IP        string    `json:"ip"`
+	UserAgent string    `json:"user_agent"`
+	Request   string    `json:"request_id,omitempty"`
+}
+
+// auditFilter holds shareable audit search query parameters.
+type auditFilter struct {
+	Query  string
+	Source string
+	Actor  string
+	Action string
+}
+
+func parseAuditFilter(r *http.Request) auditFilter {
+	q := r.URL.Query()
+	return auditFilter{
+		Query:  strings.TrimSpace(q.Get("q")),
+		Source: strings.TrimSpace(q.Get("source")),
+		Actor:  strings.TrimSpace(q.Get("actor")),
+		Action: strings.TrimSpace(q.Get("action")),
+	}
+}
+
+func (f auditFilter) values(page int) url.Values {
+	values := url.Values{}
+	if f.Query != "" {
+		values.Set("q", f.Query)
+	}
+	if f.Source != "" {
+		values.Set("source", f.Source)
+	}
+	if f.Actor != "" {
+		values.Set("actor", f.Actor)
+	}
+	if f.Action != "" {
+		values.Set("action", f.Action)
+	}
+	if page > 1 {
+		values.Set("page", strconv.Itoa(page))
+	}
+	return values
+}
+
+func (f auditFilter) pageURL(page int) string {
+	encoded := f.values(page).Encode()
+	if encoded == "" {
+		return "/admin/audit/"
+	}
+	return "/admin/audit/?" + encoded
+}
+
+func (f auditFilter) shareURL() string {
+	return f.pageURL(1)
+}
+
+func (f auditFilter) exportURL(format string) string {
+	encoded := f.values(0).Encode()
+	path := "/admin/audit/export." + format
+	if encoded == "" {
+		return path
+	}
+	return path + "?" + encoded
+}
+
+func (f auditFilter) matches(ev auditEventView) bool {
+	if f.Source != "" && !strings.EqualFold(ev.Source, f.Source) {
+		return false
+	}
+	if f.Actor != "" && !strings.Contains(strings.ToLower(ev.Actor), strings.ToLower(f.Actor)) {
+		return false
+	}
+	if f.Action != "" && !strings.Contains(strings.ToLower(ev.Action), strings.ToLower(f.Action)) {
+		return false
+	}
+	if f.Query == "" {
+		return true
+	}
+	needle := strings.ToLower(f.Query)
+	hay := strings.ToLower(strings.Join([]string{
+		ev.Source, ev.Actor, ev.Action, ev.Target, ev.Detail, ev.IP, ev.UserAgent, ev.Request,
+	}, " "))
+	return strings.Contains(hay, needle)
 }
 
 // adminAuditPage is the data behind the audit log.
 type adminAuditPage struct {
 	webui.PageData
+	Filter     auditFilter
 	Query      string
+	Source     string
+	Actor      string
+	Action     string
+	ShareURL   string
+	ExportCSV  string
+	ExportJSON string
 	Events     []auditEventView
 	Note       string
 	Page       int
@@ -1345,26 +1527,12 @@ type adminAuditPage struct {
 const auditPageSize = 50
 const auditFetchLimit = 500
 
-// handleAuditLog shows searchable portal and Prosody audit events.
-func (a *App) handleAuditLog(w http.ResponseWriter, r *http.Request) {
-	sess, ok := a.requireAdmin(w, r)
-	if !ok {
-		return
-	}
-
-	query := strings.TrimSpace(r.URL.Query().Get("q"))
-	pageNum := 1
-	if raw := strings.TrimSpace(r.URL.Query().Get("page")); raw != "" {
-		if n, err := strconv.Atoi(raw); err == nil && n > 0 {
-			pageNum = n
-		}
-	}
-
+func (a *App) collectAuditEvents(ctx context.Context, token string, filter auditFilter) ([]auditEventView, string) {
 	events := make([]auditEventView, 0, 128)
-
+	search := filter.Query
 	if a.Audit != nil {
-		for _, ev := range a.Audit.Recent(auditFetchLimit, query) {
-			events = append(events, auditEventView{
+		for _, ev := range a.Audit.Recent(auditFetchLimit, search) {
+			row := auditEventView{
 				When:      ev.When,
 				Source:    ev.Source,
 				Actor:     ev.Actor,
@@ -1374,17 +1542,20 @@ func (a *App) handleAuditLog(w http.ResponseWriter, r *http.Request) {
 				IP:        ev.IP,
 				UserAgent: ev.UserAgent,
 				Request:   ev.RequestID,
-			})
+			}
+			if filter.matches(row) {
+				events = append(events, row)
+			}
 		}
 	}
 
 	note := ""
-	if prosodyEvents, err := a.Prosody.ListAuditEvents(r.Context(), sess.Token(), auditFetchLimit, query); err != nil {
+	if prosodyEvents, err := a.Prosody.ListAuditEvents(ctx, token, auditFetchLimit, search); err != nil {
 		note = "Chat server audit feed unavailable: " + apiErrorMessage(err)
 	} else {
 		for _, ev := range prosodyEvents {
 			when := time.Unix(ev.When, 0).UTC()
-			events = append(events, auditEventView{
+			row := auditEventView{
 				When:   when,
 				Source: stringOr(ev.Source, "prosody"),
 				Actor:  ev.Actor,
@@ -1392,13 +1563,35 @@ func (a *App) handleAuditLog(w http.ResponseWriter, r *http.Request) {
 				Target: ev.Target,
 				Detail: ev.Detail,
 				IP:     ev.IP,
-			})
+			}
+			if filter.matches(row) {
+				events = append(events, row)
+			}
 		}
 	}
 
 	slices.SortFunc(events, func(x, y auditEventView) int {
 		return y.When.Compare(x.When)
 	})
+	return events, note
+}
+
+// handleAuditLog shows searchable portal and Prosody audit events.
+func (a *App) handleAuditLog(w http.ResponseWriter, r *http.Request) {
+	sess, ok := a.requireAdmin(w, r)
+	if !ok {
+		return
+	}
+
+	filter := parseAuditFilter(r)
+	pageNum := 1
+	if raw := strings.TrimSpace(r.URL.Query().Get("page")); raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil && n > 0 {
+			pageNum = n
+		}
+	}
+
+	events, note := a.collectAuditEvents(r.Context(), sess.Token(), filter)
 
 	total := len(events)
 	totalPages := total / auditPageSize
@@ -1425,7 +1618,14 @@ func (a *App) handleAuditLog(w http.ResponseWriter, r *http.Request) {
 	page := a.newPage(w, r, sess, "Audit log", "audit", webui.ShellAdmin)
 	a.render(w, r, http.StatusOK, "admin_audit.html", adminAuditPage{
 		PageData:   page,
-		Query:      query,
+		Filter:     filter,
+		Query:      filter.Query,
+		Source:     filter.Source,
+		Actor:      filter.Actor,
+		Action:     filter.Action,
+		ShareURL:   "https://" + a.Cfg.Domain + filter.shareURL(),
+		ExportCSV:  filter.exportURL("csv"),
+		ExportJSON: filter.exportURL("json"),
 		Events:     pageEvents,
 		Note:       note,
 		Page:       pageNum,
@@ -1434,24 +1634,56 @@ func (a *App) handleAuditLog(w http.ResponseWriter, r *http.Request) {
 		TotalPages: totalPages,
 		HasPrev:    pageNum > 1,
 		HasNext:    pageNum < totalPages,
-		PrevURL:    auditPageURL(query, pageNum-1),
-		NextURL:    auditPageURL(query, pageNum+1),
+		PrevURL:    filter.pageURL(pageNum - 1),
+		NextURL:    filter.pageURL(pageNum + 1),
 	})
 }
 
-func auditPageURL(query string, page int) string {
-	values := url.Values{}
-	if query != "" {
-		values.Set("q", query)
+func (a *App) handleAuditExportCSV(w http.ResponseWriter, r *http.Request) {
+	sess, ok := a.requireAdmin(w, r)
+	if !ok {
+		return
 	}
-	if page > 1 {
-		values.Set("page", strconv.Itoa(page))
+	filter := parseAuditFilter(r)
+	events, _ := a.collectAuditEvents(r.Context(), sess.Token(), filter)
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="snikketx-audit.csv"`)
+	w.Header().Set("Cache-Control", "no-store")
+	writer := csv.NewWriter(w)
+	_ = writer.Write([]string{"when", "source", "actor", "action", "target", "ip", "user_agent", "detail", "request_id"})
+	for _, ev := range events {
+		_ = writer.Write([]string{
+			ev.When.UTC().Format(time.RFC3339),
+			ev.Source,
+			ev.Actor,
+			ev.Action,
+			ev.Target,
+			ev.IP,
+			ev.UserAgent,
+			ev.Detail,
+			ev.Request,
+		})
 	}
-	encoded := values.Encode()
-	if encoded == "" {
-		return "/admin/audit/"
+	writer.Flush()
+}
+
+func (a *App) handleAuditExportJSON(w http.ResponseWriter, r *http.Request) {
+	sess, ok := a.requireAdmin(w, r)
+	if !ok {
+		return
 	}
-	return "/admin/audit/?" + encoded
+	filter := parseAuditFilter(r)
+	events, _ := a.collectAuditEvents(r.Context(), sess.Token(), filter)
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="snikketx-audit.json"`)
+	w.Header().Set("Cache-Control", "no-store")
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	_ = enc.Encode(map[string]any{
+		"filter": filter,
+		"count":  len(events),
+		"events": events,
+	})
 }
 
 func stringOr(value, fallback string) string {

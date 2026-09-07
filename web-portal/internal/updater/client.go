@@ -18,11 +18,34 @@ type Client struct {
 	HTTP     *http.Client
 }
 
+// JobStep is one progress step inside an updater job.
+type JobStep struct {
+	Name   string `json:"name"`
+	Status string `json:"status"`
+	Detail string `json:"detail"`
+	At     string `json:"at"`
+}
+
+// Job is an async check or apply run.
+type Job struct {
+	ID      string    `json:"id"`
+	Kind    string    `json:"kind"`
+	Status  string    `json:"status"`
+	Phase   string    `json:"phase"`
+	Steps   []JobStep `json:"steps"`
+	Log     []string  `json:"log"`
+	Error   string    `json:"error"`
+	Started string    `json:"started"`
+	Ended   string    `json:"ended"`
+}
+
 // Service is one compose service image row.
 type Service struct {
 	Name            string `json:"name"`
 	Image           string `json:"image"`
 	Digest          string `json:"digest"`
+	PinnedDigest    string `json:"pinned_digest"`
+	PinnedImage     string `json:"pinned_image"`
 	UpdateAvailable bool   `json:"update_available"`
 	SignatureOK     *bool  `json:"signature_ok"`
 	SignatureDetail string `json:"signature_detail"`
@@ -40,10 +63,11 @@ func (s Service) SignatureState() string {
 	return "failed"
 }
 
-// Settings controls check cadence and auto-apply.
+// Settings controls check cadence, auto-apply and digest pinning.
 type Settings struct {
 	IntervalHours int  `json:"interval_hours"`
 	AutoUpdate    bool `json:"auto_update"`
+	PinDigests    bool `json:"pin_digests"`
 }
 
 // Status is the updater status document.
@@ -55,11 +79,18 @@ type Status struct {
 	LastApply     string    `json:"last_apply"`
 	IntervalHours int       `json:"interval_hours"`
 	AutoUpdate    bool      `json:"auto_update"`
+	PinDigests    bool      `json:"pin_digests"`
 	Services      []Service `json:"services"`
 	Detail        string    `json:"detail"`
 	Configured    bool      `json:"configured"`
 	ImagePrefix   string    `json:"image_prefix"`
 	VerifyEnabled bool      `json:"verify_enabled"`
+	Job           *Job      `json:"job"`
+}
+
+// Pins is the locked digest map.
+type Pins struct {
+	Services map[string]string `json:"services"`
 }
 
 // Enabled reports whether the portal should call the updater.
@@ -74,21 +105,21 @@ func (c *Client) httpClient() *http.Client {
 	return &http.Client{Timeout: 45 * time.Second}
 }
 
-func (c *Client) do(ctx context.Context, method, path string, body any, out any) error {
+func (c *Client) do(ctx context.Context, method, path string, body any, out any) (int, error) {
 	if !c.Enabled() {
-		return fmt.Errorf("updater not configured")
+		return 0, fmt.Errorf("updater not configured")
 	}
 	var reader io.Reader
 	if body != nil {
 		encoded, err := json.Marshal(body)
 		if err != nil {
-			return err
+			return 0, err
 		}
 		reader = bytes.NewReader(encoded)
 	}
 	req, err := http.NewRequestWithContext(ctx, method, strings.TrimRight(c.Endpoint, "/")+path, reader)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	req.Header.Set("Authorization", "Bearer "+c.Token)
 	req.Header.Set("Accept", "application/json")
@@ -97,7 +128,7 @@ func (c *Client) do(ctx context.Context, method, path string, body any, out any)
 	}
 	resp, err := c.httpClient().Do(req)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer resp.Body.Close()
 	data, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
@@ -106,18 +137,18 @@ func (c *Client) do(ctx context.Context, method, path string, body any, out any)
 		if msg == "" {
 			msg = resp.Status
 		}
-		return fmt.Errorf("updater: %s", msg)
+		return resp.StatusCode, fmt.Errorf("updater: %s", msg)
 	}
 	if out == nil || resp.StatusCode == http.StatusNoContent {
-		return nil
+		return resp.StatusCode, nil
 	}
-	return json.Unmarshal(data, out)
+	return resp.StatusCode, json.Unmarshal(data, out)
 }
 
 // Status fetches updater status.
 func (c *Client) Status(ctx context.Context) (*Status, error) {
 	var out Status
-	if err := c.do(ctx, http.MethodGet, "/v1/status", nil, &out); err != nil {
+	if _, err := c.do(ctx, http.MethodGet, "/v1/status", nil, &out); err != nil {
 		return nil, err
 	}
 	out.Configured = true
@@ -127,20 +158,20 @@ func (c *Client) Status(ctx context.Context) (*Status, error) {
 	return &out, nil
 }
 
-// Check triggers an image check.
+// Check starts an async image check.
 func (c *Client) Check(ctx context.Context) (*Status, error) {
 	var out Status
-	if err := c.do(ctx, http.MethodPost, "/v1/check", nil, &out); err != nil {
+	if _, err := c.do(ctx, http.MethodPost, "/v1/check", nil, &out); err != nil {
 		return nil, err
 	}
 	out.Configured = true
 	return &out, nil
 }
 
-// Apply applies pulled images with compose up.
+// Apply starts an async compose apply.
 func (c *Client) Apply(ctx context.Context) (*Status, error) {
 	var out Status
-	if err := c.do(ctx, http.MethodPost, "/v1/apply", nil, &out); err != nil {
+	if _, err := c.do(ctx, http.MethodPost, "/v1/apply", nil, &out); err != nil {
 		return nil, err
 	}
 	out.Configured = true
@@ -149,5 +180,33 @@ func (c *Client) Apply(ctx context.Context) (*Status, error) {
 
 // SaveSettings stores updater settings.
 func (c *Client) SaveSettings(ctx context.Context, settings Settings) error {
-	return c.do(ctx, http.MethodPut, "/v1/settings", settings, &settings)
+	_, err := c.do(ctx, http.MethodPut, "/v1/settings", settings, &settings)
+	return err
+}
+
+// ClearPins removes digest locks.
+func (c *Client) ClearPins(ctx context.Context) error {
+	_, err := c.do(ctx, http.MethodDelete, "/v1/pins", nil, nil)
+	return err
+}
+
+// Healthz probes the updater liveness endpoint without auth.
+func (c *Client) Healthz(ctx context.Context) error {
+	if !c.Enabled() {
+		return fmt.Errorf("updater not configured")
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(c.Endpoint, "/")+"/healthz", nil)
+	if err != nil {
+		return err
+	}
+	resp, err := c.httpClient().Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
+	if resp.StatusCode >= 300 {
+		return fmt.Errorf("updater healthz: %s", resp.Status)
+	}
+	return nil
 }

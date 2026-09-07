@@ -1,6 +1,6 @@
 {{define "content"}}
 <div class="page-head"{{if and .Updater.Configured .Updater.Busy}} data-updater-poll{{end}}>
-	<p class="muted">Software channel from Prosody, plus container image updates from <span class="mono">ghcr.io/sudo-ivan/snikketx</span> with Cosign keyless verification.</p>
+	<p class="muted">Software channel from Prosody, plus async container updates from <span class="mono">ghcr.io/sudo-ivan/snikketx</span> with Cosign keyless verification and optional digest pinning.</p>
 </div>
 
 {{if .Note}}{{template "inline_toast" .Note}}{{end}}
@@ -40,9 +40,33 @@
 		</div>
 		<div class="stat"><span class="stat-label">Interval</span><span class="stat-value">{{.Updater.IntervalHours}}h</span></div>
 		<div class="stat"><span class="stat-label">Auto-update</span><span class="stat-value">{{if .Updater.AutoUpdate}}on{{else}}off{{end}}</span></div>
+		<div class="stat"><span class="stat-label">Digest pin</span><span class="stat-value">{{if .Updater.PinDigests}}on{{else}}off{{end}}</span></div>
 		<div class="stat"><span class="stat-label">Signatures</span><span class="stat-value">{{if .Updater.VerifyEnabled}}cosign keyless{{else}}off{{end}}</span></div>
 	</div>
 	{{with .Updater.ImagePrefix}}<p class="muted">Image prefix <span class="mono">{{.}}</span></p>{{end}}
+
+	{{with .Updater.Job}}
+	<section class="job-log">
+		<h3>Job {{.Kind}} <span class="badge">{{.Status}}</span></h3>
+		{{if .Steps}}
+		<ol class="job-steps">
+			{{range .Steps}}
+			<li class="job-step job-step-{{.Status}}">
+				<strong>{{.Name}}</strong>
+				<span class="muted">{{.Status}}</span>
+				{{with .Detail}}<span class="muted">{{.}}</span>{{end}}
+			</li>
+			{{end}}
+		</ol>
+		{{end}}
+		{{if .Log}}
+		<pre class="job-log-body" aria-live="polite">{{range .Log}}{{.}}
+{{end}}</pre>
+		{{end}}
+		{{with .Error}}<p class="alert alert-alert">{{.}}</p>{{end}}
+	</section>
+	{{end}}
+
 	{{if .Updater.Services}}
 	<div class="table-wrap">
 		<table class="table">
@@ -50,6 +74,7 @@
 				<tr>
 					<th scope="col">Service</th>
 					<th scope="col">Image</th>
+					<th scope="col">Pinned</th>
 					<th scope="col">Signature</th>
 					<th scope="col">State</th>
 				</tr>
@@ -58,7 +83,8 @@
 				{{range .Updater.Services}}
 				<tr>
 					<td class="mono">{{.Name}}</td>
-					<td class="mono muted">{{.Image}}</td>
+					<td class="mono muted break">{{.Image}}</td>
+					<td class="mono muted break">{{orDefault .PinnedImage "-"}}</td>
 					<td>
 						{{$sig := .SignatureState}}
 						{{if eq $sig "verified"}}
@@ -68,7 +94,6 @@
 						{{else}}
 						<span class="muted">n/a</span>
 						{{end}}
-						{{with .SignatureDetail}}<span class="muted">{{.}}</span>{{end}}
 					</td>
 					<td>
 						{{if and $.Updater.Busy (eq $.Updater.Phase "applying")}}
@@ -91,6 +116,7 @@
 		{{if .Updater.Available}}
 		<button type="submit" name="action" value="apply" class="btn btn-primary"{{if .Updater.Busy}} disabled{{end}}>{{template "icon" "download"}}<span>{{if eq .Updater.Phase "applying"}}Updating…{{else}}Update containers{{end}}</span></button>
 		{{end}}
+		<button type="submit" name="action" value="clear_pins" class="btn btn-ghost"{{if .Updater.Busy}} disabled{{end}}>{{template "icon" "unlock"}}<span>Clear pins</span></button>
 	</form>
 	<form method="post" action="/admin/updates" class="form stack-tight" data-busy-form>
 		{{csrf .CSRF}}
@@ -103,12 +129,16 @@
 			<input type="checkbox" name="auto_update" value="1"{{if .Updater.AutoUpdate}} checked{{end}}>
 			<span><strong>Auto-update</strong><span class="hint">Apply container updates after a successful check.</span></span>
 		</label>
+		<label class="choice">
+			<input type="checkbox" name="pin_digests" value="1"{{if .Updater.PinDigests}} checked{{end}}>
+			<span><strong>Pin digests</strong><span class="hint">After a verified apply, lock services to <span class="mono">ghcr.io/...@sha256:…</span> via compose override.</span></span>
+		</label>
 		<div class="actions">
 			<button type="submit" class="btn btn-secondary">{{template "icon" "check"}}<span>Save updater settings</span></button>
 		</div>
 	</form>
 	{{else}}
-	<p class="muted">Updater defaults to <span class="mono">http://snikket_updater:9191</span> with token <span class="mono">snikket-updater-local</span>. Start the <span class="mono">snikket_updater</span> service (images from <span class="mono">ghcr.io/sudo-ivan/snikketx</span>).</p>
+	<p class="muted">Updater defaults to <span class="mono">http://snikket_updater:9191</span> with token <span class="mono">snikket-updater-local</span>.</p>
 	{{end}}
 </section>
 {{end}}

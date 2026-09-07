@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/sudo-ivan/snikketx/web-portal/internal/authlimit"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/prosody"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/session"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/webui"
@@ -159,7 +160,7 @@ type profilePage struct {
 	AccessModels     []accessModelChoice
 	MaxAvatarSize    int64
 	ServerVersion    string
-	Sessions         []prosody.ClientDevice
+	Sessions         []sessionView
 	Note             string
 }
 
@@ -182,13 +183,43 @@ func (a *App) loadProfilePage(w http.ResponseWriter, r *http.Request, sess sessi
 	if accessModel == "" {
 		accessModel = prosody.AccessModelOpen
 	}
-	sessions, err := a.Prosody.ListMyClientDevices(r.Context(), sess.Token())
+	devices, err := a.Prosody.ListMyClientDevices(r.Context(), sess.Token())
 	sessionNote := note
 	if err != nil {
 		if sessionNote == "" {
 			sessionNote = "Device list unavailable: " + apiErrorMessage(err)
 		}
-		sessions = nil
+		devices = nil
+	}
+	portalIP := authlimit.ClientIP(r)
+	sessions := make([]sessionView, 0, len(devices)+1)
+	sessions = append(sessions, sessionView{
+		ClientID:  "portal",
+		Name:      "This portal session",
+		UserAgent: r.UserAgent(),
+		IP:        portalIP,
+		MapURL:    ipMapURL(portalIP),
+		LastSeen:  "now",
+		Icon:      "circle-user",
+		Kind:      "Web portal",
+		IsPortal:  true,
+		IsCurrent: true,
+	})
+	for _, device := range devices {
+		icon, kind, label := classifyClient(device.Name, device.UserAgent, device.Resource)
+		sessions = append(sessions, sessionView{
+			ClientID:    device.ClientID,
+			Name:        label,
+			UserAgent:   device.UserAgent,
+			Resource:    device.Resource,
+			IP:          device.IP,
+			MapURL:      ipMapURL(device.IP),
+			LastSeen:    device.LastSeen,
+			HasPush:     device.HasPush,
+			PushService: device.PushService,
+			Icon:        icon,
+			Kind:        kind,
+		})
 	}
 	serverVersion, _ := a.Prosody.GetServerVersion(r.Context(), sess.Token(), sess.JID())
 	page := a.newPage(w, r, sess, "Profile", "profile", webui.ShellApp)
@@ -315,7 +346,7 @@ func (a *App) handleProfileSessions(w http.ResponseWriter, r *http.Request) {
 	switch action {
 	case "revoke":
 		clientID := strings.TrimSpace(r.FormValue("client_id"))
-		if clientID == "" {
+		if clientID == "" || clientID == "portal" {
 			a.flashRedirect(w, r, sess, "Missing client id.", "alert", "/user/profile")
 			return
 		}
@@ -329,7 +360,13 @@ func (a *App) handleProfileSessions(w http.ResponseWriter, r *http.Request) {
 			a.flashRedirect(w, r, sess, apiErrorMessage(err), "alert", "/user/profile")
 			return
 		}
-		a.flashRedirect(w, r, sess, "All devices signed out.", "success", "/user/profile")
+		a.flashRedirect(w, r, sess, "All chat devices signed out. This portal session is still active.", "success", "/user/profile")
+	case "revoke_others":
+		if err := a.Prosody.RevokeAllMyClientDevices(r.Context(), sess.Token()); err != nil {
+			a.flashRedirect(w, r, sess, apiErrorMessage(err), "alert", "/user/profile")
+			return
+		}
+		a.flashRedirect(w, r, sess, "Other chat devices signed out. This portal session stays signed in.", "success", "/user/profile")
 	default:
 		a.flashRedirect(w, r, sess, "Unknown session action.", "alert", "/user/profile")
 	}

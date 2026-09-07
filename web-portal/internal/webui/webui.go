@@ -228,6 +228,7 @@ func funcMap(opts Options) template.FuncMap {
 		"formatFloat":      FormatFloat,
 		"formatTime":       FormatTime,
 		"formatUnix":       FormatUnix,
+		"formatUnixInt":    FormatUnixInt,
 		"formatAgoUnix":    FormatAgoUnix,
 		"formatAgo":        FormatAgo,
 		"formatRFC3339Ago": FormatRFC3339Ago,
@@ -346,6 +347,14 @@ func FormatUnix(seconds *int64) string {
 		return "never"
 	}
 	return FormatTime(time.Unix(*seconds, 0))
+}
+
+// FormatUnixInt renders a Unix timestamp seconds value.
+func FormatUnixInt(seconds int64) string {
+	if seconds == 0 {
+		return "never"
+	}
+	return FormatTime(time.Unix(seconds, 0))
 }
 
 // FormatAgoUnix renders how long ago an optional Unix timestamp was.

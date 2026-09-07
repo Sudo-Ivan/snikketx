@@ -1,6 +1,6 @@
 {{define "content"}}
 <div class="page-head">
-	<p class="muted">Used versus outstanding invitations, conversion and bootstrap state.</p>
+	<p class="muted">Used versus outstanding invitations, conversion funnel and bootstrap state.</p>
 	<a class="btn btn-ghost" href="/admin/invitations">{{template "icon" "arrow-left"}}<span>All invitations</span></a>
 </div>
 
@@ -12,6 +12,20 @@
 	<div class="stat"><span class="stat-label">Conversion</span><span class="stat-value">{{formatPercent .Stats.ConversionRate}}</span></div>
 	<div class="stat"><span class="stat-label">Bootstrap</span><span class="stat-value">{{if .Stats.Bootstrap.Configured}}on{{else}}off{{end}}</span><span class="stat-note">{{.Stats.Bootstrap.Records}} records</span></div>
 </div>
+
+{{if .Daily}}
+<section class="card">
+	<h2>Conversions over 30 days</h2>
+	<div class="funnel-chart" role="img" aria-label="Invite conversions by day">
+		{{range .Daily}}
+		<div class="funnel-bar" title="{{.Day}}: {{.Used}}" style="height: {{.Height}}px">
+			<span class="sr-only">{{.Day}} {{.Used}}</span>
+		</div>
+		{{end}}
+	</div>
+	<p class="muted">Each bar is one UTC day. Hover for exact counts.</p>
+</section>
+{{end}}
 
 {{if .Stats.BySource}}
 <section class="card">
