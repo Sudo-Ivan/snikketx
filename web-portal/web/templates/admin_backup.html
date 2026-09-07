@@ -14,7 +14,7 @@
 
 <section class="card">
 	<h2>Restore checklist</h2>
-	<ol class="details">
+	<ol class="plain-list">
 		<li>Restore DNS and TLS for the domain, <span class="mono">groups.</span> and <span class="mono">share.</span> hosts.</li>
 		<li>Restore Prosody data and the portal secret key before starting services.</li>
 		<li>Confirm ACME renewal and SRV records on the Certificates page.</li>
@@ -27,11 +27,32 @@
 	<h2>Export account package</h2>
 	<p class="muted">Downloads roster, vcard, clients and activity for one account as JSON.</p>
 	{{if .Users}}
-	<ul class="plain-list">
-		{{range .Users}}
-		<li><a class="btn btn-ghost btn-small" href="/admin/backup/export/{{.Localpart}}">{{template "icon" "file-down"}}<span>{{.Localpart}}</span></a></li>
-		{{end}}
-	</ul>
+	<form method="get" action="/admin/backup/export/" class="toolbar" id="backup-export-form">
+		<div class="field field-grow">
+			<label for="export-user">Account</label>
+			<select id="export-user" name="localpart" required>
+				<option value="">Select account</option>
+				{{range .Users}}
+				<option value="{{.Localpart}}">{{.Localpart}}</option>
+				{{end}}
+			</select>
+		</div>
+		<div class="toolbar-actions">
+			<button type="submit" class="btn btn-secondary">{{template "icon" "file-down"}}<span>Export</span></button>
+		</div>
+	</form>
+	<script>
+	(function () {
+		var form = document.getElementById("backup-export-form");
+		if (!form) return;
+		form.addEventListener("submit", function (event) {
+			event.preventDefault();
+			var select = document.getElementById("export-user");
+			if (!select || !select.value) return;
+			window.location.href = "/admin/backup/export/" + encodeURIComponent(select.value);
+		});
+	})();
+	</script>
 	{{else}}
 	<p class="muted">No accounts to export.</p>
 	{{end}}
@@ -40,7 +61,7 @@
 <section class="card">
 	<h2>Import account package</h2>
 	<p class="muted">Writes roster and vcard from a previously exported JSON package into an existing account.</p>
-	<form method="post" action="/admin/backup/" enctype="multipart/form-data" class="stack">
+	<form method="post" action="/admin/backup/" enctype="multipart/form-data" class="form">
 		{{csrf .CSRF}}
 		<div class="field">
 			<label for="import-user">Account</label>
@@ -55,7 +76,9 @@
 			<label for="import-file">Package</label>
 			<input type="file" id="import-file" name="package" accept="application/json,.json" required>
 		</div>
-		<button type="submit" class="btn btn-primary">{{template "icon" "upload"}}<span>Import</span></button>
+		<div class="actions">
+			<button type="submit" class="btn btn-primary">{{template "icon" "upload"}}<span>Import</span></button>
+		</div>
 	</form>
 </section>
 {{end}}

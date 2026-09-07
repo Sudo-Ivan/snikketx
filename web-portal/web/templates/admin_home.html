@@ -1,5 +1,5 @@
 {{define "content"}}
-<p class="muted">{{t "admin.ops_summary"}} for <strong>{{.Domain}}</strong>. The portal has been running for {{.Uptime}}.</p>
+<p class="muted">{{t "admin.ops_summary"}} for <strong>{{.Domain}}</strong>. Portal uptime {{.Uptime}}.</p>
 
 <div class="stats stats-lead">
 	<a class="stat stat-link" href="/admin/users">
@@ -17,91 +17,65 @@
 		<span class="stat-value">{{.Circles}}</span>
 		<span class="stat-note">groups of contacts</span>
 	</a>
-	{{if and .ShowMetrics .Metrics.Devices}}
-	<a class="stat stat-link" href="/admin/devices">
-		<span class="stat-label">{{template "icon" "smartphone"}}<span>Connected devices</span></span>
-		<span class="stat-value">{{.Metrics.Devices}}</span>
-		<span class="stat-note">right now</span>
+	<a class="stat stat-link" href="/admin/health/">
+		<span class="stat-label">{{template "icon" "heart-pulse"}}<span>Health</span></span>
+		<span class="stat-value">{{if .Healthy}}OK{{else}}Check{{end}}</span>
+		<span class="stat-note">{{.HealthyOK}}/{{.HealthyTotal}} probes</span>
 	</a>
-	{{end}}
 </div>
 
 {{range .Degraded}}
 <div class="alert alert-alert" role="alert">{{template "icon" "alert-triangle"}}<p>{{.}}</p></div>
 {{end}}
 
-<div class="grid grid-cards">
-	<a class="card card-action" href="/admin/users">
-		<span class="card-action-icon">{{template "icon" "users"}}</span>
-		<h2>Users</h2>
-		<p class="muted">Accounts, bulk lock and circle membership.</p>
-	</a>
-	<a class="card card-action" href="/admin/mucs">
-		<span class="card-action-icon">{{template "icon" "message-square"}}</span>
-		<h2>Group chats</h2>
-		<p class="muted">List, create and destroy MUC rooms.</p>
-	</a>
-	<a class="card card-action" href="/admin/storage">
-		<span class="card-action-icon">{{template "icon" "hard-drive"}}</span>
-		<h2>Shared storage</h2>
-		<p class="muted">{{if and .ShowMetrics .Metrics.Uploads}}{{formatBytes .Metrics.Uploads}} shared.{{else}}Upload quota and largest blobs.{{end}}</p>
-	</a>
-	<a class="card card-action" href="/admin/certs/">
-		<span class="card-action-icon">{{template "icon" "shield"}}</span>
-		<h2>Certificates</h2>
-		<p class="muted">Domain, groups and share TLS expiry.</p>
-	</a>
-	<a class="card card-action" href="/admin/archives">
-		<span class="card-action-icon">{{template "icon" "database"}}</span>
-		<h2>Archives</h2>
-		<p class="muted">MAM growth and offline queues.</p>
-	</a>
-	<a class="card card-action" href="/admin/invites/analytics">
-		<span class="card-action-icon">{{template "icon" "activity"}}</span>
-		<h2>Invite analytics</h2>
-		<p class="muted">Conversion and invite sources.</p>
-	</a>
-	<a class="card card-action" href="/admin/updates">
-		<span class="card-action-icon">{{template "icon" "refresh"}}</span>
-		<h2>Updates</h2>
-		<p class="muted">Release channel and security notices.</p>
-	</a>
-	<a class="card card-action" href="/admin/backup/">
-		<span class="card-action-icon">{{template "icon" "download"}}</span>
-		<h2>Backup</h2>
-		<p class="muted">Config snapshot and account packages.</p>
-	</a>
-	<a class="card card-action" href="/admin/health/">
-		<span class="card-action-icon">{{template "icon" "heart-pulse"}}</span>
-		<h2>Health</h2>
-		<p class="muted">{{if .RecentErrors}}{{.RecentErrors}} recent errors recorded.{{else}}No errors recorded.{{end}}</p>
-	</a>
-	<a class="card card-action" href="/admin/invitation/-/new">
-		<span class="card-action-icon">{{template "icon" "user-plus"}}</span>
-		<h2>Invite someone</h2>
-		<p class="muted">Create a link that lets a new person join {{.SiteName}}.</p>
-	</a>
-	<a class="card card-action" href="/admin/system/">
-		<span class="card-action-icon">{{template "icon" "megaphone"}}</span>
-		<h2>Announcement</h2>
-		<p class="muted">Send a message to everyone on this service.</p>
-	</a>
-	<a class="card card-action" href="/admin/limits/">
-		<span class="card-action-icon">{{template "icon" "lock"}}</span>
-		<h2>Rate limits</h2>
-		<p class="muted">Portal login lockouts and unlock actions.</p>
-	</a>
-</div>
+{{if .HealthRows}}
+<section class="card">
+	<h2>Health snapshot</h2>
+	<div class="card card-flush table-wrap" style="border:0;padding:0;margin-top:0.5rem">
+		<table class="table table-health">
+			<thead>
+				<tr>
+					<th scope="col">Component</th>
+					<th scope="col">State</th>
+					<th scope="col">Detail</th>
+				</tr>
+			</thead>
+			<tbody>
+				{{range .HealthRows}}
+				<tr>
+					<th scope="row">{{.Name}}</th>
+					<td>{{if .OK}}<span class="badge badge-ok">OK</span>{{else}}<span class="badge badge-warn">Check</span>{{end}}</td>
+					<td class="muted">{{.Detail}}</td>
+				</tr>
+				{{end}}
+			</tbody>
+		</table>
+	</div>
+	<p class="muted" style="margin-top:0.75rem"><a href="/admin/health/">Open full health page</a> for probes, latency and recent errors.</p>
+</section>
+{{end}}
 
 {{if and .ShowMetrics .Metrics.Available}}
 <section class="card">
 	<h2>Activity</h2>
 	<div class="stats">
+		{{with .Metrics.Devices}}<a class="stat stat-link" href="/admin/devices"><span class="stat-label">Connected devices</span><span class="stat-value">{{.}}</span></a>{{end}}
 		{{with .Metrics.Active1d}}<div class="stat"><span class="stat-label">Active today</span><span class="stat-value">{{.}}</span></div>{{end}}
 		{{with .Metrics.Active7d}}<div class="stat"><span class="stat-label">Active this week</span><span class="stat-value">{{.}}</span></div>{{end}}
-		{{with .Metrics.Active30d}}<div class="stat"><span class="stat-label">Active this month</span><span class="stat-value">{{.}}</span></div>{{end}}
 		{{with .Metrics.Uploads}}<a class="stat stat-link" href="/admin/storage"><span class="stat-label">Shared files</span><span class="stat-value">{{formatBytes .}}</span></a>{{end}}
 	</div>
 </section>
 {{end}}
+
+<section class="card">
+	<h2>Quick links</h2>
+	<div class="toolbar" style="align-items:center">
+		<a class="btn btn-ghost" href="/admin/invitation/-/new">{{template "icon" "user-plus"}}<span>Invite</span></a>
+		<a class="btn btn-ghost" href="/admin/mucs">{{template "icon" "message-square"}}<span>Group chats</span></a>
+		<a class="btn btn-ghost" href="/admin/updates">{{template "icon" "refresh"}}<span>Updates</span></a>
+		<a class="btn btn-ghost" href="/admin/backup/">{{template "icon" "download"}}<span>Backup</span></a>
+		<a class="btn btn-ghost" href="/admin/certs/">{{template "icon" "shield"}}<span>Certs</span></a>
+		<a class="btn btn-ghost" href="/admin/system/">{{template "icon" "megaphone"}}<span>Announce</span></a>
+	</div>
+</section>
 {{end}}

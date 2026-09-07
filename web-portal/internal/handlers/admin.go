@@ -191,10 +191,14 @@ type adminHomePage struct {
 	Uptime       string
 	RecentErrors int
 	Degraded     []string
+	Healthy      bool
+	HealthyOK    int
+	HealthyTotal int
+	HealthRows   []health.Component
 }
 
 // handleAdminHome shows the instance overview with the account, invitation and
-// circle counts, plus the live connection count when metrics are enabled.
+// circle counts, plus a compact health snapshot.
 func (a *App) handleAdminHome(w http.ResponseWriter, r *http.Request) {
 	sess, ok := a.requireAdmin(w, r)
 	if !ok {
@@ -238,6 +242,24 @@ func (a *App) handleAdminHome(w http.ResponseWriter, r *http.Request) {
 	if a.Errors != nil {
 		data.RecentErrors = len(a.Errors.Recent())
 	}
+
+	hostStats := hostmetrics.Collect()
+	rows := []health.Component{
+		{Name: "web portal", OK: true, Detail: "running version " + a.Cfg.Version},
+		a.probeProsody(r.Context()),
+		health.ProbeTLS(r.Context(), a.Cfg.Domain),
+		health.ProbeMemory(hostStats),
+	}
+	data.Healthy = true
+	for _, row := range rows {
+		data.HealthyTotal++
+		if row.OK {
+			data.HealthyOK++
+		} else {
+			data.Healthy = false
+		}
+	}
+	data.HealthRows = rows
 
 	data.PageData = a.newPage(w, r, sess, "Admin", "home", webui.ShellAdmin)
 	a.render(w, r, http.StatusOK, "admin_home.html", data)

@@ -1,12 +1,14 @@
 {{define "admin_shell"}}
-<div class="admin">
-	<aside class="sidebar" id="sidebar">
+<div class="admin" data-admin-shell>
+	<button type="button" class="sidebar-backdrop" data-sidebar-backdrop aria-label="Close navigation" hidden></button>
+	<aside class="sidebar" id="sidebar" data-sidebar>
 		<a class="brand" href="/admin/">
 			<img src="/static/img/snikketx-logo.svg" alt="" width="34" height="34">
 			<span>{{.SiteName}}</span>
 		</a>
-		<a class="sidebar-close" href="#" aria-label="Close the navigation">{{template "icon" "x"}}</a>
+		<button type="button" class="sidebar-close btn btn-ghost btn-icon" data-sidebar-close aria-label="Close the navigation">{{template "icon" "x"}}</button>
 		<nav class="sidenav" aria-label="Administration">
+			<p class="sidenav-label">Manage</p>
 			<a href="/admin/" class="sidenav-link{{if eq .Nav "home"}} is-active{{end}}">{{template "icon" "gauge"}}<span>{{t "nav.home"}}</span></a>
 			<a href="/admin/users" class="sidenav-link{{if eq .Nav "users"}} is-active{{end}}">{{template "icon" "users"}}<span>{{t "nav.users"}}</span></a>
 			<a href="/admin/circles" class="sidenav-link{{if eq .Nav "circles"}} is-active{{end}}">{{template "icon" "users-round"}}<span>{{t "nav.circles"}}</span></a>
@@ -14,6 +16,7 @@
 			<a href="/admin/invitations" class="sidenav-link{{if eq .Nav "invites"}} is-active{{end}}">{{template "icon" "link"}}<span>{{t "nav.invites"}}</span></a>
 		</nav>
 		<nav class="sidenav" aria-label="Operations">
+			<p class="sidenav-label">Operations</p>
 			<a href="/admin/devices" class="sidenav-link{{if eq .Nav "devices"}} is-active{{end}}">{{template "icon" "smartphone"}}<span>{{t "nav.devices"}}</span></a>
 			<a href="/admin/storage" class="sidenav-link{{if eq .Nav "storage"}} is-active{{end}}">{{template "icon" "hard-drive"}}<span>{{t "nav.storage"}}</span></a>
 			<a href="/admin/archives" class="sidenav-link{{if eq .Nav "archives"}} is-active{{end}}">{{template "icon" "database"}}<span>{{t "nav.archives"}}</span></a>
@@ -23,6 +26,7 @@
 			<a href="/admin/backup/" class="sidenav-link{{if eq .Nav "backup"}} is-active{{end}}">{{template "icon" "download"}}<span>{{t "nav.backup"}}</span></a>
 		</nav>
 		<nav class="sidenav" aria-label="System">
+			<p class="sidenav-label">System</p>
 			<a href="/admin/system/" class="sidenav-link{{if eq .Nav "system"}} is-active{{end}}">{{template "icon" "server"}}<span>{{t "nav.system"}}</span></a>
 			<a href="/admin/health/" class="sidenav-link{{if eq .Nav "health"}} is-active{{end}}">{{template "icon" "heart-pulse"}}<span>{{t "nav.health"}}</span></a>
 			<a href="/admin/audit/" class="sidenav-link{{if eq .Nav "audit"}} is-active{{end}}">{{template "icon" "scroll-text"}}<span>{{t "nav.audit"}}</span></a>
@@ -34,7 +38,7 @@
 	</aside>
 	<div class="admin-main">
 		<header class="admin-bar">
-			<a class="btn btn-ghost btn-icon admin-menu" href="#sidebar" aria-label="Open the navigation">{{template "icon" "menu"}}</a>
+			<button type="button" class="btn btn-ghost btn-icon admin-menu" data-sidebar-toggle aria-controls="sidebar" aria-expanded="true" aria-label="Toggle navigation">{{template "icon" "menu"}}</button>
 			<h1 class="admin-title">{{orDefault .Title (t "admin.welcome")}}</h1>
 			<div class="topbar-actions">
 				{{template "theme_toggle" .}}
