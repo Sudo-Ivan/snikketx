@@ -1,7 +1,7 @@
 {{define "content"}}
 <section class="card card-narrow">
 	<h1>Sign out</h1>
-	<p class="muted">Signing out ends this portal session and revokes its access token. Your Snikket app stays signed in.</p>
+	<p class="muted">Signing out ends this portal session and revokes its access token. Your chat app stays signed in.</p>
 	<form method="post" action="/user/logout" class="form">
 		{{csrf .CSRF}}
 		<div class="actions">

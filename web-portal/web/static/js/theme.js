@@ -1,12 +1,11 @@
-/* Theme toggle and small page behaviours for the Snikket web portal.
-   The server renders data-theme from the theme cookie, so this script only
-   has to switch the attribute and remember the new choice. */
+/* Theme toggle, copy buttons, and password strength for the portal. */
 (function () {
 	"use strict";
 
-	var STORAGE_KEY = "snikket-theme";
+	var STORAGE_KEY = "snikketx-theme";
 	var COOKIE_NAME = "theme";
 	var COOKIE_MAX_AGE = 31536000;
+	var MIN_LEN = 10;
 
 	function readStored() {
 		try {
@@ -14,18 +13,14 @@
 			if (stored === "light" || stored === "dark") {
 				return stored;
 			}
-		} catch (err) {
-			/* Storage is unavailable in private mode on some browsers. */
-		}
+		} catch (err) {}
 		return null;
 	}
 
 	function store(theme) {
 		try {
 			window.localStorage.setItem(STORAGE_KEY, theme);
-		} catch (err) {
-			/* Losing the preference is acceptable, the cookie still holds it. */
-		}
+		} catch (err) {}
 		document.cookie = COOKIE_NAME + "=" + theme + "; path=/; max-age=" +
 			COOKIE_MAX_AGE + "; samesite=lax" +
 			(window.location.protocol === "https:" ? "; secure" : "");
@@ -37,6 +32,13 @@
 
 	function apply(theme) {
 		document.documentElement.setAttribute("data-theme", theme);
+		var meta = document.querySelector('meta[name="theme-color"]:not([media])');
+		if (!meta) {
+			meta = document.querySelector('meta[name="theme-color"]');
+		}
+		if (meta) {
+			meta.setAttribute("content", theme === "dark" ? "#09090b" : "#fafafa");
+		}
 	}
 
 	function preferred() {
@@ -95,10 +97,107 @@
 				try {
 					document.execCommand("copy");
 					done();
-				} catch (err) {
-					/* The value stays selected so it can be copied by hand. */
-				}
+				} catch (err) {}
 			});
+		}
+	}
+
+	function scorePassword(value) {
+		var len = value.length;
+		if (len === 0) {
+			return { score: 0, label: "", empty: true };
+		}
+		if (len < MIN_LEN) {
+			return {
+				score: 0,
+				label: (MIN_LEN - len) + " more character" + (MIN_LEN - len === 1 ? "" : "s") + " needed",
+				empty: false
+			};
+		}
+
+		var classes = 0;
+		if (/[a-z]/.test(value)) {
+			classes++;
+		}
+		if (/[A-Z]/.test(value)) {
+			classes++;
+		}
+		if (/[0-9]/.test(value)) {
+			classes++;
+		}
+		if (/[^A-Za-z0-9]/.test(value)) {
+			classes++;
+		}
+
+		var score = 1;
+		if (classes >= 3) {
+			score++;
+		}
+		if (classes >= 4 || len >= 14) {
+			score++;
+		}
+		if (len >= 18 && classes >= 3) {
+			score++;
+		}
+
+		var labels = ["", "Weak", "Fair", "Good", "Strong"];
+		return { score: score, label: labels[score], empty: false };
+	}
+
+	function bindMeter(input) {
+		var wrap = document.createElement("div");
+		wrap.className = "pw-meter";
+		wrap.hidden = true;
+
+		var track = document.createElement("div");
+		track.className = "pw-meter-track";
+		track.setAttribute("aria-hidden", "true");
+		for (var i = 0; i < 4; i++) {
+			track.appendChild(document.createElement("span"));
+		}
+
+		var label = document.createElement("p");
+		label.className = "pw-meter-label";
+		label.setAttribute("role", "status");
+		label.setAttribute("aria-live", "polite");
+
+		wrap.appendChild(track);
+		wrap.appendChild(label);
+		input.insertAdjacentElement("afterend", wrap);
+
+		var segments = track.children;
+
+		function render() {
+			var result = scorePassword(input.value);
+			if (result.empty) {
+				wrap.hidden = true;
+				wrap.removeAttribute("data-score");
+				label.textContent = "";
+				return;
+			}
+
+			wrap.hidden = false;
+			wrap.setAttribute("data-score", String(result.score));
+			label.textContent = result.label;
+
+			for (var i = 0; i < segments.length; i++) {
+				if (i < result.score) {
+					segments[i].className = "is-on";
+				} else {
+					segments[i].className = "";
+				}
+			}
+		}
+
+		input.addEventListener("input", render);
+		input.addEventListener("focus", render);
+		render();
+	}
+
+	function initPasswordMeters() {
+		var inputs = document.querySelectorAll("input[data-pw-meter]");
+		for (var i = 0; i < inputs.length; i++) {
+			bindMeter(inputs[i]);
 		}
 	}
 
@@ -113,5 +212,6 @@
 	ready(function () {
 		initTheme();
 		initCopyButtons();
+		initPasswordMeters();
 	});
 })();

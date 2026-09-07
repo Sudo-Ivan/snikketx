@@ -5,9 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{if .Title}}{{.Title}} &middot; {{end}}{{.SiteName}}</title>
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#1d4ed8">
+<meta name="theme-color" content="#09090b" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)">
 <meta name="robots" content="noindex, nofollow">
 <link rel="stylesheet" href="/static/css/app.css">
+<script>
+(function(){try{var t=localStorage.getItem("snikketx-theme");if(t!=="light"&&t!=="dark"){t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)}catch(e){}})();
+</script>
 <link rel="icon" type="image/png" sizes="32x32" href="/static/img/favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/static/img/favicon-16x16.png">
 <link rel="apple-touch-icon" href="/static/img/apple-touch-icon.png">
@@ -18,6 +22,7 @@
 <body class="shell-{{orDefault .Shell "app"}}">
 {{sprite}}
 <a class="skip-link" href="#main">Skip to content</a>
+{{template "theme_toggle" .}}
 {{if eq .Shell "admin"}}{{template "admin_shell" .}}{{else if eq .Shell "bare"}}{{template "bare_shell" .}}{{else}}{{template "app_shell" .}}{{end}}
 </body>
 </html>{{end}}
@@ -35,10 +40,9 @@
 <div class="bare">
 	<header class="bare-head">
 		<a class="brand" href="/">
-			<img src="/static/img/snikket-logo.svg" alt="" width="34" height="34">
+			<img src="/static/img/snikketx-logo.svg" alt="" width="34" height="34">
 			<span>{{.SiteName}}</span>
 		</a>
-		{{template "theme_toggle" .}}
 	</header>
 	<main id="main" class="bare-main">
 		{{template "messages" .}}
@@ -52,7 +56,7 @@
 <header class="topbar">
 	<div class="topbar-inner">
 		<a class="brand" href="/">
-			<img src="/static/img/snikket-logo.svg" alt="" width="34" height="34">
+			<img src="/static/img/snikketx-logo.svg" alt="" width="34" height="34">
 			<span>{{.SiteName}}</span>
 		</a>
 		<nav class="topnav" aria-label="Account">
@@ -64,7 +68,6 @@
 			<a href="/user/logout" class="topnav-link{{if eq .Nav "logout"}} is-active{{end}}">{{template "icon" "log-out"}}<span>{{t "nav.logout"}}</span></a>
 		</nav>
 		<div class="topbar-actions">
-			{{template "theme_toggle" .}}
 			{{with .User}}
 			<a class="identity" href="/user/profile" title="{{.Address}}">
 				{{template "avatar" dict "Address" .Address "Hash" .AvatarHash "Name" .DisplayName "Seed" .Address}}
@@ -85,13 +88,13 @@
 		{{if .PrivacyURI}}<a href="/privacy">Privacy policy</a>{{end}}
 	</nav>
 	<p class="footer-note">
-		Powered by <a href="https://snikket.org" rel="noopener noreferrer" target="_blank">Snikket</a>{{if and .IsAdmin .Version}} &middot; portal {{.Version}}{{end}}
+		Powered by <a href="https://github.com/Sudo-Ivan/snikketx" rel="noopener noreferrer" target="_blank">SnikketX</a>{{if and .IsAdmin .Version}} &middot; portal {{.Version}}{{end}}
 	</p>
 </footer>
 {{end}}
 
 {{define "theme_toggle"}}
-<button type="button" class="theme-toggle" data-theme-toggle aria-label="{{t "theme.toggle"}}" title="{{t "theme.toggle"}}">
+<button type="button" class="theme-toggle theme-dock" data-theme-toggle aria-label="{{t "theme.toggle"}}" title="{{t "theme.toggle"}}">
 	<span class="only-light">{{template "icon" "sun"}}</span>
 	<span class="only-dark">{{template "icon" "moon"}}</span>
 </button>

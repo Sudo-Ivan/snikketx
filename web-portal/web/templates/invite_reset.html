@@ -7,8 +7,7 @@
 		{{csrf .CSRF}}
 		<div class="field">
 			<label for="password">New password</label>
-			<input type="password" id="password" name="password" autocomplete="new-password" minlength="10" required autofocus>
-			<p class="hint">At least 10 characters.</p>
+			<input type="password" id="password" name="password" autocomplete="new-password" minlength="10" required autofocus data-pw-meter>
 		</div>
 		<div class="field">
 			<label for="password_confirm">Confirm new password</label>

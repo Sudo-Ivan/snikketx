@@ -13,7 +13,7 @@
 	<p class="muted">The operator of this service has not published its own policy documents. Contact them directly if you have questions about how {{.SiteName}} is run.</p>
 	{{end}}
 
-	<p class="muted">Use of the Snikket apps themselves is subject to the <a href="https://snikket.org/app/privacy/" rel="noopener noreferrer" target="_blank">Snikket apps privacy policy</a>.</p>
+	<p class="muted">Third-party chat apps you use with this service are subject to their own privacy policies.</p>
 
 	{{if .AbuseEmail}}
 	<h2>Reporting abuse</h2>
@@ -22,7 +22,7 @@
 
 	{{if .SecurityEmail}}
 	<h2>Reporting security issues</h2>
-	<p class="muted">Security issues in this deployment should go to <a href="mailto:{{.SecurityEmail}}">{{.SecurityEmail}}</a>. Defects in the Snikket software itself belong at <a href="https://snikket.org/security/" rel="noopener noreferrer" target="_blank">snikket.org/security</a>.</p>
+	<p class="muted">Security issues in this deployment should go to <a href="mailto:{{.SecurityEmail}}">{{.SecurityEmail}}</a>. Defects in SnikketX itself belong at <a href="https://github.com/Sudo-Ivan/snikketx/security" rel="noopener noreferrer" target="_blank">the SnikketX security page</a>.</p>
 	{{end}}
 
 	<p><a class="btn btn-ghost" href="/">{{template "icon" "arrow-left"}}<span>Back to {{.SiteName}}</span></a></p>

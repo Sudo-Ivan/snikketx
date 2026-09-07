@@ -2,7 +2,7 @@
 <section class="card card-narrow">
 	<h1>Your account data</h1>
 	<p class="muted">You can download a copy of the data this service stores for your account: your contact list, your profile and the data your apps published.</p>
-	<p class="muted">The download is an XML document in the XEP-0227 format. Other XMPP services can import it, and the Snikket app can read it when you move to another server.</p>
+	<p class="muted">The download is an XML document in the XEP-0227 format. Other XMPP services can import it, and most XMPP apps can import it when you move to another server.</p>
 	<form method="post" action="/user/manage_data" class="form">
 		{{csrf .CSRF}}
 		<div class="actions">

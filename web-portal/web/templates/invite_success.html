@@ -2,7 +2,7 @@
 <section class="card card-narrow">
 	<h1>Welcome to {{.SiteName}}</h1>
 	<p class="lede">Your account is ready.</p>
-	{{if .JID}}<p>Your chat address is <strong class="mono">{{.JID}}</strong>. Sign in with it in the Snikket app.</p>{{end}}
+	{{if .JID}}<p>Your chat address is <strong class="mono">{{.JID}}</strong>. Sign in with it in your chat app.</p>{{end}}
 
 	{{if .MigrationDone}}
 	<div class="alert alert-success" role="status">{{template "icon" "check-circle"}}<p>Your account data was imported. Your contacts should appear in the app shortly.</p></div>

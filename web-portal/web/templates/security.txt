@@ -1,5 +1,5 @@
 # {{.Domain}} is running open source software
-# from the Snikket project: https://snikket.org/
+# from the SnikketX project: https://github.com/Sudo-Ivan/snikketx
 {{if .SecurityEmail}}
 # Security issues in this deployment should be addressed to the
 # following security contact:
@@ -11,6 +11,6 @@ Contact: https://{{.Domain}}/policies/
 {{end}}
 # Please report software defects to the project developers, per the
 # instructions at the following link:
-Contact: https://snikket.org/security/
+Contact: https://github.com/Sudo-Ivan/snikketx/security
 
 Preferred-Languages: en

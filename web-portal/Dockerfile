@@ -50,7 +50,7 @@ STOPSIGNAL SIGTERM
 ENTRYPOINT ["/portal"]
 
 LABEL org.opencontainers.image.title="snikketx-web-portal" \
-      org.opencontainers.image.description="Snikket web portal" \
+      org.opencontainers.image.description="SnikketX web portal" \
       org.opencontainers.image.source="https://github.com/Sudo-Ivan/snikketx" \
       org.opencontainers.image.url="https://github.com/Sudo-Ivan/snikketx" \
       org.opencontainers.image.documentation="https://github.com/Sudo-Ivan/snikketx#readme" \

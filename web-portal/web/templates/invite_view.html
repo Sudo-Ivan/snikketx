@@ -8,9 +8,9 @@
 <section class="card card-invite">
 	<h1>You are invited to {{.SiteName}}</h1>
 	{{if .Inviter}}
-	<p class="lede">{{.Inviter}} invited you to chat on {{.SiteName}} using Snikket, a secure and privacy friendly chat app.</p>
+	<p class="lede">{{.Inviter}} invited you to chat on {{.SiteName}} using SnikketX, a secure and privacy friendly chat service.</p>
 	{{else}}
-	<p class="lede">You have been invited to chat on {{.SiteName}} using Snikket, a secure and privacy friendly chat app.</p>
+	<p class="lede">You have been invited to chat on {{.SiteName}} using SnikketX, a secure and privacy friendly chat service.</p>
 	{{end}}
 
 	{{if and .TOSURI .PrivacyURI}}
@@ -20,7 +20,7 @@
 	<h2>Get started</h2>
 	<ol class="steps">
 		<li>
-			<h3>Install the Snikket app</h3>
+			<h3>Install a chat app</h3>
 			<p class="store-links">
 				<a href="{{.PlayStoreURL}}" rel="noopener noreferrer" target="_blank"><img src="{{.PlayBadge}}" alt="Get it on Google Play" height="56"></a>
 				{{if .AppleStoreURL}}<a href="{{.AppleStoreURL}}" rel="noopener noreferrer" target="_blank"><img src="{{.AppleBadge}}" alt="Download on the App Store" height="40"></a>{{end}}
@@ -44,7 +44,7 @@
 
 	<details class="disclosure">
 		<summary>{{template "icon" "settings"}}<span>Use another XMPP app</span></summary>
-		<p class="muted">Snikket is built on XMPP, so any XMPP app can connect to {{.SiteName}}. If the button above does not work with your app, you can <a href="/invite/{{.InviteID}}/register">register an account manually</a> and sign in with the address and password you choose.</p>
+		<p class="muted">SnikketX is built on XMPP, so any XMPP app can connect to {{.SiteName}}. If the button above does not work with your app, you can <a href="/invite/{{.InviteID}}/register">register an account manually</a> and sign in with the address and password you choose.</p>
 	</details>
 </section>
 {{end}}

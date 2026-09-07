@@ -2,7 +2,7 @@
 <section class="card card-narrow">
 	<h1>Create your account</h1>
 	<p class="lede">Pick a username and a password for your new {{.SiteName}} account.</p>
-	<p class="hint">Setting up through the Snikket app is easier. Use this form only if the app cannot open your invitation, or if you want to use a different XMPP app.</p>
+	<p class="hint">Setting up through a mobile chat app is easier. Use this form only if the app cannot open your invitation, or if you want to use a different XMPP app.</p>
 
 	<form method="post" action="/invite/{{.InviteID}}/register" class="form">
 		{{csrf .CSRF}}
@@ -16,8 +16,7 @@
 		</div>
 		<div class="field">
 			<label for="password">Password</label>
-			<input type="password" id="password" name="password" autocomplete="new-password" minlength="10" required>
-			<p class="hint">At least 10 characters.</p>
+			<input type="password" id="password" name="password" autocomplete="new-password" minlength="10" required data-pw-meter>
 		</div>
 		<div class="field">
 			<label for="password_confirm">Confirm password</label>
