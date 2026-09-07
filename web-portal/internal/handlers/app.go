@@ -11,8 +11,10 @@ import (
 	"net/http"
 	"runtime/debug"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/sudo-ivan/snikketx/web-portal/internal/audit"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/authlimit"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/config"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/csrf"
@@ -43,10 +45,15 @@ type App struct {
 	Sessions  *session.Store
 	Templates *webui.Renderer
 	Errors    *health.Ring
+	Audit     *audit.Store
 	Metrics   *metrics.Registry
 	LoginGate *authlimit.Limiter
 	Started   time.Time
 	Static    http.Handler
+
+	healthMu     sync.Mutex
+	healthAt     time.Time
+	healthStatus string
 }
 
 // ctxKey is the private key type used for request scoped values.
@@ -332,6 +339,9 @@ func (a *App) newPage(w http.ResponseWriter, r *http.Request, sess session.Data,
 		CSRF:          token,
 		RequestID:     requestID(r),
 		Version:       a.Cfg.Version,
+		BuildCommit:   shortCommit(a.Cfg.BuildCommit),
+		BuildDate:     displayBuildDate(a.Cfg.BuildDate),
+		Uptime:        formatUptime(time.Since(a.Started)),
 		HasSession:    sess.HasSession(),
 		IsAdmin:       sess.IsAdmin(),
 		ShowMetrics:   a.Cfg.ShowMetrics,
@@ -342,6 +352,7 @@ func (a *App) newPage(w http.ResponseWriter, r *http.Request, sess session.Data,
 		AppleStoreURL: a.Cfg.AppleStoreURL,
 		Now:           time.Now().UTC(),
 	}
+	page.HealthStatus, page.HealthLabel = a.footerHealth(r.Context())
 
 	if flash != nil {
 		page.Flash = &webui.Flash{Message: flash.Message, Category: flash.Category}
@@ -536,8 +547,108 @@ func (a *App) flashRedirect(w http.ResponseWriter, r *http.Request, sess session
 	http.Redirect(w, r, target, http.StatusSeeOther)
 }
 
+// recordAudit appends an administrator action to the portal audit log.
+func (a *App) recordAudit(r *http.Request, sess session.Data, action, target, detail string) {
+	if a.Audit == nil {
+		return
+	}
+	actor := ""
+	if sess != nil {
+		actor = sess.JID()
+	}
+	a.Audit.Record(audit.Event{
+		Actor:     actor,
+		Action:    action,
+		Target:    target,
+		Detail:    detail,
+		IP:        authlimit.ClientIP(r),
+		UserAgent: r.UserAgent(),
+		RequestID: requestID(r),
+	})
+}
+
 // notFound writes the generic 404 status page.
 func (a *App) notFound(w http.ResponseWriter, r *http.Request) {
 	a.renderError(w, r, http.StatusNotFound, "Page not found",
 		"The page you asked for does not exist on this service.")
+}
+
+const footerHealthTTL = 15 * time.Second
+
+// footerHealth returns a cached Healthy / Degraded / Down label for the footer.
+func (a *App) footerHealth(ctx context.Context) (status, label string) {
+	a.healthMu.Lock()
+	defer a.healthMu.Unlock()
+	if a.healthStatus != "" && time.Since(a.healthAt) < footerHealthTTL {
+		return a.healthStatus, healthLabel(a.healthStatus)
+	}
+
+	status = "healthy"
+	prosody := a.probeProsody(ctx)
+	if !prosody.OK {
+		status = "down"
+	} else if a.Errors != nil && len(a.Errors.Recent()) > 0 {
+		status = "degraded"
+	}
+
+	a.healthStatus = status
+	a.healthAt = time.Now()
+	return status, healthLabel(status)
+}
+
+func healthLabel(status string) string {
+	switch status {
+	case "degraded":
+		return "Degraded"
+	case "down":
+		return "Down"
+	default:
+		return "Healthy"
+	}
+}
+
+func shortCommit(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" || raw == "unknown" {
+		return ""
+	}
+	if len(raw) > 7 {
+		return raw[:7]
+	}
+	return raw
+}
+
+func displayBuildDate(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" || raw == "unknown" {
+		return ""
+	}
+	if t, err := time.Parse(time.RFC3339, raw); err == nil {
+		return t.UTC().Format("2006-01-02")
+	}
+	if len(raw) >= 10 {
+		return raw[:10]
+	}
+	return raw
+}
+
+func formatUptime(d time.Duration) string {
+	if d < 0 {
+		d = 0
+	}
+	d = d.Round(time.Second)
+	days := int(d.Hours()) / 24
+	hours := int(d.Hours()) % 24
+	mins := int(d.Minutes()) % 60
+	secs := int(d.Seconds()) % 60
+	switch {
+	case days > 0:
+		return fmt.Sprintf("%dd %dh", days, hours)
+	case hours > 0:
+		return fmt.Sprintf("%dh %dm", hours, mins)
+	case mins > 0:
+		return fmt.Sprintf("%dm %ds", mins, secs)
+	default:
+		return fmt.Sprintf("%ds", secs)
+	}
 }

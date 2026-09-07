@@ -22,7 +22,6 @@
 <body class="shell-{{orDefault .Shell "app"}}">
 {{sprite}}
 <a class="skip-link" href="#main">Skip to content</a>
-{{template "theme_toggle" .}}
 {{if eq .Shell "admin"}}{{template "admin_shell" .}}{{else if eq .Shell "bare"}}{{template "bare_shell" .}}{{else}}{{template "app_shell" .}}{{end}}
 </body>
 </html>{{end}}
@@ -43,6 +42,9 @@
 			<img src="/static/img/snikketx-logo.svg" alt="" width="34" height="34">
 			<span>{{.SiteName}}</span>
 		</a>
+		<div class="topbar-actions">
+			{{template "theme_toggle" .}}
+		</div>
 	</header>
 	<main id="main" class="bare-main">
 		{{template "messages" .}}
@@ -68,6 +70,7 @@
 			<a href="/user/logout" class="topnav-link{{if eq .Nav "logout"}} is-active{{end}}">{{template "icon" "log-out"}}<span>{{t "nav.logout"}}</span></a>
 		</nav>
 		<div class="topbar-actions">
+			{{template "theme_toggle" .}}
 			{{with .User}}
 			<a class="identity" href="/user/profile" title="{{.Address}}">
 				{{template "avatar" dict "Address" .Address "Hash" .AvatarHash "Name" .DisplayName "Seed" .Address}}
@@ -87,30 +90,43 @@
 		{{if .TOSURI}}<a href="/terms">Terms of service</a>{{end}}
 		{{if .PrivacyURI}}<a href="/privacy">Privacy policy</a>{{end}}
 	</nav>
-	<p class="footer-note">
-		Powered by <a href="https://github.com/Sudo-Ivan/snikketx" rel="noopener noreferrer" target="_blank">SnikketX</a>{{if and .IsAdmin .Version}} &middot; portal {{.Version}}{{end}}
-	</p>
+	<div class="footer-end">
+		<p class="footer-note">
+			Powered by <a href="https://github.com/Sudo-Ivan/snikketx" rel="noopener noreferrer" target="_blank">SnikketX</a>
+			{{if .Version}} &middot; <span class="mono" title="portal build">{{.Version}}</span>{{end}}
+			{{if .BuildCommit}} &middot; <span class="mono" title="git revision">{{.BuildCommit}}</span>{{end}}
+			{{if .BuildDate}} &middot; <span class="muted">{{.BuildDate}}</span>{{end}}
+			{{if .Uptime}} &middot; up <span class="mono" title="portal uptime">{{.Uptime}}</span>{{end}}
+		</p>
+		{{if .HealthStatus}}
+		<a class="footer-health footer-health-{{.HealthStatus}}" href="/admin/health/" title="Open health page">{{.HealthLabel}}</a>
+		{{end}}
+	</div>
 </footer>
 {{end}}
 
 {{define "theme_toggle"}}
-<button type="button" class="theme-toggle theme-dock" data-theme-toggle aria-label="{{t "theme.toggle"}}" title="{{t "theme.toggle"}}">
+<button type="button" class="theme-toggle" data-theme-toggle aria-label="{{t "theme.toggle"}}" title="{{t "theme.toggle"}}">
 	<span class="only-light">{{template "icon" "sun"}}</span>
 	<span class="only-dark">{{template "icon" "moon"}}</span>
 </button>
 {{end}}
 
 {{define "messages"}}
+<div class="toast-stack" data-toast-stack aria-live="polite">
 {{with .Flash}}
-<div class="alert alert-{{orDefault .Category "info"}}" role="status">
+<div class="toast toast-{{orDefault .Category "info"}}" data-toast role="status">
 	{{if eq .Category "success"}}{{template "icon" "check-circle"}}{{else if eq .Category "alert"}}{{template "icon" "alert-triangle"}}{{else}}{{template "icon" "info"}}{{end}}
 	<p>{{.Message}}</p>
+	<button type="button" class="toast-dismiss" data-toast-dismiss aria-label="Dismiss">{{template "icon" "x"}}</button>
 </div>
 {{end}}
 {{if .Errors}}
-<div class="alert alert-alert" role="alert">
+<div class="toast toast-alert" data-toast role="alert">
 	{{template "icon" "alert-triangle"}}
 	<ul>{{range .Errors}}<li>{{.}}</li>{{end}}</ul>
+	<button type="button" class="toast-dismiss" data-toast-dismiss aria-label="Dismiss">{{template "icon" "x"}}</button>
 </div>
 {{end}}
+</div>
 {{end}}
