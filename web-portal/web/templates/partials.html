@@ -72,3 +72,13 @@
 	<button type="button" class="btn btn-secondary btn-icon" data-copy-for="{{.ID}}" aria-label="Copy to clipboard" title="Copy to clipboard">{{template "icon" "copy"}}</button>
 </div>
 {{end}}
+
+{{define "inline_toast"}}
+{{if .}}
+<div class="toast toast-warning" data-toast role="status">
+	{{template "icon" "alert-triangle"}}
+	<p>{{.}}</p>
+	<button type="button" class="toast-dismiss" data-toast-dismiss aria-label="Dismiss">{{template "icon" "x"}}</button>
+</div>
+{{end}}
+{{end}}

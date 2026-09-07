@@ -3,13 +3,7 @@
 	<p class="muted">Software channel from Prosody, plus container image updates when the updater service is configured.</p>
 </div>
 
-{{if .Note}}
-<div class="toast toast-warning" data-toast role="status">
-	{{template "icon" "alert-triangle"}}
-	<p>{{.Note}}</p>
-	<button type="button" class="toast-dismiss" data-toast-dismiss aria-label="Dismiss">{{template "icon" "x"}}</button>
-</div>
-{{end}}
+{{if .Note}}{{template "inline_toast" .Note}}{{end}}
 
 <section class="card">
 	<h2>Software channel</h2>
@@ -35,7 +29,7 @@
 		<div class="stat"><span class="stat-label">Auto-update</span><span class="stat-value">{{if .Updater.AutoUpdate}}on{{else}}off{{end}}</span></div>
 	</div>
 	{{if .Updater.Services}}
-	<div class="card card-flush table-wrap" style="margin-top:0.75rem;border:0;padding:0">
+	<div class="table-wrap">
 		<table class="table">
 			<thead>
 				<tr>
@@ -56,14 +50,14 @@
 		</table>
 	</div>
 	{{end}}
-	<form method="post" action="/admin/updates" class="toolbar" style="margin-top:0.85rem">
+	<form method="post" action="/admin/updates" class="toolbar">
 		{{csrf .CSRF}}
 		<button type="submit" name="action" value="check" class="btn btn-secondary">{{template "icon" "search"}}<span>Check now</span></button>
 		{{if .Updater.Available}}
 		<button type="submit" name="action" value="apply" class="btn btn-primary">{{template "icon" "download"}}<span>Update containers</span></button>
 		{{end}}
 	</form>
-	<form method="post" action="/admin/updates" class="form" style="margin-top:1rem">
+	<form method="post" action="/admin/updates" class="form stack-tight">
 		{{csrf .CSRF}}
 		<input type="hidden" name="action" value="settings">
 		<div class="field">

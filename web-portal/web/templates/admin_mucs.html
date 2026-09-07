@@ -17,13 +17,7 @@
 	</form>
 </section>
 
-{{if .Note}}
-<div class="toast toast-warning" data-toast role="status">
-	{{template "icon" "alert-triangle"}}
-	<p>{{.Note}}</p>
-	<button type="button" class="toast-dismiss" data-toast-dismiss aria-label="Dismiss">{{template "icon" "x"}}</button>
-</div>
-{{end}}
+{{if .Note}}{{template "inline_toast" .Note}}{{end}}
 
 {{if .Rooms}}
 <div class="card card-flush table-wrap">

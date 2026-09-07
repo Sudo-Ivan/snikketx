@@ -31,7 +31,7 @@
 {{if .HealthRows}}
 <section class="card">
 	<h2>Health snapshot</h2>
-	<div class="card card-flush table-wrap" style="border:0;padding:0;margin-top:0.5rem">
+	<div class="table-wrap">
 		<table class="table table-health">
 			<thead>
 				<tr>
@@ -51,7 +51,7 @@
 			</tbody>
 		</table>
 	</div>
-	<p class="muted" style="margin-top:0.75rem"><a href="/admin/health/">Open full health page</a> for probes, latency and recent errors.</p>
+	<p class="muted"><a href="/admin/health/">Open full health page</a> for probes, latency and recent errors.</p>
 </section>
 {{end}}
 
@@ -69,7 +69,7 @@
 
 <section class="card">
 	<h2>Quick links</h2>
-	<div class="toolbar" style="align-items:center">
+	<div class="toolbar">
 		<a class="btn btn-ghost" href="/admin/invitation/-/new">{{template "icon" "user-plus"}}<span>Invite</span></a>
 		<a class="btn btn-ghost" href="/admin/mucs">{{template "icon" "message-square"}}<span>Group chats</span></a>
 		<a class="btn btn-ghost" href="/admin/updates">{{template "icon" "refresh"}}<span>Updates</span></a>

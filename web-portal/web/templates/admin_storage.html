@@ -8,13 +8,7 @@
 	</form>
 </div>
 
-{{if .Note}}
-<div class="toast toast-warning" data-toast role="status">
-	{{template "icon" "alert-triangle"}}
-	<p>{{.Note}}</p>
-	<button type="button" class="toast-dismiss" data-toast-dismiss aria-label="Dismiss">{{template "icon" "x"}}</button>
-</div>
-{{end}}
+{{if .Note}}{{template "inline_toast" .Note}}{{end}}
 
 <div class="stats">
 	<div class="stat"><span class="stat-label">Used</span><span class="stat-value">{{formatBytes .Info.UsedBytes}}</span></div>
@@ -24,7 +18,7 @@
 	<div class="stat"><span class="stat-label">Retention</span><span class="stat-value">{{.Info.RetentionDays}}d</span></div>
 </div>
 
-<form method="post" action="/admin/storage" class="toolbar" style="margin-top:1rem">
+<form method="post" action="/admin/storage" class="toolbar">
 	{{csrf .CSRF}}
 	<input type="hidden" name="mode" value="expired">
 	<button type="submit" class="btn btn-ghost">{{template "icon" "clock"}}<span>Purge expired</span></button>

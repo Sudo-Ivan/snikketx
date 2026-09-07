@@ -96,11 +96,15 @@
 			{{if .BuildDate}} &middot; <span class="muted">{{.BuildDate}}</span>{{end}}
 			{{if .Uptime}} &middot; up <span class="mono" title="portal uptime">{{.Uptime}}</span>{{end}}
 		</p>
-		{{if .HealthStatus}}
-		<a class="footer-health footer-health-{{.HealthStatus}}" href="/admin/health/" title="Open health page">{{.HealthLabel}}</a>
-		{{end}}
+		{{template "footer_health" .}}
 	</div>
 </footer>
+{{end}}
+
+{{define "footer_health"}}
+{{if .HealthStatus}}
+<a class="footer-health footer-health-{{.HealthStatus}}" href="/admin/health/" title="Open health page">{{.HealthLabel}}</a>
+{{end}}
 {{end}}
 
 {{define "theme_toggle"}}
@@ -111,6 +115,7 @@
 {{end}}
 
 {{define "messages"}}
+{{if or .Flash .Errors}}
 <div class="toast-stack" data-toast-stack aria-live="polite">
 {{with .Flash}}
 <div class="toast toast-{{orDefault .Category "info"}}" data-toast role="status">
@@ -127,4 +132,5 @@
 </div>
 {{end}}
 </div>
+{{end}}
 {{end}}

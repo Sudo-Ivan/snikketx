@@ -3,13 +3,7 @@
 	<p class="muted">Message archive growth and stuck offline queues. Retention is {{.Info.RetentionDays}} days when configured.</p>
 </div>
 
-{{if .Note}}
-<div class="toast toast-warning" data-toast role="status">
-	{{template "icon" "alert-triangle"}}
-	<p>{{.Note}}</p>
-	<button type="button" class="toast-dismiss" data-toast-dismiss aria-label="Dismiss">{{template "icon" "x"}}</button>
-</div>
-{{end}}
+{{if .Note}}{{template "inline_toast" .Note}}{{end}}
 
 <div class="stats">
 	<div class="stat"><span class="stat-label">MAM messages</span><span class="stat-value">{{.Info.MAMTotal}}</span></div>

@@ -4,13 +4,7 @@
 	<a class="btn btn-secondary" href="/admin/backup/config.json">{{template "icon" "download"}}<span>Host config snapshot</span></a>
 </div>
 
-{{if .Note}}
-<div class="toast toast-warning" data-toast role="status">
-	{{template "icon" "alert-triangle"}}
-	<p>{{.Note}}</p>
-	<button type="button" class="toast-dismiss" data-toast-dismiss aria-label="Dismiss">{{template "icon" "x"}}</button>
-</div>
-{{end}}
+{{if .Note}}{{template "inline_toast" .Note}}{{end}}
 
 <section class="card">
 	<h2>Restore checklist</h2>
