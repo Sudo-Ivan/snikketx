@@ -49,6 +49,7 @@ type Settings struct {
 // Status is the updater status document.
 type Status struct {
 	Status        string    `json:"status"`
+	Phase         string    `json:"phase"`
 	Available     bool      `json:"available"`
 	LastCheck     string    `json:"last_check"`
 	LastApply     string    `json:"last_apply"`

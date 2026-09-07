@@ -34,6 +34,7 @@ type serviceState struct {
 
 type statusResponse struct {
 	Status        string         `json:"status"`
+	Phase         string         `json:"phase,omitempty"`
 	Available     bool           `json:"available"`
 	LastCheck     string         `json:"last_check,omitempty"`
 	LastApply     string         `json:"last_apply,omitempty"`
@@ -65,6 +66,7 @@ type server struct {
 	available bool
 	detail    string
 	busy      bool
+	phase     string
 }
 
 func main() {
@@ -193,24 +195,26 @@ func (s *server) loop() {
 	}
 }
 
-func (s *server) acquire() error {
+func (s *server) acquire(phase string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.busy {
 		return errors.New("updater is busy")
 	}
 	s.busy = true
+	s.phase = phase
 	return nil
 }
 
 func (s *server) release() {
 	s.mu.Lock()
 	s.busy = false
+	s.phase = "idle"
 	s.mu.Unlock()
 }
 
 func (s *server) runCheck(ctx context.Context, autoApply bool) error {
-	if err := s.acquire(); err != nil {
+	if err := s.acquire("checking"); err != nil {
 		return err
 	}
 	defer s.release()
@@ -290,14 +294,14 @@ func (s *server) runCheck(ctx context.Context, autoApply bool) error {
 	if autoApply && available {
 		s.release()
 		err := s.runApply(ctx)
-		_ = s.acquire()
+		_ = s.acquire("checking")
 		return err
 	}
 	return nil
 }
 
 func (s *server) runApply(ctx context.Context) error {
-	if err := s.acquire(); err != nil {
+	if err := s.acquire("applying"); err != nil {
 		return err
 	}
 	defer s.release()
@@ -459,11 +463,16 @@ func (s *server) snapshot() statusResponse {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	status := "idle"
+	phase := s.phase
+	if phase == "" {
+		phase = "idle"
+	}
 	if s.busy {
 		status = "busy"
 	}
 	resp := statusResponse{
 		Status:        status,
+		Phase:         phase,
 		Available:     s.available,
 		IntervalHours: s.settings.IntervalHours,
 		AutoUpdate:    s.settings.AutoUpdate,

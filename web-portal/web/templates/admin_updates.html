@@ -1,5 +1,5 @@
 {{define "content"}}
-<div class="page-head">
+<div class="page-head"{{if and .Updater.Configured .Updater.Busy}} data-updater-poll{{end}}>
 	<p class="muted">Software channel from Prosody, plus container image updates from <span class="mono">ghcr.io/sudo-ivan/snikketx</span> with Cosign keyless verification.</p>
 </div>
 
@@ -21,10 +21,23 @@
 <section class="card">
 	<h2>Container updates</h2>
 	{{if .Updater.Configured}}
+	<div class="status-banner status-{{.Updater.StatusTone}}" role="status">
+		{{if eq .Updater.StatusTone "busy"}}{{template "icon" "refresh"}}{{else if eq .Updater.StatusTone "ok"}}{{template "icon" "check-circle"}}{{else if eq .Updater.StatusTone "warn"}}{{template "icon" "alert-triangle"}}{{else}}{{template "icon" "info"}}{{end}}
+		<div>
+			<strong>{{.Updater.StatusLabel}}</strong>
+			{{if .Updater.Detail}}<p class="muted">{{.Updater.Detail}}</p>{{end}}
+		</div>
+	</div>
 	<div class="stats">
-		<div class="stat"><span class="stat-label">Status</span><span class="stat-value">{{.Updater.Status}}</span></div>
 		<div class="stat"><span class="stat-label">Updates</span><span class="stat-value">{{if .Updater.Available}}available{{else}}none{{end}}</span></div>
-		<div class="stat"><span class="stat-label">Last check</span><span class="stat-value">{{orDefault .Updater.LastCheck "-"}}</span></div>
+		<div class="stat">
+			<span class="stat-label">Last check</span>
+			<span class="stat-value" title="{{formatRFC3339 .Updater.LastCheck}}">{{.Updater.LastCheckAgo}}</span>
+		</div>
+		<div class="stat">
+			<span class="stat-label">Last updated</span>
+			<span class="stat-value" title="{{formatRFC3339 .Updater.LastApply}}">{{.Updater.LastApplyAgo}}</span>
+		</div>
 		<div class="stat"><span class="stat-label">Interval</span><span class="stat-value">{{.Updater.IntervalHours}}h</span></div>
 		<div class="stat"><span class="stat-label">Auto-update</span><span class="stat-value">{{if .Updater.AutoUpdate}}on{{else}}off{{end}}</span></div>
 		<div class="stat"><span class="stat-label">Signatures</span><span class="stat-value">{{if .Updater.VerifyEnabled}}cosign keyless{{else}}off{{end}}</span></div>
@@ -57,21 +70,29 @@
 						{{end}}
 						{{with .SignatureDetail}}<span class="muted">{{.}}</span>{{end}}
 					</td>
-					<td>{{if .UpdateAvailable}}<span class="badge badge-warn">update available</span>{{else}}<span class="badge badge-ok">current</span>{{end}}</td>
+					<td>
+						{{if and $.Updater.Busy (eq $.Updater.Phase "applying")}}
+						<span class="badge badge-busy">updating</span>
+						{{else if .UpdateAvailable}}
+						<span class="badge badge-warn">update available</span>
+						{{else}}
+						<span class="badge badge-ok">current</span>
+						{{end}}
+					</td>
 				</tr>
 				{{end}}
 			</tbody>
 		</table>
 	</div>
 	{{end}}
-	<form method="post" action="/admin/updates" class="toolbar">
+	<form method="post" action="/admin/updates" class="toolbar" data-busy-form>
 		{{csrf .CSRF}}
-		<button type="submit" name="action" value="check" class="btn btn-secondary">{{template "icon" "search"}}<span>Check now</span></button>
+		<button type="submit" name="action" value="check" class="btn btn-secondary"{{if .Updater.Busy}} disabled{{end}}>{{template "icon" "search"}}<span>{{if eq .Updater.Phase "checking"}}Checking…{{else}}Check now{{end}}</span></button>
 		{{if .Updater.Available}}
-		<button type="submit" name="action" value="apply" class="btn btn-primary">{{template "icon" "download"}}<span>Update containers</span></button>
+		<button type="submit" name="action" value="apply" class="btn btn-primary"{{if .Updater.Busy}} disabled{{end}}>{{template "icon" "download"}}<span>{{if eq .Updater.Phase "applying"}}Updating…{{else}}Update containers{{end}}</span></button>
 		{{end}}
 	</form>
-	<form method="post" action="/admin/updates" class="form stack-tight">
+	<form method="post" action="/admin/updates" class="form stack-tight" data-busy-form>
 		{{csrf .CSRF}}
 		<input type="hidden" name="action" value="settings">
 		<div class="field">
@@ -86,7 +107,6 @@
 			<button type="submit" class="btn btn-secondary">{{template "icon" "check"}}<span>Save updater settings</span></button>
 		</div>
 	</form>
-	{{if .Updater.Detail}}<p class="muted">{{.Updater.Detail}}</p>{{end}}
 	{{else}}
 	<p class="muted">Updater defaults to <span class="mono">http://snikket_updater:9191</span> with token <span class="mono">snikket-updater-local</span>. Start the <span class="mono">snikket_updater</span> service (images from <span class="mono">ghcr.io/sudo-ivan/snikketx</span>).</p>
 	{{end}}

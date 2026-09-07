@@ -24,3 +24,14 @@ func TestFormatAgoUnix(t *testing.T) {
 		t.Fatal("expected relative time")
 	}
 }
+
+func TestFormatRFC3339Ago(t *testing.T) {
+	t.Parallel()
+	if FormatRFC3339Ago("") != "never" {
+		t.Fatal("empty should be never")
+	}
+	got := FormatRFC3339Ago("2020-01-01T00:00:00Z")
+	if got == "never" || got == "" {
+		t.Fatalf("got %q", got)
+	}
+}

@@ -218,32 +218,34 @@ func funcMap(opts Options) template.FuncMap {
 	sprite := template.HTML(opts.Sprite)
 
 	return template.FuncMap{
-		"t":             i18n.T,
-		"csrf":          csrfField,
-		"icon":          Icon,
-		"sprite":        func() template.HTML { return sprite },
-		"colour":        colour.TextToCSS,
-		"formatBytes":   FormatBytes,
-		"formatPercent": FormatPercent,
-		"formatFloat":   FormatFloat,
-		"formatTime":    FormatTime,
-		"formatUnix":    FormatUnix,
-		"formatAgoUnix": FormatAgoUnix,
-		"formatAgo":     FormatAgo,
-		"formatLeft":    FormatLeft,
-		"safeURL":       safeURL,
-		"dict":          dict,
-		"list":          list,
-		"add":           func(a, b int) int { return a + b },
-		"join":          strings.Join,
-		"hasPrefix":     strings.HasPrefix,
-		"lower":         strings.ToLower,
-		"contains":      contains,
-		"initials":      Initials,
-		"avatarURL":     AvatarURL,
-		"roleLabel":     RoleLabel,
-		"queryEscape":   url.QueryEscape,
-		"orDefault":     orDefault,
+		"t":                i18n.T,
+		"csrf":             csrfField,
+		"icon":             Icon,
+		"sprite":           func() template.HTML { return sprite },
+		"colour":           colour.TextToCSS,
+		"formatBytes":      FormatBytes,
+		"formatPercent":    FormatPercent,
+		"formatFloat":      FormatFloat,
+		"formatTime":       FormatTime,
+		"formatUnix":       FormatUnix,
+		"formatAgoUnix":    FormatAgoUnix,
+		"formatAgo":        FormatAgo,
+		"formatRFC3339Ago": FormatRFC3339Ago,
+		"formatRFC3339":    FormatRFC3339Time,
+		"formatLeft":       FormatLeft,
+		"safeURL":          safeURL,
+		"dict":             dict,
+		"list":             list,
+		"add":              func(a, b int) int { return a + b },
+		"join":             strings.Join,
+		"hasPrefix":        strings.HasPrefix,
+		"lower":            strings.ToLower,
+		"contains":         contains,
+		"initials":         Initials,
+		"avatarURL":        AvatarURL,
+		"roleLabel":        RoleLabel,
+		"queryEscape":      url.QueryEscape,
+		"orDefault":        orDefault,
 	}
 }
 
@@ -360,6 +362,38 @@ func FormatAgo(t time.Time) string {
 		return "never"
 	}
 	return humanDuration(time.Since(t)) + " ago"
+}
+
+// FormatRFC3339Ago renders an RFC3339 timestamp as a relative phrase.
+func FormatRFC3339Ago(value string) string {
+	t, ok := parseRFC3339(value)
+	if !ok {
+		return "never"
+	}
+	return FormatAgo(t)
+}
+
+// FormatRFC3339Time renders an RFC3339 timestamp in UTC, or a dash.
+func FormatRFC3339Time(value string) string {
+	t, ok := parseRFC3339(value)
+	if !ok {
+		return "never"
+	}
+	return FormatTime(t)
+}
+
+func parseRFC3339(value string) (time.Time, bool) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return time.Time{}, false
+	}
+	if t, err := time.Parse(time.RFC3339, value); err == nil {
+		return t, true
+	}
+	if t, err := time.Parse(time.RFC3339Nano, value); err == nil {
+		return t, true
+	}
+	return time.Time{}, false
 }
 
 // FormatLeft renders how long is left until a timestamp.

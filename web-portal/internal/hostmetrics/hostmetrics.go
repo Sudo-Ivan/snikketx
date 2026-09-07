@@ -169,8 +169,8 @@ func readDisk(path string) (total, used, avail int64, ok bool) {
 	if bs <= 0 {
 		return 0, 0, 0, false
 	}
-	total = int64(st.Blocks) * bs // #nosec G115 -- block counts fit int64 for host disks
-	avail = int64(st.Bavail) * bs // #nosec G115 -- free blocks for unprivileged callers
+	total = int64(st.Blocks) * bs     // #nosec G115 -- block counts fit int64 for host disks
+	avail = int64(st.Bavail) * bs     // #nosec G115 -- free blocks for unprivileged callers
 	used = total - int64(st.Bfree)*bs // #nosec G115 -- free block counts fit int64 for host disks
 	if used < 0 {
 		used = 0

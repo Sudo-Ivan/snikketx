@@ -193,23 +193,23 @@ type updatesPage struct {
 }
 
 type updaterView struct {
-	Configured     bool
-	Status         string
-	Phase          string
-	Busy           bool
-	StatusLabel    string
-	StatusTone     string
-	Available      bool
-	LastCheck      string
-	LastCheckAgo   string
-	LastApply      string
-	LastApplyAgo   string
-	IntervalHours  int
-	AutoUpdate     bool
-	Services       []updater.Service
-	Detail         string
-	ImagePrefix    string
-	VerifyEnabled  bool
+	Configured    bool
+	Status        string
+	Phase         string
+	Busy          bool
+	StatusLabel   string
+	StatusTone    string
+	Available     bool
+	LastCheck     string
+	LastCheckAgo  string
+	LastApply     string
+	LastApplyAgo  string
+	IntervalHours int
+	AutoUpdate    bool
+	Services      []updater.Service
+	Detail        string
+	ImagePrefix   string
+	VerifyEnabled bool
 }
 
 func (a *App) handleUpdates(w http.ResponseWriter, r *http.Request) {
