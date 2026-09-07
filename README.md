@@ -1,25 +1,40 @@
 # snikketx
 
 Fork of the Snikket service stack as one repo: Prosody server image, web
-portal, nginx proxy, and cert manager.
+portal, cert manager, plus Traefik and RavenGuard on the HTTP edge.
 
 Upstream lives at [snikket-im](https://github.com/snikket-im). This fork
-publishes images to GHCR under `ghcr.io/sudo-ivan/snikketx/`.
+publishes Snikket images to GHCR under `ghcr.io/sudo-ivan/snikketx/`.
+
+HTTP path:
+
+```
+Client -> Traefik -> RavenGuard -> web-portal
+                 \-> Prosody HTTP (upload, BOSH, websocket)
+XMPP/STUN/TURN -> snikket_server (direct ports)
+```
+
+RavenGuard runs behind Traefik with `trust.mode = behind_proxy`. See the
+[intro](https://ravenguard.quad4.io/docs/intro) and
+[configuration](https://ravenguard.quad4.io/docs/configuration) docs.
 
 ## Layout
 
 - `server/` - Prosody-based Snikket server image
 - `web-portal/` - account and admin web UI
-- `web-proxy/` - nginx front door
-- `cert-manager/` - Let's Encrypt renewal
+- `web-proxy/` - legacy nginx front door (not used by default compose)
+- `cert-manager/` - Let's Encrypt for XMPP TLS (prod)
+- `deploy/traefik/` - Traefik static and generated dynamic config
+- `deploy/ravenguard/` - RavenGuard TOML and blocklists
 - `scripts/` - install and ops helpers
-- `docker-compose.yml` - pull and run published images
+- `docker-compose.yml` - production stack (pull GHCR + Traefik + RavenGuard)
+- `docker-compose.dev.yml` - local builds, no proxy/certs package
 
-## Run published images
+## Production
 
-1. Point DNS at this host (A/AAAA for your Snikket domain).
+1. Point DNS at this host (A/AAAA for the Snikket domain, plus share/groups).
 2. Install Docker with the Compose plugin.
-3. Clone this repo, then configure:
+3. Configure and start:
 
 ```
 ./scripts/init.sh
@@ -32,19 +47,42 @@ Create an admin invite:
 ./scripts/new-invite.sh --admin --group default
 ```
 
-## Build locally
+## Local development
+
+Builds `server` and `web-portal` from this tree. Skips GHCR pulls for those
+images, skips cert-manager and the legacy web-proxy, and uses self-signed
+certs so Prosody can start.
+
+```
+./scripts/init.sh
+./scripts/start.sh --dev
+```
+
+HTTP is on port 8080. Point the Host header or `/etc/hosts` at your
+`SNIKKET_DOMAIN`. XMPP still publishes 5222 and friends on the host.
+
+## Build images only
 
 ```
 make docker
 ```
 
-Or with Compose:
-
-```
-docker compose -f docker-compose.yml -f docker-compose.dev.yml build
-```
-
 Images land as `ghcr.io/sudo-ivan/snikketx/{server,web-portal,web-proxy,cert-manager}`.
+
+Publish tags each image with mutable tags (`latest`, `dev`, `sha-<commit>`) and
+records the immutable digest (`ghcr.io/sudo-ivan/snikketx/<component>@sha256:...`)
+as a workflow artifact and job summary. Images are signed keyless with Cosign
+(Sigstore) and get a Syft SPDX SBOM. CI also runs container smoke tests and
+Trivy scans.
+
+Verify a published digest:
+
+```
+cosign verify \
+  --certificate-identity-regexp='https://github.com/Sudo-Ivan/snikketx/.*' \
+  --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
+  ghcr.io/sudo-ivan/snikketx/server@sha256:<digest>
+```
 
 ## License
 

@@ -9,6 +9,8 @@ on:
 
 permissions:
   contents: read
+  security-events: write
+  actions: read
 
 jobs:
   portal-mypy:
@@ -89,35 +91,133 @@ jobs:
           strip_volatile
           git diff --exit-code --color -- snikket_web/translations/messages.pot
 
-  build:
+  container:
     runs-on: ubuntu-latest
-    name: "docker: build ${{ matrix.component }}"
+    name: "docker: ${{ matrix.component }}"
     strategy:
       fail-fast: false
       matrix:
         include:
           - component: server
             context: ./server
+            title: snikketx-server
+            description: Snikket Prosody server image
+            licenses: Apache-2.0
           - component: web-portal
             context: ./web-portal
+            title: snikketx-web-portal
+            description: Snikket web portal
+            licenses: AGPL-3.0-or-later
           - component: web-proxy
             context: ./web-proxy
+            title: snikketx-web-proxy
+            description: Legacy Snikket nginx proxy
+            licenses: Apache-2.0
           - component: cert-manager
             context: ./cert-manager
+            title: snikketx-cert-manager
+            description: Snikket Let's Encrypt helper
+            licenses: Apache-2.0
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
         with:
           egress-policy: audit
+
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@6524bf65af31da8d45b59e8c27de4bd072b392f5 # v3.8.0
-      - name: Build
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@369eb591f429131d6889c46b94e711f089e6ca96 # v5.6.1
+        with:
+          images: snikketx/${{ matrix.component }}
+          tags: |
+            type=raw,value=ci
+          labels: |
+            org.opencontainers.image.title=${{ matrix.title }}
+            org.opencontainers.image.description=${{ matrix.description }}
+            org.opencontainers.image.licenses=${{ matrix.licenses }}
+            org.opencontainers.image.vendor=Sudo-Ivan
+            org.opencontainers.image.source=https://github.com/Sudo-Ivan/snikketx
+
+      - name: Build image
+        id: build
         uses: docker/build-push-action@ca877d9245402d1537745e0e356eab47c3520991 # v6.13.0
         with:
           context: ${{ matrix.context }}
+          load: true
           push: false
           tags: snikketx/${{ matrix.component }}:ci
+          labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             BUILD_SERIES=ci
             BUILD_ID=${{ github.run_number }}
+            VCS_REF=${{ github.sha }}
+            BUILD_DATE=${{ github.event.head_commit.timestamp || github.event.repository.updated_at }}
+          cache-from: type=gha,scope=ci-${{ matrix.component }}
+          cache-to: type=gha,mode=max,scope=ci-${{ matrix.component }}
+
+      - name: Record local image digest
+        id: digest
+        run: |
+          set -euo pipefail
+          DIGEST="$(docker image inspect "snikketx/${{ matrix.component }}:ci" --format '{{index .RepoDigests 0}}' 2>/dev/null || true)"
+          if [ -z "$DIGEST" ] || [[ "$DIGEST" != *"@"* ]]; then
+            DIGEST="snikketx/${{ matrix.component }}:ci@$(docker image inspect "snikketx/${{ matrix.component }}:ci" --format '{{.Id}}')"
+          fi
+          IMAGE_ID="$(docker image inspect "snikketx/${{ matrix.component }}:ci" --format '{{.Id}}')"
+          echo "image_id=${IMAGE_ID}" >> "$GITHUB_OUTPUT"
+          echo "ref=snikketx/${{ matrix.component }}:ci" >> "$GITHUB_OUTPUT"
+          {
+            echo "## ${{ matrix.component }} (CI build)"
+            echo ""
+            echo "- image id: \`${IMAGE_ID}\`"
+            echo "- tag: \`snikketx/${{ matrix.component }}:ci\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+          printf '%s\n' "${IMAGE_ID}" > "digest-${{ matrix.component }}.txt"
+
+      - name: Upload image id artifact
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: image-id-${{ matrix.component }}
+          path: digest-${{ matrix.component }}.txt
+
+      - name: Smoke test
+        run: ./scripts/smoke-test.sh "${{ matrix.component }}"
+
+      - name: Generate SBOM with Syft
+        uses: anchore/sbom-action@f325610c9f50a54015d37c8d16cb3b0e2c8f4de0 # v0.18.0
+        with:
+          image: snikketx/${{ matrix.component }}:ci
+          format: spdx-json
+          artifact-name: sbom-${{ matrix.component }}.spdx.json
+          output-file: sbom-${{ matrix.component }}.spdx.json
+
+      - name: Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: snikketx/${{ matrix.component }}:ci
+          format: sarif
+          output: trivy-${{ matrix.component }}.sarif
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+          ignore-unfixed: true
+
+      - name: Upload Trivy SARIF
+        if: always()
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: trivy-ci-${{ matrix.component }}
+          path: trivy-${{ matrix.component }}.sarif
+          if-no-files-found: ignore
+
+      - name: Upload Trivy results to GitHub Security
+        if: always() && github.event_name != 'pull_request'
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
+        with:
+          sarif_file: trivy-${{ matrix.component }}.sarif
+          category: trivy-ci-${{ matrix.component }}
