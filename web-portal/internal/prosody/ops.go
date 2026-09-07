@@ -198,19 +198,68 @@ func (c *Client) ListClientDevices(ctx context.Context, token, user string) ([]C
 	if err := errorFromResponse(resp); err != nil {
 		return nil, err
 	}
-	var payload struct {
-		Clients []ClientDevice `json:"clients"`
+	var raw struct {
+		Clients json.RawMessage `json:"clients"`
 	}
-	if err := decodeJSONBody(resp, &payload); err != nil {
+	if err := decodeJSONBody(resp, &raw); err != nil {
 		return nil, err
 	}
-	return payload.Clients, nil
+	return decodeJSONList[ClientDevice](raw.Clients)
+}
+
+// ListMyClientDevices returns registered clients for the token account.
+func (c *Client) ListMyClientDevices(ctx context.Context, token string) ([]ClientDevice, error) {
+	resp, err := c.requestJSON(ctx, http.MethodGet, c.opsEndpoint("me", "clients"), token, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer closeBody(resp)
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, nil
+	}
+	if err := errorFromResponse(resp); err != nil {
+		return nil, err
+	}
+	var raw struct {
+		Clients json.RawMessage `json:"clients"`
+	}
+	if err := decodeJSONBody(resp, &raw); err != nil {
+		return nil, err
+	}
+	return decodeJSONList[ClientDevice](raw.Clients)
 }
 
 // RevokeClientDevice removes a client id and its push registration.
 func (c *Client) RevokeClientDevice(ctx context.Context, token, user, clientID string) error {
 	endpoint := c.opsEndpoint("clients", url.PathEscape(user), url.PathEscape(clientID))
 	resp, err := c.requestJSON(ctx, http.MethodDelete, endpoint, token, nil)
+	if err != nil {
+		return err
+	}
+	defer closeBody(resp)
+	if resp.StatusCode == http.StatusNoContent || resp.StatusCode == http.StatusNotFound {
+		return nil
+	}
+	return errorFromResponse(resp)
+}
+
+// RevokeMyClientDevice removes one of the caller's own client registrations.
+func (c *Client) RevokeMyClientDevice(ctx context.Context, token, clientID string) error {
+	endpoint := c.opsEndpoint("me", "clients", url.PathEscape(clientID))
+	resp, err := c.requestJSON(ctx, http.MethodDelete, endpoint, token, nil)
+	if err != nil {
+		return err
+	}
+	defer closeBody(resp)
+	if resp.StatusCode == http.StatusNoContent || resp.StatusCode == http.StatusNotFound {
+		return nil
+	}
+	return errorFromResponse(resp)
+}
+
+// RevokeAllMyClientDevices removes every client registration for the caller.
+func (c *Client) RevokeAllMyClientDevices(ctx context.Context, token string) error {
+	resp, err := c.requestJSON(ctx, http.MethodDelete, c.opsEndpoint("me", "clients"), token, nil)
 	if err != nil {
 		return err
 	}
@@ -234,11 +283,43 @@ func (c *Client) GetUploadsInfo(ctx context.Context, token string) (*UploadsInfo
 	if err := errorFromResponse(resp); err != nil {
 		return nil, err
 	}
-	var info UploadsInfo
-	if err := decodeJSONBody(resp, &info); err != nil {
+	var raw struct {
+		Host          string          `json:"host"`
+		Available     bool            `json:"available"`
+		UsedBytes     int64           `json:"used_bytes"`
+		FileCount     int             `json:"file_count"`
+		OrphanCount   int             `json:"orphan_count"`
+		Largest       json.RawMessage `json:"largest"`
+		Orphans       json.RawMessage `json:"orphans"`
+		Stats         map[string]any  `json:"stats"`
+		GlobalQuotaGB *float64        `json:"global_quota_gb"`
+		DailyQuotaGB  *float64        `json:"daily_quota_gb"`
+		RetentionDays int             `json:"retention_days"`
+	}
+	if err := decodeJSONBody(resp, &raw); err != nil {
 		return nil, err
 	}
-	return &info, nil
+	largest, err := decodeJSONList[UploadFile](raw.Largest)
+	if err != nil {
+		return nil, err
+	}
+	orphans, err := decodeJSONList[UploadFile](raw.Orphans)
+	if err != nil {
+		return nil, err
+	}
+	return &UploadsInfo{
+		Host:          raw.Host,
+		Available:     raw.Available,
+		UsedBytes:     raw.UsedBytes,
+		FileCount:     raw.FileCount,
+		OrphanCount:   raw.OrphanCount,
+		Largest:       largest,
+		Orphans:       orphans,
+		Stats:         raw.Stats,
+		GlobalQuotaGB: raw.GlobalQuotaGB,
+		DailyQuotaGB:  raw.DailyQuotaGB,
+		RetentionDays: raw.RetentionDays,
+	}, nil
 }
 
 // PurgeUploads deletes orphaned or expired upload metadata rows.
@@ -280,14 +361,33 @@ func (c *Client) GetInviteStats(ctx context.Context, token string) (*InviteStats
 	if err := errorFromResponse(resp); err != nil {
 		return nil, err
 	}
-	var stats InviteStats
-	if err := decodeJSONBody(resp, &stats); err != nil {
+	var raw struct {
+		Outstanding    int             `json:"outstanding"`
+		Used           int             `json:"used"`
+		ConversionRate float64         `json:"conversion_rate"`
+		BySource       map[string]int  `json:"by_source"`
+		Tracking       json.RawMessage `json:"tracking"`
+		Bootstrap      InviteBootstrap `json:"bootstrap"`
+	}
+	if err := decodeJSONBody(resp, &raw); err != nil {
 		return nil, err
 	}
-	if stats.BySource == nil {
-		stats.BySource = map[string]int{}
+	tracking, err := decodeJSONList[InviteTrack](raw.Tracking)
+	if err != nil {
+		return nil, err
 	}
-	return &stats, nil
+	bySource := raw.BySource
+	if bySource == nil {
+		bySource = map[string]int{}
+	}
+	return &InviteStats{
+		Outstanding:    raw.Outstanding,
+		Used:           raw.Used,
+		ConversionRate: raw.ConversionRate,
+		BySource:       bySource,
+		Tracking:       tracking,
+		Bootstrap:      raw.Bootstrap,
+	}, nil
 }
 
 // GetArchivesInfo returns MAM and offline queue volume.
@@ -303,11 +403,27 @@ func (c *Client) GetArchivesInfo(ctx context.Context, token string) (*ArchivesIn
 	if err := errorFromResponse(resp); err != nil {
 		return nil, err
 	}
-	var info ArchivesInfo
-	if err := decodeJSONBody(resp, &info); err != nil {
+	var raw struct {
+		MAMTotal        int             `json:"mam_total"`
+		OfflineTotal    int             `json:"offline_total"`
+		MUCMAMAvailable bool            `json:"muc_mam_available"`
+		Users           json.RawMessage `json:"users"`
+		RetentionDays   int             `json:"retention_days"`
+	}
+	if err := decodeJSONBody(resp, &raw); err != nil {
 		return nil, err
 	}
-	return &info, nil
+	users, err := decodeJSONList[ArchiveUser](raw.Users)
+	if err != nil {
+		return nil, err
+	}
+	return &ArchivesInfo{
+		MAMTotal:        raw.MAMTotal,
+		OfflineTotal:    raw.OfflineTotal,
+		MUCMAMAvailable: raw.MUCMAMAvailable,
+		Users:           users,
+		RetentionDays:   raw.RetentionDays,
+	}, nil
 }
 
 // GetUpdatesInfo returns update check status for the panel.

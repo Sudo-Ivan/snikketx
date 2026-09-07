@@ -2,6 +2,7 @@ package prosody
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -349,13 +350,17 @@ func (c *Client) ListMUCRooms(ctx context.Context, token, query string) ([]MUCRo
 		return nil, "", err
 	}
 	var payload struct {
-		Rooms []MUCRoom `json:"rooms"`
-		Host  string    `json:"host"`
+		Rooms json.RawMessage `json:"rooms"`
+		Host  string          `json:"host"`
 	}
 	if err := decodeJSONBody(resp, &payload); err != nil {
 		return nil, "", err
 	}
-	return payload.Rooms, payload.Host, nil
+	rooms, err := decodeJSONList[MUCRoom](payload.Rooms)
+	if err != nil {
+		return nil, "", err
+	}
+	return rooms, payload.Host, nil
 }
 
 // GetMUCRoom returns one room including its occupants.

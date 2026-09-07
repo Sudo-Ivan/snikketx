@@ -75,6 +75,16 @@ func stubProsody(t *testing.T) *httptest.Server {
 	mux.HandleFunc("/snikket_ops_api/clients/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	})
+	mux.HandleFunc("/snikket_ops_api/me/clients", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodDelete {
+			_, _ = w.Write([]byte(`{"revoked":1,"user":"alice"}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"count":1,"user":"alice","clients":[{"user":"alice","client_id":"c1","name":"Conversations","has_push":true,"push_service":"fcm","last_seen":1700000000,"ip":"203.0.113.10"}]}`))
+	})
+	mux.HandleFunc("/snikket_ops_api/me/clients/", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
 	mux.HandleFunc("/snikket_ops_api/uploads", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"host":"share.example.test","available":true,"used_bytes":12345,"file_count":2,"orphan_count":1,"retention_days":7,"largest":[{"id":"f1","name":"photo.jpg","size":12000,"uploader":"alice","when":1700000000}],"orphans":[{"id":"f2","name":"lost.bin","size":345,"when":1700000000}]}`))
 	})
