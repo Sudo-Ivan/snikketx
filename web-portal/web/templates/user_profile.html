@@ -36,8 +36,8 @@
 		<div class="field field-avatar">
 			{{with .User}}{{template "avatar" dict "Address" .Address "Hash" .AvatarHash "Name" .DisplayName "Seed" .Address}}{{end}}
 			<div>
-				<label for="avatar">Avatar</label>
-				<input type="file" id="avatar" name="avatar" accept="image/png,image/jpeg,image/gif,image/webp">
+				<span class="field-label" id="avatar-label">Avatar</span>
+				{{template "file_picker" dict "ID" "avatar" "Name" "avatar" "Accept" "image/png,image/jpeg,image/gif,image/webp" "Button" "Choose image" "Icon" "image" "Empty" "No image chosen"}}
 				<p class="hint">Up to {{formatBytes .MaxAvatarSize}}. Use your chat app to upload a larger picture.</p>
 			</div>
 		</div>

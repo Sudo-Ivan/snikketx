@@ -215,7 +215,61 @@
 		initPasswordMeters();
 		initToasts();
 		initSidebar();
+		initFilePickers();
+		initBusyForms();
+		initUpdaterPoll();
 	});
+
+	function initFilePickers() {
+		var pickers = document.querySelectorAll("[data-file-picker]");
+		for (var i = 0; i < pickers.length; i++) {
+			bindFilePicker(pickers[i]);
+		}
+	}
+
+	function bindFilePicker(root) {
+		var input = root.querySelector("[data-file-input]");
+		var name = root.querySelector("[data-file-name]");
+		if (!input || !name) {
+			return;
+		}
+		var empty = name.getAttribute("data-empty") || "No file chosen";
+
+		function render() {
+			if (input.files && input.files.length > 0) {
+				name.textContent = input.files.length === 1 ? input.files[0].name : input.files.length + " files";
+				root.classList.add("has-file");
+				return;
+			}
+			name.textContent = empty;
+			root.classList.remove("has-file");
+		}
+
+		input.addEventListener("change", render);
+		render();
+	}
+
+	function initBusyForms() {
+		var forms = document.querySelectorAll("[data-busy-form]");
+		for (var i = 0; i < forms.length; i++) {
+			forms[i].addEventListener("submit", function () {
+				this.classList.add("is-busy");
+				var buttons = this.querySelectorAll("button[type='submit']");
+				for (var j = 0; j < buttons.length; j++) {
+					buttons[j].disabled = true;
+				}
+			});
+		}
+	}
+
+	function initUpdaterPoll() {
+		if (!document.querySelector("[data-updater-poll]")) {
+			return;
+		}
+		window.setTimeout(function () {
+			window.location.reload();
+		}, 4000);
+	}
 
 	function initSidebar() {
 		var shell = document.querySelector("[data-admin-shell]");

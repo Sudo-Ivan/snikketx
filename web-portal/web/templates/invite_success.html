@@ -23,7 +23,7 @@
 			{{csrf .CSRF}}
 			<div class="field">
 				<label for="account_data_file">Account data file</label>
-				<input type="file" id="account_data_file" name="account_data_file" accept=".xml,application/xml,text/xml" required>
+				{{template "file_picker" dict "ID" "account_data_file" "Name" "account_data_file" "Accept" ".xml,application/xml,text/xml" "Button" "Choose file" "Icon" "file-up" "Empty" "No file chosen" "Required" "1"}}
 			</div>
 			<button type="submit" class="btn btn-secondary">{{template "icon" "upload"}}<span>Import data</span></button>
 		</form>

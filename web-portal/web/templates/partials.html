@@ -73,6 +73,21 @@
 </div>
 {{end}}
 
+{{define "file_picker"}}
+{{- $id := .ID -}}
+{{- $name := orDefault .Name .ID -}}
+{{- $button := orDefault .Button "Choose file" -}}
+{{- $empty := orDefault .Empty "No file chosen" -}}
+<div class="file-picker" data-file-picker>
+	<input type="file" id="{{$id}}" name="{{$name}}" class="sr-only"{{with .Accept}} accept="{{.}}"{{end}}{{if .Required}} required{{end}} data-file-input>
+	<label for="{{$id}}" class="btn btn-secondary file-picker-trigger">
+		{{template "icon" (orDefault .Icon "upload")}}
+		<span>{{$button}}</span>
+	</label>
+	<span class="file-picker-name muted" data-file-name data-empty="{{$empty}}">{{$empty}}</span>
+</div>
+{{end}}
+
 {{define "inline_toast"}}
 {{if .}}
 <div class="toast toast-warning" data-toast role="status">

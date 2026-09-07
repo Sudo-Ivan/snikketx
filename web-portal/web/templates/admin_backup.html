@@ -68,7 +68,7 @@
 		</div>
 		<div class="field">
 			<label for="import-file">Package</label>
-			<input type="file" id="import-file" name="package" accept="application/json,.json" required>
+			{{template "file_picker" dict "ID" "import-file" "Name" "package" "Accept" "application/json,.json" "Button" "Choose package" "Icon" "file-up" "Empty" "No package chosen" "Required" "1"}}
 		</div>
 		<div class="actions">
 			<button type="submit" class="btn btn-primary">{{template "icon" "upload"}}<span>Import</span></button>
