@@ -5,8 +5,14 @@
 module:depends("http");
 
 local json = require "util.json";
+local array = require "util.array";
 local usermanager = require "core.usermanager";
 local tokens = module:depends("tokenauth");
+
+-- Empty Lua tables encode as JSON objects. Wrap lists so Go gets [].
+local function list(t)
+	return array(t or {});
+end
 
 local www_authenticate_header = ("Bearer realm=%q"):format(module.host.."/"..module.name);
 local share_host = "share." .. module.host;
@@ -92,6 +98,30 @@ local function require_admin(event)
 		return nil, 403;
 	end
 	return session;
+end
+
+local function session_username(session)
+	if not session then
+		return nil;
+	end
+	local username = session.username;
+	if not username and session.token_info then
+		username = session.token_info.username;
+	end
+	return username;
+end
+
+local function require_user(event)
+	local session = check_credentials(event.request);
+	if not session then
+		event.response.headers.authorization = www_authenticate_header;
+		return nil, 401;
+	end
+	local username = session_username(session);
+	if not username or username == "" then
+		return nil, 403;
+	end
+	return session, nil, username;
 end
 
 local function json_ok(event, payload)
@@ -196,20 +226,10 @@ local function handle_clients(event)
 	table.sort(clients, function (a, b)
 		return tostring(a.last_seen or 0) > tostring(b.last_seen or 0);
 	end);
-	return json_ok(event, { clients = clients, count = #clients });
+	return json_ok(event, { clients = list(clients), count = #clients });
 end
 
-local function handle_revoke_client(event)
-	local _, code = require_admin(event);
-	if code then return code; end
-	local path = event.request.path or "";
-	local username, client_id = path:match("/clients/([^/]+)/([^/]+)/?$");
-	if not username or not client_id then
-		return 404;
-	end
-	username = url_decode(username);
-	client_id = url_decode(client_id);
-
+local function revoke_client_for_user(username, client_id)
 	local data = clients_store:get(username) or {};
 	if data[client_id] ~= nil then
 		data[client_id] = nil;
@@ -230,6 +250,64 @@ local function handle_revoke_client(event)
 			end
 		end
 	end
+end
+
+local function handle_me_clients(event)
+	local _, code, username = require_user(event);
+	if code then return code; end
+	local clients = client_rows_for_user(username);
+	table.sort(clients, function (a, b)
+		return tostring(a.last_seen or 0) > tostring(b.last_seen or 0);
+	end);
+	return json_ok(event, { clients = list(clients), count = #clients, user = username });
+end
+
+local function handle_me_revoke_client(event)
+	local _, code, username = require_user(event);
+	if code then return code; end
+	local path = event.request.path or "";
+	local client_id = path:match("/me/clients/([^/]+)/?$");
+	if not client_id or client_id == "" then
+		return 404;
+	end
+	client_id = url_decode(client_id);
+	revoke_client_for_user(username, client_id);
+	return 204;
+end
+
+local function handle_me_revoke_all(event)
+	local _, code, username = require_user(event);
+	if code then return code; end
+	local clients = client_rows_for_user(username);
+	for _, row in ipairs(clients) do
+		if row.client_id then
+			revoke_client_for_user(username, row.client_id);
+		end
+	end
+	clients_store:set(username, {});
+	push_store:set(username, {});
+	local sessions = prosody.hosts[module.host] and prosody.hosts[module.host].sessions;
+	if sessions and sessions[username] and sessions[username].sessions then
+		for _, session in pairs(sessions[username].sessions) do
+			if session.close then
+				session:close();
+			end
+		end
+	end
+	return json_ok(event, { revoked = #clients, user = username });
+end
+
+local function handle_revoke_client(event)
+	local _, code = require_admin(event);
+	if code then return code; end
+	local path = event.request.path or "";
+	local username, client_id = path:match("/clients/([^/]+)/([^/]+)/?$");
+	if not username or not client_id then
+		return 404;
+	end
+	username = url_decode(username);
+	client_id = url_decode(client_id);
+	revoke_client_for_user(username, client_id);
 	return 204;
 end
 
@@ -298,8 +376,8 @@ local function handle_uploads(event)
 		used_bytes = used_bytes;
 		file_count = #files;
 		orphan_count = #orphans;
-		largest = slice(files, 1, 25);
-		orphans = slice(orphans, 1, 50);
+		largest = list(slice(files, 1, 25));
+		orphans = list(slice(orphans, 1, 50));
 		stats = upload_stats;
 		global_quota_gb = tonumber(os.getenv("SNIKKET_UPLOAD_STORAGE_GB"));
 		daily_quota_gb = tonumber(os.getenv("SNIKKET_DAILY_UPLOAD_LIMIT_PER_USER_GB"));
@@ -402,7 +480,7 @@ local function handle_invite_stats(event)
 		used = used;
 		conversion_rate = total > 0 and (used / total) or 0;
 		by_source = by_source;
-		tracking = slice(tracking, 1, 100);
+		tracking = list(slice(tracking, 1, 100));
 		bootstrap = bootstrap_status;
 	});
 end
@@ -463,7 +541,7 @@ local function handle_archives(event)
 		mam_total = mam_total;
 		offline_total = offline_total;
 		muc_mam_available = muc_mam_available;
-		users = slice(users, 1, 100);
+		users = list(slice(users, 1, 100));
 		retention_days = tonumber(os.getenv("SNIKKET_RETENTION_DAYS")) or 7;
 	});
 end
@@ -580,13 +658,16 @@ local function handle_account_import(event)
 		vcard_store:set(username, payload.vcard);
 		written[#written+1] = "vcard";
 	end
-	return json_ok(event, { username = username, written = written });
+	return json_ok(event, { username = username, written = list(written) });
 end
 
 module:provides("http", {
 	route = {
 		["GET /clients"] = handle_clients;
 		["DELETE /clients/*"] = handle_revoke_client;
+		["GET /me/clients"] = handle_me_clients;
+		["DELETE /me/clients"] = handle_me_revoke_all;
+		["DELETE /me/clients/*"] = handle_me_revoke_client;
 		["GET /uploads"] = handle_uploads;
 		["POST /uploads/purge"] = handle_uploads_purge;
 		["GET /invites/stats"] = handle_invite_stats;

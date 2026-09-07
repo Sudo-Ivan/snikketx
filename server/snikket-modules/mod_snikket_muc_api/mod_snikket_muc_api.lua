@@ -4,10 +4,15 @@
 module:depends("http");
 
 local json = require "util.json";
+local array = require "util.array";
 local jid = require "util.jid";
 local id = require "util.id";
 local usermanager = require "core.usermanager";
 local tokens = module:depends("tokenauth");
+
+local function list(t)
+	return array(t or {});
+end
 
 local muc_host = module:get_option_string("groups_muc_host") or ("groups." .. module.host);
 local www_authenticate_header = ("Bearer realm=%q"):format(module.host.."/"..module.name);
@@ -184,7 +189,7 @@ local function handle_list(event)
 	local muc = muc_module();
 	if not muc then
 		event.response.headers["Content-Type"] = "application/json";
-		return json.encode({ rooms = {}, error = "muc component unavailable", host = muc_host });
+		return json.encode({ rooms = list({}), error = "muc component unavailable", host = muc_host });
 	end
 
 	local params = decode_query(event.request.url.query);
@@ -212,7 +217,7 @@ local function handle_list(event)
 	end);
 
 	event.response.headers["Content-Type"] = "application/json";
-	return json.encode({ rooms = rooms, host = muc_host });
+	return json.encode({ rooms = list(rooms), host = muc_host });
 end
 
 local function room_from_path(event)
@@ -246,7 +251,7 @@ local function handle_get(event)
 		return err;
 	end
 	local payload = serialize_room(room);
-	payload.occupants_list = serialize_occupants(room);
+	payload.occupants_list = list(serialize_occupants(room));
 	event.response.headers["Content-Type"] = "application/json";
 	return json.encode(payload);
 end

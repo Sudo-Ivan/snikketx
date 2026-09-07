@@ -5,8 +5,13 @@ module:depends("http");
 module:depends("audit");
 
 local json = require "util.json";
+local array = require "util.array";
 local usermanager = require "core.usermanager";
 local tokens = module:depends("tokenauth");
+
+local function list(t)
+	return array(t or {});
+end
 
 local www_authenticate_header = ("Bearer realm=%q"):format(module.host.."/"..module.name);
 
@@ -145,7 +150,7 @@ local function handle_list(event)
 	local store = module:open_store("audit", "archive");
 	if not store then
 		event.response.headers["Content-Type"] = "application/json";
-		return json.encode({ events = {}, error = "audit store unavailable" });
+		return json.encode({ events = list({}), error = "audit store unavailable" });
 	end
 
 	local results, err = store:find(nil, {
@@ -155,7 +160,7 @@ local function handle_list(event)
 	if not results then
 		module:log("warn", "audit query failed: %s", tostring(err));
 		event.response.headers["Content-Type"] = "application/json";
-		return json.encode({ events = {}, error = tostring(err) });
+		return json.encode({ events = list({}), error = tostring(err) });
 	end
 
 	local events = {};
@@ -177,7 +182,7 @@ local function handle_list(event)
 	end
 
 	event.response.headers["Content-Type"] = "application/json";
-	return json.encode({ events = events, host = module.host });
+	return json.encode({ events = list(events), host = module.host });
 end
 
 module:provides("http", {
