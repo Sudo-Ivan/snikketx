@@ -1,7 +1,36 @@
 {{define "content"}}
-<section class="card card-narrow">
+<div class="page-head">
 	<h1>Your profile</h1>
-	<p class="muted">Your display name and your avatar are what your contacts see. Choose below how far they reach.</p>
+	<p class="muted">Your Jabber ID, display name, avatar and signed-in devices.</p>
+</div>
+
+{{if .Note}}{{template "inline_toast" .Note}}{{end}}
+
+<section class="card">
+	<h2>Account</h2>
+	<dl class="details">
+		<dt>Jabber ID</dt>
+		<dd class="mono">{{with .User}}{{.Address}}{{else}}{{.JID}}{{end}}</dd>
+		<dt>Username</dt>
+		<dd class="mono">{{with .User}}{{.Username}}{{else}}-{{end}}</dd>
+		<dt>Display name</dt>
+		<dd>{{with .User}}{{orDefault .DisplayName "-"}}{{else}}-{{end}}</dd>
+		<dt>Access</dt>
+		<dd>{{if .IsAdmin}}Administrator{{else}}Member{{end}}</dd>
+		{{with .ServerVersion}}
+		<dt>Chat server</dt>
+		<dd class="mono">{{.}}</dd>
+		{{end}}
+		{{with .AccessModelLabel}}
+		<dt>Profile visibility</dt>
+		<dd>{{.}}</dd>
+		{{end}}
+	</dl>
+</section>
+
+<section class="card">
+	<h2>Profile</h2>
+	<p class="muted">Your display name and avatar are what contacts see. Choose below how far they reach.</p>
 	<form method="post" action="/user/profile" class="form" enctype="multipart/form-data">
 		{{csrf .CSRF}}
 		<div class="field field-avatar">
@@ -31,5 +60,63 @@
 			<a class="btn btn-ghost" href="/user/">Cancel</a>
 		</div>
 	</form>
+</section>
+
+<section class="card">
+	<div class="section-head">
+		<div>
+			<h2>Active sessions</h2>
+			<p class="muted">Devices and apps signed in with your account. Signing out a device removes its registration and push endpoint.</p>
+		</div>
+		{{if .Sessions}}
+		<form method="post" action="/user/profile/sessions" class="inline-form">
+			{{csrf .CSRF}}
+			<input type="hidden" name="action" value="revoke_all">
+			<button type="submit" class="btn btn-secondary" onclick="return confirm('Sign out every device? You will need to sign in again on each one.');">{{template "icon" "ban"}}<span>Sign out all</span></button>
+		</form>
+		{{end}}
+	</div>
+	{{if .Sessions}}
+	<div class="table-wrap">
+		<table class="table">
+			<thead>
+				<tr>
+					<th scope="col">Client</th>
+					<th scope="col">Push</th>
+					<th scope="col">Last seen</th>
+					<th scope="col">IP</th>
+					<th scope="col"><span class="sr-only">Actions</span></th>
+				</tr>
+			</thead>
+			<tbody>
+				{{range .Sessions}}
+				<tr>
+					<td>
+						<div class="cell-stack">
+							<strong>{{orDefault .Name .ClientID}}</strong>
+							<span class="muted mono">{{.ClientID}}</span>
+							{{with .UserAgent}}<span class="muted">{{.}}</span>{{end}}
+							{{with .Resource}}<span class="muted mono">{{.}}</span>{{end}}
+						</div>
+					</td>
+					<td>{{if .HasPush}}<span class="badge badge-ok">Push</span>{{with .PushService}}<span class="muted">{{.}}</span>{{end}}{{else}}<span class="muted">-</span>{{end}}</td>
+					<td class="muted">{{printf "%v" .LastSeen}}</td>
+					<td class="mono muted">{{orDefault .IP "-"}}</td>
+					<td>
+						<form method="post" action="/user/profile/sessions" class="inline-form">
+							{{csrf $.CSRF}}
+							<input type="hidden" name="action" value="revoke">
+							<input type="hidden" name="client_id" value="{{.ClientID}}">
+							<button type="submit" class="btn btn-ghost btn-icon btn-danger-ghost" title="Sign out">{{template "icon" "ban"}}</button>
+						</form>
+					</td>
+				</tr>
+				{{end}}
+			</tbody>
+		</table>
+	</div>
+	{{else}}
+	<p class="muted">No registered devices yet. Apps appear here after they connect.</p>
+	{{end}}
 </section>
 {{end}}

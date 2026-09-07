@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/sudo-ivan/snikketx/web-portal/internal/prosody"
+	"github.com/sudo-ivan/snikketx/web-portal/internal/session"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/webui"
 )
 
@@ -36,6 +37,7 @@ func (a *App) mountUser(mux *http.ServeMux) {
 	mux.HandleFunc("POST /user/passwd", a.handlePasswordSubmit)
 	mux.HandleFunc("GET /user/profile", a.handleProfileForm)
 	mux.HandleFunc("POST /user/profile", a.handleProfileSubmit)
+	mux.HandleFunc("POST /user/profile/sessions", a.handleProfileSessions)
 	mux.HandleFunc("GET /user/manage_data", a.handleManageDataForm)
 	mux.HandleFunc("POST /user/manage_data", a.handleManageDataSubmit)
 	mux.HandleFunc("GET /user/logout", a.handleLogoutForm)
@@ -150,10 +152,59 @@ func (a *App) handlePasswordSubmit(w http.ResponseWriter, r *http.Request) {
 // profilePage is the data behind the profile form.
 type profilePage struct {
 	webui.PageData
-	Nickname      string
-	AccessModel   string
-	AccessModels  []accessModelChoice
-	MaxAvatarSize int64
+	JID              string
+	Nickname         string
+	AccessModel      string
+	AccessModelLabel string
+	AccessModels     []accessModelChoice
+	MaxAvatarSize    int64
+	ServerVersion    string
+	Sessions         []prosody.ClientDevice
+	Note             string
+}
+
+func accessModelLabel(value string) string {
+	for _, choice := range accessModelChoices {
+		if choice.Value == value {
+			return choice.Label
+		}
+	}
+	return value
+}
+
+func (a *App) loadProfilePage(w http.ResponseWriter, r *http.Request, sess session.Data, info *prosody.UserInfo, nickname, accessModel, note string) profilePage {
+	if info == nil {
+		info = &prosody.UserInfo{Address: sess.JID()}
+	}
+	if nickname == "" {
+		nickname = info.Nickname
+	}
+	if accessModel == "" {
+		accessModel = prosody.AccessModelOpen
+	}
+	sessions, err := a.Prosody.ListMyClientDevices(r.Context(), sess.Token())
+	sessionNote := note
+	if err != nil {
+		if sessionNote == "" {
+			sessionNote = "Device list unavailable: " + apiErrorMessage(err)
+		}
+		sessions = nil
+	}
+	serverVersion, _ := a.Prosody.GetServerVersion(r.Context(), sess.Token(), sess.JID())
+	page := a.newPage(w, r, sess, "Profile", "profile", webui.ShellApp)
+	applyUserInfo(&page, info)
+	return profilePage{
+		PageData:         page,
+		JID:              sess.JID(),
+		Nickname:         nickname,
+		AccessModel:      accessModel,
+		AccessModelLabel: accessModelLabel(accessModel),
+		AccessModels:     accessModelChoices,
+		MaxAvatarSize:    a.Cfg.MaxAvatarSize,
+		ServerVersion:    serverVersion,
+		Sessions:         sessions,
+		Note:             sessionNote,
+	}
 }
 
 // handleProfileForm shows the profile form with the published nickname and the
@@ -175,15 +226,7 @@ func (a *App) handleProfileForm(w http.ResponseWriter, r *http.Request) {
 		accessModel = prosody.AccessModelOpen
 	}
 
-	page := a.newPage(w, r, sess, "Profile", "profile", webui.ShellApp)
-	applyUserInfo(&page, info)
-	a.render(w, r, http.StatusOK, "user_profile.html", profilePage{
-		PageData:      page,
-		Nickname:      info.Nickname,
-		AccessModel:   accessModel,
-		AccessModels:  accessModelChoices,
-		MaxAvatarSize: a.Cfg.MaxAvatarSize,
-	})
+	a.render(w, r, http.StatusOK, "user_profile.html", a.loadProfilePage(w, r, sess, info, info.Nickname, accessModel, ""))
 }
 
 // handleProfileSubmit publishes a new nickname, avatar and profile visibility.
@@ -200,15 +243,10 @@ func (a *App) handleProfileSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fail := func(message string) {
-		page := a.newPage(w, r, sess, "Profile", "profile", webui.ShellApp)
+		info, _ := a.Prosody.GetUserInfo(r.Context(), sess.Token(), sess.JID(), sess.IsAdmin())
+		page := a.loadProfilePage(w, r, sess, info, nickname, accessModel, "")
 		page.AddError("%s", message)
-		a.render(w, r, http.StatusBadRequest, "user_profile.html", profilePage{
-			PageData:      page,
-			Nickname:      nickname,
-			AccessModel:   accessModel,
-			AccessModels:  accessModelChoices,
-			MaxAvatarSize: a.Cfg.MaxAvatarSize,
-		})
+		a.render(w, r, http.StatusBadRequest, "user_profile.html", page)
 	}
 
 	if file, header, err := r.FormFile("avatar"); err == nil {
@@ -265,6 +303,36 @@ func (a *App) handleProfileSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a.flashRedirect(w, r, sess, "Profile updated.", "success", "/user/profile")
+}
+
+// handleProfileSessions revokes one or every registered client for the caller.
+func (a *App) handleProfileSessions(w http.ResponseWriter, r *http.Request) {
+	sess, ok := a.requireSession(w, r)
+	if !ok {
+		return
+	}
+	action := strings.TrimSpace(r.FormValue("action"))
+	switch action {
+	case "revoke":
+		clientID := strings.TrimSpace(r.FormValue("client_id"))
+		if clientID == "" {
+			a.flashRedirect(w, r, sess, "Missing client id.", "alert", "/user/profile")
+			return
+		}
+		if err := a.Prosody.RevokeMyClientDevice(r.Context(), sess.Token(), clientID); err != nil {
+			a.flashRedirect(w, r, sess, apiErrorMessage(err), "alert", "/user/profile")
+			return
+		}
+		a.flashRedirect(w, r, sess, "Device signed out.", "success", "/user/profile")
+	case "revoke_all":
+		if err := a.Prosody.RevokeAllMyClientDevices(r.Context(), sess.Token()); err != nil {
+			a.flashRedirect(w, r, sess, apiErrorMessage(err), "alert", "/user/profile")
+			return
+		}
+		a.flashRedirect(w, r, sess, "All devices signed out.", "success", "/user/profile")
+	default:
+		a.flashRedirect(w, r, sess, "Unknown session action.", "alert", "/user/profile")
+	}
 }
 
 // validAccessModel reports whether value is one of the offered choices.
