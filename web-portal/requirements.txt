@@ -7,4 +7,4 @@ email-validator~=1.3
 environ-config~=20.0
 wtforms~=3.0,<4
 typing-extensions
-werkzeug~=2.2,<3
+werkzeug~=3.1
