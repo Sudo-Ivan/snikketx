@@ -5,15 +5,16 @@
 </div>
 
 {{if .Users}}
-<div class="card card-flush">
+<div class="card card-flush table-wrap">
 	<table class="table">
 		<thead>
 			<tr>
-				<th scope="col">Account</th>
-				<th scope="col">Access level</th>
-				<th scope="col">Status</th>
-				<th scope="col">Last active</th>
-				<th scope="col"><span class="sr-only">Actions</span></th>
+				<th scope="col" class="col-account">Account</th>
+				<th scope="col" class="col-access">Access level</th>
+				<th scope="col" class="col-status">Status</th>
+				<th scope="col" class="col-activity">Last activity</th>
+				<th scope="col" class="col-contact">Contact</th>
+				<th scope="col" class="col-actions"><span class="sr-only">Actions</span></th>
 			</tr>
 		</thead>
 		<tbody>
@@ -21,7 +22,7 @@
 			{{$hash := ""}}{{if .AvatarInfo}}{{$hash = (index .AvatarInfo 0).Hash}}{{end}}
 			{{$address := printf "%s@%s" .Localpart $.Domain}}
 			<tr>
-				<th scope="row">
+				<th scope="row" class="col-account">
 					<a class="identity" href="/admin/user/{{.Localpart}}/">
 						{{template "avatar" dict "Address" $address "Hash" $hash "Name" (orDefault .DisplayName .Localpart) "Seed" $address}}
 						<span>
@@ -30,17 +31,38 @@
 						</span>
 					</a>
 				</th>
-				<td>{{if .Roles}}{{template "role_badge" (index .Roles 0)}}{{else}}{{template "role_badge" ""}}{{end}}</td>
-				<td>
+				<td class="col-access">
+					{{if .Roles}}
+						{{range $i, $role := .Roles}}{{if $i}} {{end}}{{template "role_badge" $role}}{{end}}
+					{{else}}{{template "role_badge" ""}}{{end}}
+				</td>
+				<td class="col-status">
 					{{if .DeletionRequest}}<span class="badge badge-danger">Deletion pending</span>
 					{{else if .Enabled}}<span class="badge badge-ok">Active</span>
 					{{else}}<span class="badge badge-warn">Locked</span>{{end}}
 				</td>
-				<td class="muted">{{formatUnix .LastActive}}</td>
-				<td class="row-actions">
-					<a class="btn btn-ghost btn-icon" href="/admin/user/{{.Localpart}}/" aria-label="Edit {{.Localpart}}" title="Edit">{{template "icon" "edit"}}</a>
-					<a class="btn btn-ghost btn-icon" href="/admin/user/{{.Localpart}}/debug" aria-label="Diagnostics for {{.Localpart}}" title="Diagnostics">{{template "icon" "bug"}}</a>
-					<a class="btn btn-ghost btn-icon btn-danger-ghost" href="/admin/user/{{.Localpart}}/delete" aria-label="Delete {{.Localpart}}" title="Delete">{{template "icon" "trash"}}</a>
+				<td class="col-activity">
+					<div class="cell-stack">
+						<span title="{{formatUnix .LastActive}}">{{formatAgoUnix .LastActive}}</span>
+						{{if .LastActive}}<span class="muted mono">{{formatUnix .LastActive}}</span>{{end}}
+					</div>
+				</td>
+				<td class="col-contact muted">
+					{{if or .Email .Phone}}
+					<div class="cell-stack">
+						{{with .Email}}<span>{{.}}</span>{{end}}
+						{{with .Phone}}<span>{{.}}</span>{{end}}
+					</div>
+					{{else}}
+						-
+					{{end}}
+				</td>
+				<td class="col-actions">
+					<div class="row-actions">
+						<a class="btn btn-ghost btn-icon" href="/admin/user/{{.Localpart}}/" aria-label="Edit {{.Localpart}}" title="Edit">{{template "icon" "edit"}}</a>
+						<a class="btn btn-ghost btn-icon" href="/admin/user/{{.Localpart}}/debug" aria-label="Diagnostics for {{.Localpart}}" title="Diagnostics">{{template "icon" "bug"}}</a>
+						<a class="btn btn-ghost btn-icon btn-danger-ghost" href="/admin/user/{{.Localpart}}/delete" aria-label="Delete {{.Localpart}}" title="Delete">{{template "icon" "trash"}}</a>
+					</div>
 				</td>
 			</tr>
 			{{end}}

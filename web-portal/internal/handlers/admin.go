@@ -82,6 +82,13 @@ func (a *App) mountAdmin(mux *http.ServeMux) {
 	mux.HandleFunc("GET /admin/system/", a.handleSystemForm)
 	mux.HandleFunc("POST /admin/system/", a.handleSystemSubmit)
 	mux.HandleFunc("GET /admin/health/", a.handleAdminHealth)
+	mux.HandleFunc("GET /admin/audit/", a.handleAuditLog)
+	mux.HandleFunc("GET /admin/mucs", a.handleMUCs)
+	mux.HandleFunc("POST /admin/mucs", a.handleMUCsSubmit)
+	mux.HandleFunc("GET /admin/muc/-/new", a.handleCreateMUCForm)
+	mux.HandleFunc("POST /admin/muc/-/new", a.handleCreateMUCSubmit)
+	mux.HandleFunc("GET /admin/muc/{localpart}", a.handleMUCDetail)
+	mux.HandleFunc("POST /admin/muc/{localpart}", a.handleMUCDetailSubmit)
 }
 
 // serverMetrics is the subset of the Prosody metrics document the portal shows.
@@ -329,6 +336,7 @@ func (a *App) handleEditUserSubmit(w http.ResponseWriter, r *http.Request) {
 			a.flashRedirect(w, r, sess, apiErrorMessage(err), "alert", target)
 			return
 		}
+		a.recordAudit(r, sess, "user.reset_create", localpart, "")
 		a.flashRedirect(w, r, sess, "Password reset link created.", "success",
 			"/admin/users/password-reset/"+url.PathEscape(invite.ID))
 		return
@@ -338,6 +346,7 @@ func (a *App) handleEditUserSubmit(w http.ResponseWriter, r *http.Request) {
 			a.flashRedirect(w, r, sess, apiErrorMessage(err), "alert", target)
 			return
 		}
+		a.recordAudit(r, sess, "user.unlock", localpart, "")
 		a.flashRedirect(w, r, sess, "User account unlocked.", "success", "/admin/users")
 		return
 
@@ -346,6 +355,7 @@ func (a *App) handleEditUserSubmit(w http.ResponseWriter, r *http.Request) {
 			a.flashRedirect(w, r, sess, apiErrorMessage(err), "alert", target)
 			return
 		}
+		a.recordAudit(r, sess, "user.lock", localpart, "")
 		a.flashRedirect(w, r, sess, "User account locked.", "success", "/admin/users")
 		return
 	}
@@ -361,6 +371,7 @@ func (a *App) handleEditUserSubmit(w http.ResponseWriter, r *http.Request) {
 		a.flashRedirect(w, r, sess, apiErrorMessage(err), "alert", target)
 		return
 	}
+	a.recordAudit(r, sess, "user.update", localpart, role)
 	a.flashRedirect(w, r, sess, "User information updated.", "success", "/admin/users")
 }
 
@@ -420,6 +431,7 @@ func (a *App) handleDeleteUserSubmit(w http.ResponseWriter, r *http.Request) {
 		a.flashRedirect(w, r, sess, apiErrorMessage(err), "alert", "/admin/users")
 		return
 	}
+	a.recordAudit(r, sess, "user.delete", localpart, "")
 	a.flashRedirect(w, r, sess, "User deleted.", "success", "/admin/users")
 }
 
@@ -624,6 +636,7 @@ func (a *App) handleInvitationsSubmit(w http.ResponseWriter, r *http.Request) {
 		a.flashRedirect(w, r, sess, apiErrorMessage(err), "alert", "/admin/invitations")
 		return
 	}
+	a.recordAudit(r, sess, "invite.revoke", id, "")
 	a.flashRedirect(w, r, sess, "Invitation revoked.", "success", "/admin/invitations")
 }
 
@@ -644,13 +657,13 @@ func (a *App) handleCreateInviteForm(w http.ResponseWriter, r *http.Request) {
 	}
 
 	circles, err := a.Prosody.ListGroups(r.Context(), sess.Token())
-	if err != nil {
-		a.failAPI(w, r, err)
-		return
-	}
-	sortCircles(circles)
-
 	page := a.newPage(w, r, sess, "New invitation", "invites", webui.ShellAdmin)
+	if err != nil {
+		page.AddError("%s", "Circles could not be loaded. Create or repair circles before inviting.")
+		circles = nil
+	} else {
+		sortCircles(circles)
+	}
 	a.render(w, r, http.StatusOK, "admin_create_invite.html", adminCreateInvitePage{
 		PageData:  page,
 		Circles:   circles,
@@ -707,6 +720,7 @@ func (a *App) handleCreateInviteSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	a.recordAudit(r, sess, "invite.create", invite.ID, note)
 	a.flashRedirect(w, r, sess, "Invitation created.", "success",
 		"/admin/invitation/"+url.PathEscape(invite.ID))
 }
@@ -791,6 +805,7 @@ func (a *App) handleEditInviteSubmit(w http.ResponseWriter, r *http.Request) {
 		a.flashRedirect(w, r, sess, apiErrorMessage(err), "alert", "/admin/invitations")
 		return
 	}
+	a.recordAudit(r, sess, "invite.revoke", id, "")
 	a.flashRedirect(w, r, sess, "Invitation revoked.", "success", "/admin/invitations")
 }
 
@@ -808,13 +823,14 @@ func (a *App) handleCircles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	circles, err := a.Prosody.ListGroups(r.Context(), sess.Token())
-	if err != nil {
-		a.failAPI(w, r, err)
-		return
-	}
-	sortCircles(circles)
-
 	page := a.newPage(w, r, sess, "Circles", "circles", webui.ShellAdmin)
+	if err != nil {
+		page.AddError("%s", "Circles could not be loaded from the chat server. "+apiErrorMessage(err))
+		circles = nil
+	} else {
+		sortCircles(circles)
+	}
+
 	a.render(w, r, http.StatusOK, "admin_circles.html", adminCirclesPage{
 		PageData: page,
 		Circles:  circles,
@@ -856,6 +872,7 @@ func (a *App) handleCreateCircleSubmit(w http.ResponseWriter, r *http.Request) {
 		a.flashRedirect(w, r, sess, apiErrorMessage(err), "alert", "/admin/circle/-/new")
 		return
 	}
+	a.recordAudit(r, sess, "circle.create", circle.ID, name)
 	a.flashRedirect(w, r, sess, "Circle created.", "success",
 		"/admin/circle/"+url.PathEscape(circle.ID))
 }
@@ -1019,6 +1036,7 @@ func (a *App) handleDeleteCircleSubmit(w http.ResponseWriter, r *http.Request) {
 		a.flashRedirect(w, r, sess, apiErrorMessage(err), "alert", "/admin/circles")
 		return
 	}
+	a.recordAudit(r, sess, "circle.delete", id, "")
 	a.flashRedirect(w, r, sess, "Circle deleted.", "success", "/admin/circles")
 }
 
@@ -1154,9 +1172,11 @@ func (a *App) handleSystemSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if recipients == "self" {
+		a.recordAudit(r, sess, "announcement.preview", "", "")
 		a.flashRedirect(w, r, sess, "Preview sent to your own account.", "success", "/admin/system/")
 		return
 	}
+	a.recordAudit(r, sess, "announcement.send", recipients, "")
 	a.flashRedirect(w, r, sess, "Announcement sent.", "success", "/admin/system/")
 }
 
@@ -1176,6 +1196,7 @@ func (a *App) handleAdminHealth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	hostStats := hostmetrics.Collect()
 	components := []health.Component{
 		{
 			Name:   "web portal",
@@ -1193,6 +1214,13 @@ func (a *App) handleAdminHealth(w http.ResponseWriter, r *http.Request) {
 			OK:     a.Cfg.ShowMetrics,
 			Detail: metricsDetail(a.Cfg.ShowMetrics, a.Cfg.MetricsToken != ""),
 		},
+		health.ProbeDomain(r.Context(), a.Cfg.Domain),
+		health.ProbeTLS(r.Context(), a.Cfg.Domain),
+		health.ProbeHTTPS(r.Context(), a.Cfg.Domain),
+		a.probeStorage(),
+		health.ProbeMemory(hostStats),
+		health.ProbeCPU(hostStats),
+		health.ProbePressure(hostStats),
 	}
 
 	healthy := true
@@ -1235,4 +1263,257 @@ func metricsDetail(enabled, tokenSet bool) string {
 	default:
 		return "exposed at /metrics without a token"
 	}
+}
+
+// probeStorage reports host disk fill for the root filesystem.
+func (a *App) probeStorage() health.Component {
+	stats := hostmetrics.Collect()
+	component := health.Component{Name: "storage"}
+	if stats.DiskTotal == nil || stats.DiskUsedRatio == nil {
+		component.Detail = "disk usage unavailable"
+		return component
+	}
+	component.OK = *stats.DiskUsedRatio < 0.95
+	used := "n/a"
+	total := "n/a"
+	if stats.DiskUsed != nil {
+		used = webui.FormatBytes(*stats.DiskUsed)
+	}
+	if stats.DiskTotal != nil {
+		total = webui.FormatBytes(*stats.DiskTotal)
+	}
+	component.Detail = used + " of " + total + " (" + webui.FormatPercent(*stats.DiskUsedRatio) + ")"
+	if *stats.DiskUsedRatio >= 0.95 {
+		component.Detail += ", critically full"
+	}
+	return component
+}
+
+// auditEventView is one row on the audit log page.
+type auditEventView struct {
+	When      time.Time
+	Source    string
+	Actor     string
+	Action    string
+	Target    string
+	Detail    string
+	IP        string
+	UserAgent string
+	Request   string
+}
+
+// adminAuditPage is the data behind the audit log.
+type adminAuditPage struct {
+	webui.PageData
+	Query  string
+	Events []auditEventView
+	Note   string
+}
+
+// handleAuditLog shows searchable portal and Prosody audit events.
+func (a *App) handleAuditLog(w http.ResponseWriter, r *http.Request) {
+	sess, ok := a.requireAdmin(w, r)
+	if !ok {
+		return
+	}
+
+	query := strings.TrimSpace(r.URL.Query().Get("q"))
+	events := make([]auditEventView, 0, 128)
+
+	if a.Audit != nil {
+		for _, ev := range a.Audit.Recent(200, query) {
+			events = append(events, auditEventView{
+				When:      ev.When,
+				Source:    ev.Source,
+				Actor:     ev.Actor,
+				Action:    ev.Action,
+				Target:    ev.Target,
+				Detail:    ev.Detail,
+				IP:        ev.IP,
+				UserAgent: ev.UserAgent,
+				Request:   ev.RequestID,
+			})
+		}
+	}
+
+	note := ""
+	if prosodyEvents, err := a.Prosody.ListAuditEvents(r.Context(), sess.Token(), 200, query); err != nil {
+		note = "Chat server audit feed unavailable: " + apiErrorMessage(err)
+	} else {
+		for _, ev := range prosodyEvents {
+			when := time.Unix(ev.When, 0).UTC()
+			events = append(events, auditEventView{
+				When:   when,
+				Source: stringOr(ev.Source, "prosody"),
+				Actor:  ev.Actor,
+				Action: ev.Action,
+				Target: ev.Target,
+				Detail: ev.Detail,
+				IP:     ev.IP,
+			})
+		}
+	}
+
+	slices.SortFunc(events, func(x, y auditEventView) int {
+		return y.When.Compare(x.When)
+	})
+	if len(events) > 300 {
+		events = events[:300]
+	}
+
+	page := a.newPage(w, r, sess, "Audit log", "audit", webui.ShellAdmin)
+	a.render(w, r, http.StatusOK, "admin_audit.html", adminAuditPage{
+		PageData: page,
+		Query:    query,
+		Events:   events,
+		Note:     note,
+	})
+}
+
+func stringOr(value, fallback string) string {
+	if strings.TrimSpace(value) == "" {
+		return fallback
+	}
+	return value
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if strings.TrimSpace(v) != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+// adminMUCsPage is the data behind the group chat list.
+type adminMUCsPage struct {
+	webui.PageData
+	Rooms []prosody.MUCRoom
+	Host  string
+	Query string
+	Note  string
+}
+
+// handleMUCs lists group chats from the MUC component.
+func (a *App) handleMUCs(w http.ResponseWriter, r *http.Request) {
+	sess, ok := a.requireAdmin(w, r)
+	if !ok {
+		return
+	}
+	query := strings.TrimSpace(r.URL.Query().Get("q"))
+	rooms, host, err := a.Prosody.ListMUCRooms(r.Context(), sess.Token(), query)
+	page := a.newPage(w, r, sess, "Group chats", "mucs", webui.ShellAdmin)
+	note := ""
+	if err != nil {
+		note = "Group chats could not be loaded: " + apiErrorMessage(err)
+		rooms = nil
+	}
+	a.render(w, r, http.StatusOK, "admin_mucs.html", adminMUCsPage{
+		PageData: page,
+		Rooms:    rooms,
+		Host:     stringOr(host, "groups."+a.Cfg.Domain),
+		Query:    query,
+		Note:     note,
+	})
+}
+
+// handleMUCsSubmit destroys a selected room from the list page.
+func (a *App) handleMUCsSubmit(w http.ResponseWriter, r *http.Request) {
+	sess, ok := a.requireAdmin(w, r)
+	if !ok {
+		return
+	}
+	localpart := strings.TrimSpace(r.FormValue("destroy"))
+	if localpart == "" {
+		http.Redirect(w, r, "/admin/mucs", http.StatusSeeOther)
+		return
+	}
+	if err := a.Prosody.DestroyMUCRoom(r.Context(), sess.Token(), localpart); err != nil {
+		a.flashRedirect(w, r, sess, apiErrorMessage(err), "alert", "/admin/mucs")
+		return
+	}
+	a.recordAudit(r, sess, "muc.destroy", localpart, "")
+	a.flashRedirect(w, r, sess, "Group chat destroyed.", "success", "/admin/mucs")
+}
+
+// handleCreateMUCForm shows the room creation form.
+func (a *App) handleCreateMUCForm(w http.ResponseWriter, r *http.Request) {
+	sess, ok := a.requireAdmin(w, r)
+	if !ok {
+		return
+	}
+	page := a.newPage(w, r, sess, "New group chat", "mucs", webui.ShellAdmin)
+	a.render(w, r, http.StatusOK, "admin_create_muc.html", pageOnly{PageData: page})
+}
+
+// handleCreateMUCSubmit creates a group chat room.
+func (a *App) handleCreateMUCSubmit(w http.ResponseWriter, r *http.Request) {
+	sess, ok := a.requireAdmin(w, r)
+	if !ok {
+		return
+	}
+	name := strings.TrimSpace(r.FormValue("name"))
+	if name == "" {
+		a.flashRedirect(w, r, sess, "A room name is required.", "alert", "/admin/muc/-/new")
+		return
+	}
+	localpart := strings.TrimSpace(r.FormValue("localpart"))
+	description := strings.TrimSpace(r.FormValue("description"))
+	public := r.FormValue("public") != ""
+	room, err := a.Prosody.CreateMUCRoom(r.Context(), sess.Token(), name, localpart, description, public)
+	if err != nil {
+		a.flashRedirect(w, r, sess, apiErrorMessage(err), "alert", "/admin/muc/-/new")
+		return
+	}
+	a.recordAudit(r, sess, "muc.create", room.Localpart, name)
+	a.flashRedirect(w, r, sess, "Group chat created.", "success", "/admin/muc/"+url.PathEscape(room.Localpart))
+}
+
+// adminMUCDetailPage is the data behind a single room page.
+type adminMUCDetailPage struct {
+	webui.PageData
+	Room *prosody.MUCRoom
+}
+
+// handleMUCDetail shows one room and its occupants.
+func (a *App) handleMUCDetail(w http.ResponseWriter, r *http.Request) {
+	sess, ok := a.requireAdmin(w, r)
+	if !ok {
+		return
+	}
+	localpart := r.PathValue("localpart")
+	room, err := a.Prosody.GetMUCRoom(r.Context(), sess.Token(), localpart)
+	if err != nil {
+		if prosody.StatusOf(err) == http.StatusNotFound {
+			a.flashRedirect(w, r, sess, "No such group chat exists.", "alert", "/admin/mucs")
+			return
+		}
+		a.failAPI(w, r, err)
+		return
+	}
+	page := a.newPage(w, r, sess, room.Name, "mucs", webui.ShellAdmin)
+	a.render(w, r, http.StatusOK, "admin_muc_detail.html", adminMUCDetailPage{
+		PageData: page,
+		Room:     room,
+	})
+}
+
+// handleMUCDetailSubmit destroys a room from the detail page.
+func (a *App) handleMUCDetailSubmit(w http.ResponseWriter, r *http.Request) {
+	sess, ok := a.requireAdmin(w, r)
+	if !ok {
+		return
+	}
+	localpart := r.PathValue("localpart")
+	if r.FormValue("action") != "destroy" {
+		http.Redirect(w, r, "/admin/muc/"+url.PathEscape(localpart), http.StatusSeeOther)
+		return
+	}
+	if err := a.Prosody.DestroyMUCRoom(r.Context(), sess.Token(), localpart); err != nil {
+		a.flashRedirect(w, r, sess, apiErrorMessage(err), "alert", "/admin/muc/"+url.PathEscape(localpart))
+		return
+	}
+	a.recordAudit(r, sess, "muc.destroy", localpart, "")
+	a.flashRedirect(w, r, sess, "Group chat destroyed.", "success", "/admin/mucs")
 }

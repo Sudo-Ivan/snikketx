@@ -4,6 +4,8 @@ FROM golang:1.27-bookworm@sha256:648f440f42a0958804efb24df176f806f9d353b41f1c062
 
 ARG BUILD_SERIES=dev
 ARG BUILD_ID=0
+ARG VCS_REF=unknown
+ARG BUILD_DATE=unknown
 
 ENV CGO_ENABLED=0 \
     GOTOOLCHAIN=local
@@ -18,7 +20,7 @@ COPY internal/ internal/
 COPY web/ web/
 
 RUN go build -trimpath \
-        -ldflags "-s -w -X main.version=${BUILD_SERIES}.${BUILD_ID}" \
+        -ldflags "-s -w -X main.version=${BUILD_SERIES}.${BUILD_ID} -X main.commit=${VCS_REF} -X main.buildDate=${BUILD_DATE}" \
         -o /out/portal ./cmd/portal
 
 # The state directory is created here so a fresh named volume inherits the

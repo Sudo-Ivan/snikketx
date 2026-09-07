@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/sudo-ivan/snikketx/web-portal/internal/audit"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/authlimit"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/config"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/handlers"
@@ -25,7 +26,11 @@ import (
 )
 
 // version is set through the linker at build time.
-var version = "dev"
+var (
+	version   = "dev"
+	commit    = "unknown"
+	buildDate = "unknown"
+)
 
 const (
 	// errorRingSize is how many recent errors the health page keeps.
@@ -68,7 +73,7 @@ func logLevel() slog.Level {
 
 // run wires the application together and serves until a signal arrives.
 func run() error {
-	cfg, err := config.Load(version)
+	cfg, err := config.Load(version, commit, buildDate)
 	if err != nil {
 		return err
 	}
@@ -80,6 +85,13 @@ func run() error {
 	staticFS, err := fs.Sub(web.FS, "static")
 	if err != nil {
 		return err
+	}
+
+	stateDir := envOr("SNIKKET_WEB_STATE_DIR", "/var/lib/snikket-web-portal")
+	auditStore, err := audit.Open(stateDir, 512)
+	if err != nil {
+		slog.Warn("audit log unavailable", slog.String("error", err.Error()))
+		auditStore = nil
 	}
 
 	sprite, err := fs.ReadFile(staticFS, "img/icons.svg")
@@ -105,6 +117,7 @@ func run() error {
 		Sessions:  sessStore,
 		Templates: renderer,
 		Errors:    health.NewRing(errorRingSize),
+		Audit:     auditStore,
 		Metrics:   metrics.New(),
 		LoginGate: authlimit.New(),
 		Started:   time.Now(),
@@ -167,4 +180,11 @@ func staticHandler(staticFS fs.FS) http.Handler {
 		w.Header().Set("Cache-Control", "public, max-age=3600")
 		fileServer.ServeHTTP(w, r)
 	})
+}
+
+func envOr(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
 }

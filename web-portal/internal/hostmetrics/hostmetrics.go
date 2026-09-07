@@ -5,6 +5,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -18,19 +19,31 @@ func init() {
 }
 
 type Stats struct {
-	PortalRSS    *int64
-	PortalCPU    *float64
-	Load5        *float64
-	MemTotal     *int64
-	MemAvailable *int64
-	Uptime       time.Duration
-	Goroutines   int
+	PortalRSS     *int64
+	PortalCPU     *float64
+	Load1         *float64
+	Load5         *float64
+	Load15        *float64
+	MemTotal      *int64
+	MemAvailable  *int64
+	MemUsedRatio  *float64
+	DiskTotal     *int64
+	DiskUsed      *int64
+	DiskAvail     *int64
+	DiskUsedRatio *float64
+	CPUPressure10 *float64
+	MemPressure10 *float64
+	IOPressure10  *float64
+	Uptime        time.Duration
+	Goroutines    int
+	NumCPU        int
 }
 
 func Collect() Stats {
 	s := Stats{
 		Uptime:     time.Since(cpuEpoch),
 		Goroutines: runtime.NumGoroutine(),
+		NumCPU:     runtime.NumCPU(),
 	}
 
 	if rss := readRSS(); rss > 0 {
@@ -46,12 +59,39 @@ func Collect() Stats {
 		s.PortalCPU = &cpu
 	}
 
-	if load, ok := readLoad5(); ok {
-		s.Load5 = &load
+	if load1, load5, load15, ok := readLoadavg(); ok {
+		s.Load1 = &load1
+		s.Load5 = &load5
+		s.Load15 = &load15
 	}
 	if total, avail, ok := readMeminfo(); ok {
 		s.MemTotal = &total
 		s.MemAvailable = &avail
+		if total > 0 {
+			used := float64(total-avail) / float64(total)
+			if used < 0 {
+				used = 0
+			}
+			s.MemUsedRatio = &used
+		}
+	}
+	if total, used, avail, ok := readDisk("/"); ok {
+		s.DiskTotal = &total
+		s.DiskUsed = &used
+		s.DiskAvail = &avail
+		if total > 0 {
+			ratio := float64(used) / float64(total)
+			s.DiskUsedRatio = &ratio
+		}
+	}
+	if v, ok := readPressureAvg10("cpu"); ok {
+		s.CPUPressure10 = &v
+	}
+	if v, ok := readPressureAvg10("memory"); ok {
+		s.MemPressure10 = &v
+	}
+	if v, ok := readPressureAvg10("io"); ok {
+		s.IOPressure10 = &v
 	}
 	return s
 }
@@ -74,17 +114,25 @@ func readRSS() int64 {
 	return pages * int64(os.Getpagesize())
 }
 
-func readLoad5() (float64, bool) {
+func readLoadavg() (load1, load5, load15 float64, ok bool) {
 	data, err := os.ReadFile("/proc/loadavg")
 	if err != nil {
-		return 0, false
+		return 0, 0, 0, false
 	}
 	fields := strings.Fields(string(data))
-	if len(fields) < 2 {
-		return 0, false
+	if len(fields) < 3 {
+		return 0, 0, 0, false
 	}
-	v, err := strconv.ParseFloat(fields[1], 64)
-	return v, err == nil
+	var err1, err5, err15 error
+	load1, err1 = strconv.ParseFloat(fields[0], 64)
+	load5, err5 = strconv.ParseFloat(fields[1], 64)
+	load15, err15 = strconv.ParseFloat(fields[2], 64)
+	return load1, load5, load15, err1 == nil && err5 == nil && err15 == nil
+}
+
+func readLoad5() (float64, bool) {
+	_, load5, _, ok := readLoadavg()
+	return load5, ok
 }
 
 func readMeminfo() (total, avail int64, ok bool) {
@@ -110,6 +158,43 @@ func readMeminfo() (total, avail int64, ok bool) {
 		}
 	}
 	return total, avail, total > 0
+}
+
+func readDisk(path string) (total, used, avail int64, ok bool) {
+	var st syscall.Statfs_t
+	if err := syscall.Statfs(path, &st); err != nil {
+		return 0, 0, 0, false
+	}
+	bs := int64(st.Bsize) // #nosec G115 -- Bsize is a filesystem block size
+	if bs <= 0 {
+		return 0, 0, 0, false
+	}
+	total = int64(st.Blocks) * bs // #nosec G115 -- block counts fit int64 for host disks
+	avail = int64(st.Bavail) * bs // #nosec G115 -- free blocks for unprivileged callers
+	used = total - int64(st.Bfree)*bs
+	if used < 0 {
+		used = 0
+	}
+	return total, used, avail, total > 0
+}
+
+func readPressureAvg10(kind string) (float64, bool) {
+	data, err := os.ReadFile("/proc/pressure/" + kind)
+	if err != nil {
+		return 0, false
+	}
+	for line := range strings.SplitSeq(string(data), "\n") {
+		if !strings.HasPrefix(line, "some ") {
+			continue
+		}
+		for field := range strings.FieldsSeq(line) {
+			if after, ok := strings.CutPrefix(field, "avg10="); ok {
+				v, err := strconv.ParseFloat(after, 64)
+				return v, err == nil
+			}
+		}
+	}
+	return 0, false
 }
 
 func cpuSeconds() float64 {

@@ -146,6 +146,7 @@ func (a *App) handleLoginSubmit(w http.ResponseWriter, r *http.Request) {
 	sess.SetAuth(tokenInfo.Token, strings.Join(tokenInfo.Scopes, " "), jid)
 	_ = csrf.Rotate(sess)
 	a.padLogin(started, gate.MinLatency())
+	a.recordAudit(r, sess, "auth.login", jid, "")
 	a.flashRedirect(w, r, sess, "Login successful.", "success", "/user/")
 }
 

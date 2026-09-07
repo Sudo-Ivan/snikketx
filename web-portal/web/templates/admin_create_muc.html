@@ -1,0 +1,30 @@
+{{define "content"}}
+<p><a class="btn btn-ghost btn-small" href="/admin/mucs">{{template "icon" "arrow-left"}}<span>All group chats</span></a></p>
+
+<section class="card">
+	<h2>New group chat</h2>
+	<form method="post" action="/admin/muc/-/new" class="form">
+		{{csrf .CSRF}}
+		<div class="field">
+			<label for="name">Display name</label>
+			<input type="text" id="name" name="name" maxlength="120" required autofocus>
+		</div>
+		<div class="field">
+			<label for="localpart">Room address (optional)</label>
+			<input type="text" id="localpart" name="localpart" maxlength="64" pattern="[A-Za-z0-9._-]+" placeholder="auto-generated if empty">
+			<p class="hint">Becomes <span class="mono">name@groups.{{.Domain}}</span>.</p>
+		</div>
+		<div class="field">
+			<label for="description">Description (optional)</label>
+			<textarea id="description" name="description" rows="3" maxlength="500"></textarea>
+		</div>
+		<label class="choice">
+			<input type="checkbox" name="public" value="1">
+			<span><strong>Listed publicly</strong><span class="hint">People can discover this room without an invitation.</span></span>
+		</label>
+		<div class="actions">
+			<button type="submit" class="btn btn-primary">{{template "icon" "plus"}}<span>Create group chat</span></button>
+		</div>
+	</form>
+</section>
+{{end}}

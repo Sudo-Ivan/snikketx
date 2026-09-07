@@ -1,0 +1,73 @@
+{{define "content"}}
+<div class="page-head">
+	<p class="muted">{{len .Rooms}} group chats on {{.Host}}.</p>
+	<a class="btn btn-primary" href="/admin/muc/-/new">{{template "icon" "plus"}}<span>New group chat</span></a>
+</div>
+
+<section class="card search-panel">
+	<form method="get" action="/admin/mucs" class="toolbar" role="search">
+		<div class="field field-grow">
+			<label for="muc-q">Search</label>
+			<input type="search" id="muc-q" name="q" value="{{.Query}}" placeholder="Name, address or description" autocomplete="off">
+		</div>
+		<div class="toolbar-actions">
+			<button type="submit" class="btn btn-secondary">{{template "icon" "search"}}<span>Search</span></button>
+			{{if .Query}}<a class="btn btn-ghost" href="/admin/mucs">Clear</a>{{end}}
+		</div>
+	</form>
+</section>
+
+{{if .Note}}
+<div class="toast toast-warning" data-toast role="status">
+	{{template "icon" "alert-triangle"}}
+	<p>{{.Note}}</p>
+	<button type="button" class="toast-dismiss" data-toast-dismiss aria-label="Dismiss">{{template "icon" "x"}}</button>
+</div>
+{{end}}
+
+{{if .Rooms}}
+<div class="card card-flush table-wrap">
+	<table class="table">
+		<thead>
+			<tr>
+				<th scope="col" class="col-account">Room</th>
+				<th scope="col">Visibility</th>
+				<th scope="col">Occupants</th>
+				<th scope="col" class="col-actions"><span class="sr-only">Actions</span></th>
+			</tr>
+		</thead>
+		<tbody>
+			{{range .Rooms}}
+			<tr>
+				<th scope="row" class="col-account">
+					<div class="cell-stack">
+						<a href="/admin/muc/{{.Localpart}}"><strong>{{.Name}}</strong></a>
+						<span class="mono muted">{{.JID}}</span>
+						{{if .Description}}<span class="muted">{{.Description}}</span>{{end}}
+					</div>
+				</th>
+				<td>
+					{{if .Public}}<span class="badge">Public</span>{{else}}<span class="badge">Private</span>{{end}}
+					{{if .Persistent}}<span class="badge">Persistent</span>{{end}}
+					{{if .MembersOnly}}<span class="badge">Members only</span>{{end}}
+				</td>
+				<td>{{.Occupants}}</td>
+				<td class="col-actions">
+					<div class="row-actions">
+						<a class="btn btn-ghost btn-icon" href="/admin/muc/{{.Localpart}}" aria-label="Open {{.Name}}" title="Open">{{template "icon" "eye"}}</a>
+						<form method="post" action="/admin/mucs" class="inline-form">
+							{{csrf $.CSRF}}
+							<input type="hidden" name="destroy" value="{{.Localpart}}">
+							<button type="submit" class="btn btn-ghost btn-icon btn-danger-ghost" aria-label="Destroy {{.Name}}" title="Destroy">{{template "icon" "trash"}}</button>
+						</form>
+					</div>
+				</td>
+			</tr>
+			{{end}}
+		</tbody>
+	</table>
+</div>
+{{else}}
+{{template "empty_state" "No group chats were found. Create one or wait for people to open rooms in their apps."}}
+{{end}}
+{{end}}

@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sudo-ivan/snikketx/web-portal/internal/audit"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/authlimit"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/config"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/health"
@@ -46,10 +47,27 @@ func stubProsody(t *testing.T) *httptest.Server {
 		_, _ = w.Write([]byte(`{"id":"inv1","type":"register","jid":"alice@example.test","created_at":1700000000,"expires":4000000000,"groups":["g1"],"roles":["prosody:registered"],"note":"For Carol","xmpp_uri":"xmpp:example.test?register;preauth=inv1"}`))
 	})
 	mux.HandleFunc("/admin_api/groups", func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`[{"id":"g1","name":"Family","members":["alice","bob"],"chats":[{"id":"c1","jid":"family@groups.example.test","name":"Family chat"}]}]`))
+		_, _ = w.Write([]byte(`[{"id":"g1","name":"Family","members":{"alice":true,"bob":true},"chats":{"c1":{"id":"c1","jid":"family@groups.example.test","name":"Family chat"}}}]`))
 	})
 	mux.HandleFunc("/admin_api/groups/", func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`{"id":"g1","name":"Family","members":["alice","bob"],"chats":[{"id":"c1","jid":"family@groups.example.test","name":"Family chat"}]}`))
+		_, _ = w.Write([]byte(`{"id":"g1","name":"Family","members":{"alice":true,"bob":true},"chats":[{"id":"c1","jid":"family@groups.example.test","name":"Family chat"}]}`))
+	})
+	mux.HandleFunc("/snikket_audit_api/events", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"events":[{"id":"a1","when":1700000000,"source":"prosody","actor":"alice","action":"user-created","target":"bob","detail":"account created","ip":"203.0.113.9"}]}`))
+	})
+	mux.HandleFunc("/snikket_muc_api/rooms", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			_, _ = w.Write([]byte(`{"jid":"friends@groups.example.test","localpart":"friends","name":"Friends","description":"","occupants":0,"persistent":true,"public":false}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"host":"groups.example.test","rooms":[{"jid":"family@groups.example.test","localpart":"family","name":"Family","description":"Home","occupants":2,"persistent":true,"public":false,"members_only":true}]}`))
+	})
+	mux.HandleFunc("/snikket_muc_api/rooms/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodDelete {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		_, _ = w.Write([]byte(`{"jid":"family@groups.example.test","localpart":"family","name":"Family","description":"Home","occupants":1,"persistent":true,"public":false,"occupants_list":[{"nick":"Alice","jid":"alice@example.test","role":"moderator","affiliation":"owner"}]}`))
 	})
 	mux.HandleFunc("/admin_api/server/metrics", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"memory":123456789,"c2s":7,"uploads":98765432,"cpu":{"value":12.5,"since":1700000000},"users":{"active_1d":3,"active_7d":5,"active_30d":9}}`))
@@ -120,9 +138,16 @@ func newTestApp(t *testing.T, endpoint string) *App {
 		AbuseEmail:      "abuse@example.test",
 		SecurityEmail:   "security@example.test",
 		Version:         "test",
+		BuildCommit:     "abc1234",
+		BuildDate:       "2026-09-07",
 	}
 
 	store, err := session.New(cfg.SecretKey, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	auditStore, err := audit.Open(t.TempDir(), 32)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,6 +158,7 @@ func newTestApp(t *testing.T, endpoint string) *App {
 		Sessions:  store,
 		Templates: renderer,
 		Errors:    health.NewRing(8),
+		Audit:     auditStore,
 		Metrics:   metrics.New(),
 		LoginGate: authlimit.NewFast(),
 		Started:   time.Now().Add(-time.Hour),
@@ -174,7 +200,7 @@ func TestGetRoutesRender(t *testing.T) {
 		"/admin/invitations", "/admin/invitation/-/new", "/admin/invitation/inv1",
 		"/admin/circles", "/admin/circle/-/new", "/admin/circle/g1",
 		"/admin/circle/g1/delete", "/admin/circle/g1/add_chat",
-		"/admin/system/", "/admin/health/",
+		"/admin/system/", "/admin/health/", "/admin/audit/", "/admin/mucs", "/admin/muc/-/new", "/admin/muc/family",
 		"/invite/inv1/", "/invite/inv1/register", "/invite/reset-inv/reset",
 		"/invite/reset-inv/", "/invite/success", "/invite/success/reset",
 		"/invite/missing-x/",

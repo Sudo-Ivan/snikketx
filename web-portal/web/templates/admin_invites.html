@@ -7,34 +7,38 @@
 <div class="grid grid-split">
 	<div class="stack">
 		{{if .Invites}}
-		<div class="card card-flush">
+		<div class="card card-flush table-wrap">
 			<table class="table">
 				<thead>
 					<tr>
-						<th scope="col">Invitation</th>
-						<th scope="col">Circles</th>
-						<th scope="col">Expires</th>
-						<th scope="col"><span class="sr-only">Actions</span></th>
+						<th scope="col" class="col-account">Invitation</th>
+						<th scope="col" class="col-circles">Circles</th>
+						<th scope="col" class="col-expires">Expires</th>
+						<th scope="col" class="col-actions"><span class="sr-only">Actions</span></th>
 					</tr>
 				</thead>
 				<tbody>
 					{{range .Invites}}
 					<tr>
-						<th scope="row">
-							<a href="/admin/invitation/{{.Invite.ID}}">
-								<strong>{{orDefault .Invite.Note "Untitled invitation"}}</strong>
-							</a>
-							<span class="muted">{{if eq .Invite.Type "roster"}}Group invitation{{else}}New account{{end}} &middot; created {{formatAgo .Invite.CreatedAt}}</span>
+						<th scope="row" class="col-account">
+							<div class="cell-stack">
+								<a href="/admin/invitation/{{.Invite.ID}}">
+									<strong>{{orDefault .Invite.Note "Untitled invitation"}}</strong>
+								</a>
+								<span class="muted">{{if eq .Invite.Type "roster"}}Group invitation{{else}}New account{{end}} &middot; created {{formatAgo .Invite.CreatedAt}}</span>
+							</div>
 						</th>
-						<td>{{if .Circles}}{{join .Circles ", "}}{{else}}<span class="muted">none</span>{{end}}</td>
-						<td>{{if .Expired}}<span class="badge badge-warn">Expired</span>{{else}}<span class="muted">{{formatLeft .Invite.Expires}}</span>{{end}}</td>
-						<td class="row-actions">
-							<a class="btn btn-ghost btn-icon" href="/admin/invitation/{{.Invite.ID}}" aria-label="Open invitation" title="Open">{{template "icon" "link"}}</a>
-							<form method="post" action="/admin/invitations" class="inline-form">
-								{{csrf $.CSRF}}
-								<input type="hidden" name="revoke" value="{{.Invite.ID}}">
-								<button type="submit" class="btn btn-ghost btn-icon btn-danger-ghost" aria-label="Revoke invitation" title="Revoke">{{template "icon" "trash"}}</button>
-							</form>
+						<td class="col-circles">{{if .Circles}}{{join .Circles ", "}}{{else}}<span class="muted">none</span>{{end}}</td>
+						<td class="col-expires">{{if .Expired}}<span class="badge badge-warn">Expired</span>{{else}}<span class="muted">{{formatLeft .Invite.Expires}}</span>{{end}}</td>
+						<td class="col-actions">
+							<div class="row-actions">
+								<a class="btn btn-ghost btn-icon" href="/admin/invitation/{{.Invite.ID}}" aria-label="Open invitation" title="Open">{{template "icon" "link"}}</a>
+								<form method="post" action="/admin/invitations" class="inline-form">
+									{{csrf $.CSRF}}
+									<input type="hidden" name="revoke" value="{{.Invite.ID}}">
+									<button type="submit" class="btn btn-ghost btn-icon btn-danger-ghost" aria-label="Revoke invitation" title="Revoke">{{template "icon" "trash"}}</button>
+								</form>
+							</div>
 						</td>
 					</tr>
 					{{end}}

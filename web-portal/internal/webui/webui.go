@@ -183,6 +183,11 @@ type PageData struct {
 	CSRF          string
 	RequestID     string
 	Version       string
+	BuildCommit   string
+	BuildDate     string
+	Uptime        string
+	HealthStatus  string
+	HealthLabel   string
 	HasSession    bool
 	IsAdmin       bool
 	ShowMetrics   bool
@@ -220,8 +225,10 @@ func funcMap(opts Options) template.FuncMap {
 		"colour":        colour.TextToCSS,
 		"formatBytes":   FormatBytes,
 		"formatPercent": FormatPercent,
+		"formatFloat":   FormatFloat,
 		"formatTime":    FormatTime,
 		"formatUnix":    FormatUnix,
+		"formatAgoUnix": FormatAgoUnix,
 		"formatAgo":     FormatAgo,
 		"formatLeft":    FormatLeft,
 		"safeURL":       safeURL,
@@ -314,6 +321,15 @@ func FormatPercent(value any) string {
 	return fmt.Sprintf("%.1f%%", n*100)
 }
 
+// FormatFloat renders a floating point value with two decimal places.
+func FormatFloat(value any) string {
+	n, ok := toFloat(value)
+	if !ok {
+		return "n/a"
+	}
+	return fmt.Sprintf("%.2f", n)
+}
+
 // FormatTime renders a timestamp in UTC, or a dash when it carries no value.
 func FormatTime(t time.Time) string {
 	if t.IsZero() {
@@ -328,6 +344,14 @@ func FormatUnix(seconds *int64) string {
 		return "never"
 	}
 	return FormatTime(time.Unix(*seconds, 0))
+}
+
+// FormatAgoUnix renders how long ago an optional Unix timestamp was.
+func FormatAgoUnix(seconds *int64) string {
+	if seconds == nil || *seconds == 0 {
+		return "never"
+	}
+	return FormatAgo(time.Unix(*seconds, 0))
 }
 
 // FormatAgo renders how long ago a timestamp was.

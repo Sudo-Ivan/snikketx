@@ -41,6 +41,18 @@
 
 	<div class="stack">
 		<section class="card">
+			<h2>Activity</h2>
+			<dl class="details">
+				<dt>Last activity</dt>
+				<dd title="{{formatUnix .Target.LastActive}}">{{formatAgoUnix .Target.LastActive}}</dd>
+				{{with .Target.Email}}<dt>Email</dt><dd>{{.}}</dd>{{end}}
+				{{with .Target.Phone}}<dt>Phone</dt><dd>{{.}}</dd>{{end}}
+				<dt>Roles</dt>
+				<dd>{{if .Target.Roles}}{{range $i, $role := .Target.Roles}}{{if $i}}, {{end}}{{roleLabel $role}}{{end}}{{else}}{{roleLabel ""}}{{end}}</dd>
+			</dl>
+		</section>
+
+		<section class="card">
 			<h2>Password</h2>
 			<p class="muted">A reset link lets the account holder choose a new password without you ever seeing it. The link is valid for one day.</p>
 			<form method="post" action="/admin/user/{{$localpart}}/" class="form">

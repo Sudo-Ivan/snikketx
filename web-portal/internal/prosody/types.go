@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/sudo-ivan/snikketx/web-portal/internal/xmpp"
@@ -315,9 +316,10 @@ func (i *AdminInviteInfo) UnmarshalJSON(data []byte) error {
 
 // AdminGroupChatInfo is a group chat attached to a circle.
 type AdminGroupChatInfo struct {
-	ID   string `json:"id"`
-	JID  string `json:"jid"`
-	Name string `json:"name"`
+	ID      string `json:"id"`
+	JID     string `json:"jid"`
+	Name    string `json:"name"`
+	Deleted bool   `json:"deleted,omitempty"`
 }
 
 // AdminGroupInfo is a circle as seen through mod_admin_api.
@@ -326,6 +328,95 @@ type AdminGroupInfo struct {
 	Name    string               `json:"name"`
 	Members []string             `json:"members,omitempty"`
 	Chats   []AdminGroupChatInfo `json:"chats,omitempty"`
+}
+
+// UnmarshalJSON accepts Prosody member and chat shapes that arrive as either
+// JSON arrays or objects keyed by username or chat id.
+func (g *AdminGroupInfo) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		ID      string          `json:"id"`
+		Name    string          `json:"name"`
+		Members json.RawMessage `json:"members"`
+		Chats   json.RawMessage `json:"chats"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	g.ID = raw.ID
+	g.Name = raw.Name
+	members, err := decodeStringList(raw.Members)
+	if err != nil {
+		return fmt.Errorf("members: %w", err)
+	}
+	g.Members = members
+	chats, err := decodeGroupChats(raw.Chats)
+	if err != nil {
+		return fmt.Errorf("chats: %w", err)
+	}
+	g.Chats = chats
+	return nil
+}
+
+// decodeStringList turns a JSON array of strings or an object whose keys are
+// usernames into a plain string slice. Empty or null input yields nil.
+func decodeStringList(raw json.RawMessage) ([]string, error) {
+	if len(raw) == 0 || string(raw) == "null" {
+		return nil, nil
+	}
+	var asList []string
+	if err := json.Unmarshal(raw, &asList); err == nil {
+		return asList, nil
+	}
+	var asMap map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &asMap); err != nil {
+		return nil, err
+	}
+	out := make([]string, 0, len(asMap))
+	for key := range asMap {
+		if key != "" {
+			out = append(out, key)
+		}
+	}
+	slices.Sort(out)
+	return out, nil
+}
+
+// decodeGroupChats turns a JSON array of chat objects or a map keyed by chat
+// id into a slice, dropping chats marked deleted.
+func decodeGroupChats(raw json.RawMessage) ([]AdminGroupChatInfo, error) {
+	if len(raw) == 0 || string(raw) == "null" {
+		return nil, nil
+	}
+	var asList []AdminGroupChatInfo
+	if err := json.Unmarshal(raw, &asList); err == nil {
+		return filterLiveChats(asList), nil
+	}
+	var asMap map[string]AdminGroupChatInfo
+	if err := json.Unmarshal(raw, &asMap); err != nil {
+		return nil, err
+	}
+	out := make([]AdminGroupChatInfo, 0, len(asMap))
+	for id, chat := range asMap {
+		if chat.ID == "" {
+			chat.ID = id
+		}
+		out = append(out, chat)
+	}
+	slices.SortFunc(out, func(a, b AdminGroupChatInfo) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+	return filterLiveChats(out), nil
+}
+
+// filterLiveChats drops chats Prosody has already deleted.
+func filterLiveChats(chats []AdminGroupChatInfo) []AdminGroupChatInfo {
+	out := chats[:0]
+	for _, chat := range chats {
+		if !chat.Deleted {
+			out = append(out, chat)
+		}
+	}
+	return out
 }
 
 // PublicInviteInfo is the unauthenticated view of an invitation offered by

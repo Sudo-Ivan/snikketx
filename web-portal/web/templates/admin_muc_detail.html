@@ -1,0 +1,61 @@
+{{define "content"}}
+<p><a class="btn btn-ghost btn-small" href="/admin/mucs">{{template "icon" "arrow-left"}}<span>All group chats</span></a></p>
+
+{{with .Room}}
+<section class="card">
+	<h2>{{.Name}}</h2>
+	<dl class="details">
+		<dt>Address</dt><dd class="mono">{{.JID}}</dd>
+		<dt>Description</dt><dd>{{orDefault .Description "none"}}</dd>
+		<dt>Occupants</dt><dd>{{.Occupants}}</dd>
+		<dt>Visibility</dt>
+		<dd>
+			{{if .Public}}Public{{else}}Private{{end}}
+			{{if .Persistent}} · Persistent{{end}}
+			{{if .MembersOnly}} · Members only{{end}}
+			{{if .Moderated}} · Moderated{{end}}
+			{{if .PasswordProtected}} · Password protected{{end}}
+		</dd>
+	</dl>
+</section>
+
+<section class="card">
+	<h2>Occupants</h2>
+	{{if .OccupantsList}}
+	<div class="table-wrap">
+		<table class="table">
+			<thead>
+				<tr>
+					<th scope="col">Nickname</th>
+					<th scope="col">Account</th>
+					<th scope="col">Role</th>
+					<th scope="col">Affiliation</th>
+				</tr>
+			</thead>
+			<tbody>
+				{{range .OccupantsList}}
+				<tr>
+					<th scope="row">{{orDefault .Nick "-"}}</th>
+					<td class="mono">{{orDefault .JID "-"}}</td>
+					<td>{{orDefault .Role "-"}}</td>
+					<td>{{orDefault .Affiliation "-"}}</td>
+				</tr>
+				{{end}}
+			</tbody>
+		</table>
+	</div>
+	{{else}}
+	<p class="muted">Nobody is in this room right now.</p>
+	{{end}}
+</section>
+
+<section class="card">
+	<h2>Danger zone</h2>
+	<p class="muted">Destroying a room removes it from the server. People will need a new invitation to chat there again.</p>
+	<form method="post" action="/admin/muc/{{.Localpart}}" class="form">
+		{{csrf $.CSRF}}
+		<button type="submit" name="action" value="destroy" class="btn btn-danger">{{template "icon" "trash"}}<span>Destroy group chat</span></button>
+	</form>
+</section>
+{{end}}
+{{end}}

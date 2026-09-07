@@ -38,9 +38,19 @@
 		{{with .Host.PortalCPU}}<div class="stat"><span class="stat-label">Portal CPU</span><span class="stat-value">{{formatPercent .}}</span></div>{{end}}
 		{{with .Metrics.Memory}}<div class="stat"><span class="stat-label">Chat server memory</span><span class="stat-value">{{formatBytes .}}</span></div>{{end}}
 		{{with .Metrics.CPU}}<div class="stat"><span class="stat-label">Chat server CPU</span><span class="stat-value">{{formatPercent .}}</span></div>{{end}}
-		{{with .Host.Load5}}<div class="stat"><span class="stat-label">Load average, 5 min</span><span class="stat-value">{{printf "%.2f" .}}</span></div>{{end}}
+		{{with .Host.Load1}}<div class="stat"><span class="stat-label">Load average, 1 min</span><span class="stat-value">{{formatFloat .}}</span></div>{{end}}
+		{{with .Host.Load5}}<div class="stat"><span class="stat-label">Load average, 5 min</span><span class="stat-value">{{formatFloat .}}</span></div>{{end}}
+		{{with .Host.Load15}}<div class="stat"><span class="stat-label">Load average, 15 min</span><span class="stat-value">{{formatFloat .}}</span></div>{{end}}
+		{{with .Host.CPUPressure10}}<div class="stat"><span class="stat-label">CPU pressure, 10s</span><span class="stat-value">{{formatFloat .}}%</span></div>{{end}}
+		{{with .Host.MemPressure10}}<div class="stat"><span class="stat-label">Memory pressure, 10s</span><span class="stat-value">{{formatFloat .}}%</span></div>{{end}}
+		{{with .Host.IOPressure10}}<div class="stat"><span class="stat-label">I/O pressure, 10s</span><span class="stat-value">{{formatFloat .}}%</span></div>{{end}}
 		{{with .Host.MemTotal}}<div class="stat"><span class="stat-label">Host memory</span><span class="stat-value">{{formatBytes .}}</span></div>{{end}}
 		{{with .Host.MemAvailable}}<div class="stat"><span class="stat-label">Host memory free</span><span class="stat-value">{{formatBytes .}}</span></div>{{end}}
+		{{with .Host.MemUsedRatio}}<div class="stat"><span class="stat-label">Memory fill</span><span class="stat-value">{{formatPercent .}}</span></div>{{end}}
+		{{with .Host.DiskTotal}}<div class="stat"><span class="stat-label">Disk capacity</span><span class="stat-value">{{formatBytes .}}</span></div>{{end}}
+		{{with .Host.DiskUsed}}<div class="stat"><span class="stat-label">Disk used</span><span class="stat-value">{{formatBytes .}}</span></div>{{end}}
+		{{with .Host.DiskAvail}}<div class="stat"><span class="stat-label">Disk free</span><span class="stat-value">{{formatBytes .}}</span></div>{{end}}
+		{{with .Host.DiskUsedRatio}}<div class="stat"><span class="stat-label">Disk fill</span><span class="stat-value">{{formatPercent .}}</span></div>{{end}}
 		{{with .Metrics.Uploads}}<div class="stat"><span class="stat-label">Shared files</span><span class="stat-value">{{formatBytes .}}</span></div>{{end}}
 	</div>
 	{{if not .Metrics.Available}}<p class="hint">The chat server did not report any counters. The metrics module may be disabled.</p>{{end}}

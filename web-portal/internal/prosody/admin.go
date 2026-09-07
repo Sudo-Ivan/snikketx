@@ -3,6 +3,8 @@ package prosody
 import (
 	"context"
 	"net/http"
+	"net/url"
+	"strconv"
 )
 
 // ListUsers returns every account on the virtual host.
@@ -259,6 +261,149 @@ func (c *Client) PostAnnouncement(ctx context.Context, token, body, recipients, 
 		"body":       body,
 	}
 	return c.callJSON(ctx, http.MethodPost, c.adminEndpoint("server", "announcement"), token, payload, nil)
+}
+
+// AuditEvent is one Prosody audit row exposed by mod_snikket_audit_api.
+type AuditEvent struct {
+	ID     string `json:"id"`
+	When   int64  `json:"when"`
+	Source string `json:"source"`
+	Actor  string `json:"actor"`
+	Action string `json:"action"`
+	Target string `json:"target"`
+	Detail string `json:"detail"`
+	IP     string `json:"ip"`
+}
+
+// ListAuditEvents fetches recent Prosody audit events when the audit API
+// module is enabled. A missing module is reported as an empty list.
+func (c *Client) ListAuditEvents(ctx context.Context, token string, limit int, query string) ([]AuditEvent, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	endpoint := c.Endpoint + "/snikket_audit_api/events?limit=" + strconv.Itoa(limit)
+	if query != "" {
+		endpoint += "&q=" + url.QueryEscape(query)
+	}
+
+	resp, err := c.requestJSON(ctx, http.MethodGet, endpoint, token, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer closeBody(resp)
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, nil
+	}
+	if err := errorFromResponse(resp); err != nil {
+		return nil, err
+	}
+
+	var payload struct {
+		Events []AuditEvent `json:"events"`
+	}
+	if err := decodeJSONBody(resp, &payload); err != nil {
+		return nil, err
+	}
+	return payload.Events, nil
+}
+
+// MUCRoom is a group chat room exposed by mod_snikket_muc_api.
+type MUCRoom struct {
+	JID               string        `json:"jid"`
+	Localpart         string        `json:"localpart"`
+	Name              string        `json:"name"`
+	Description       string        `json:"description"`
+	Occupants         int           `json:"occupants"`
+	Persistent        bool          `json:"persistent"`
+	Public            bool          `json:"public"`
+	MembersOnly       bool          `json:"members_only"`
+	Moderated         bool          `json:"moderated"`
+	PasswordProtected bool          `json:"password_protected"`
+	OccupantsList     []MUCOccupant `json:"occupants_list,omitempty"`
+}
+
+// MUCOccupant is one occupant of a MUC room.
+type MUCOccupant struct {
+	Nick        string `json:"nick"`
+	JID         string `json:"jid"`
+	Role        string `json:"role"`
+	Affiliation string `json:"affiliation"`
+}
+
+// ListMUCRooms returns rooms from the groups MUC component.
+func (c *Client) ListMUCRooms(ctx context.Context, token, query string) ([]MUCRoom, string, error) {
+	endpoint := c.Endpoint + "/snikket_muc_api/rooms"
+	if query != "" {
+		endpoint += "?q=" + url.QueryEscape(query)
+	}
+	resp, err := c.requestJSON(ctx, http.MethodGet, endpoint, token, nil)
+	if err != nil {
+		return nil, "", err
+	}
+	defer closeBody(resp)
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, "", nil
+	}
+	if err := errorFromResponse(resp); err != nil {
+		return nil, "", err
+	}
+	var payload struct {
+		Rooms []MUCRoom `json:"rooms"`
+		Host  string    `json:"host"`
+	}
+	if err := decodeJSONBody(resp, &payload); err != nil {
+		return nil, "", err
+	}
+	return payload.Rooms, payload.Host, nil
+}
+
+// GetMUCRoom returns one room including its occupants.
+func (c *Client) GetMUCRoom(ctx context.Context, token, localpart string) (*MUCRoom, error) {
+	endpoint := c.Endpoint + "/snikket_muc_api/rooms/" + url.PathEscape(localpart)
+	resp, err := c.requestJSON(ctx, http.MethodGet, endpoint, token, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer closeBody(resp)
+	if err := errorFromResponse(resp); err != nil {
+		return nil, err
+	}
+	var room MUCRoom
+	if err := decodeJSONBody(resp, &room); err != nil {
+		return nil, err
+	}
+	return &room, nil
+}
+
+// CreateMUCRoom creates a persistent group chat on the MUC component.
+func (c *Client) CreateMUCRoom(ctx context.Context, token, name, localpart, description string, public bool) (*MUCRoom, error) {
+	payload := map[string]any{
+		"name":        name,
+		"localpart":   localpart,
+		"description": description,
+		"public":      public,
+		"persistent":  true,
+	}
+	var room MUCRoom
+	if err := c.callJSON(ctx, http.MethodPost, c.Endpoint+"/snikket_muc_api/rooms", token, payload, &room); err != nil {
+		return nil, err
+	}
+	return &room, nil
+}
+
+// DestroyMUCRoom deletes a group chat room.
+func (c *Client) DestroyMUCRoom(ctx context.Context, token, localpart string) error {
+	endpoint := c.Endpoint + "/snikket_muc_api/rooms/" + url.PathEscape(localpart)
+	resp, err := c.requestJSON(ctx, http.MethodDelete, endpoint, token, nil)
+	if err != nil {
+		return err
+	}
+	defer closeBody(resp)
+	if resp.StatusCode == http.StatusNoContent {
+		return nil
+	}
+	return errorFromResponse(resp)
 }
 
 // stringsOrEmpty normalises a nil slice so it serialises as an empty JSON

@@ -37,9 +37,11 @@ type Config struct {
 	ListenAddr      string
 	MetricsToken    string
 	Version         string
+	BuildCommit     string
+	BuildDate       string
 }
 
-func Load(version string) (*Config, error) {
+func Load(version, commit, buildDate string) (*Config, error) {
 	bridgeSnikketEnv()
 
 	domain := os.Getenv("SNIKKET_WEB_DOMAIN")
@@ -116,6 +118,13 @@ func Load(version string) (*Config, error) {
 	iface := envOr("SNIKKET_TWEAK_PORTAL_INTERNAL_HTTP_INTERFACE", "0.0.0.0")
 	port := envOr("SNIKKET_TWEAK_PORTAL_INTERNAL_HTTP_PORT", "5765")
 
+	if commit == "" {
+		commit = "unknown"
+	}
+	if buildDate == "" {
+		buildDate = "unknown"
+	}
+
 	return &Config{
 		SecretKey:       secret,
 		ProsodyEndpoint: endpoint,
@@ -132,6 +141,8 @@ func Load(version string) (*Config, error) {
 		ListenAddr:      iface + ":" + port,
 		MetricsToken:    metricsToken,
 		Version:         version,
+		BuildCommit:     commit,
+		BuildDate:       buildDate,
 	}, nil
 }
 

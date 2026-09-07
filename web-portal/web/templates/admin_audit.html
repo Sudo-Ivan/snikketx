@@ -1,0 +1,61 @@
+{{define "content"}}
+<div class="page-head">
+	<p class="muted">Administrator actions from this portal and, when available, from the chat server.</p>
+</div>
+
+<section class="card search-panel">
+	<form method="get" action="/admin/audit/" class="toolbar" role="search">
+		<div class="field field-grow">
+			<label for="audit-q">Search</label>
+			<input type="search" id="audit-q" name="q" value="{{.Query}}" placeholder="Actor, action, target, IP, user agent, detail" autocomplete="off">
+		</div>
+		<div class="toolbar-actions">
+			<button type="submit" class="btn btn-secondary">{{template "icon" "search"}}<span>Search</span></button>
+			{{if .Query}}<a class="btn btn-ghost" href="/admin/audit/">Clear</a>{{end}}
+		</div>
+	</form>
+</section>
+
+{{if .Note}}
+<div class="toast toast-warning" data-toast role="status">
+	{{template "icon" "alert-triangle"}}
+	<p>{{.Note}}</p>
+	<button type="button" class="toast-dismiss" data-toast-dismiss aria-label="Dismiss">{{template "icon" "x"}}</button>
+</div>
+{{end}}
+
+{{if .Events}}
+<div class="card card-flush table-wrap">
+	<table class="table table-audit">
+		<thead>
+			<tr>
+				<th scope="col" class="col-when">When</th>
+				<th scope="col" class="col-source">Source</th>
+				<th scope="col" class="col-actor">Actor</th>
+				<th scope="col" class="col-action">Action</th>
+				<th scope="col" class="col-target">Target</th>
+				<th scope="col" class="col-ip">IP</th>
+				<th scope="col" class="col-ua">User agent</th>
+				<th scope="col">Detail</th>
+			</tr>
+		</thead>
+		<tbody>
+			{{range .Events}}
+			<tr>
+				<td class="muted" title="{{formatTime .When}}">{{formatAgo .When}}</td>
+				<td><span class="badge">{{.Source}}</span></td>
+				<td class="mono">{{orDefault .Actor "-"}}</td>
+				<td class="mono">{{.Action}}</td>
+				<td class="mono">{{orDefault .Target "-"}}</td>
+				<td class="mono">{{orDefault .IP "-"}}</td>
+				<td class="muted ua-cell" title="{{.UserAgent}}">{{orDefault .UserAgent "-"}}</td>
+				<td class="muted">{{orDefault .Detail "-"}}{{if .Request}} <span class="mono">{{.Request}}</span>{{end}}</td>
+			</tr>
+			{{end}}
+		</tbody>
+	</table>
+</div>
+{{else}}
+{{template "empty_state" "No audit events match this search yet."}}
+{{end}}
+{{end}}

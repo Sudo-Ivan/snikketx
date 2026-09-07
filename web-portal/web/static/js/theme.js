@@ -213,5 +213,40 @@
 		initTheme();
 		initCopyButtons();
 		initPasswordMeters();
+		initToasts();
 	});
+
+	function initToasts() {
+		var toasts = document.querySelectorAll("[data-toast]");
+		for (var i = 0; i < toasts.length; i++) {
+			bindToast(toasts[i]);
+		}
+	}
+
+	function bindToast(toast) {
+		var dismiss = toast.querySelector("[data-toast-dismiss]");
+		if (dismiss) {
+			dismiss.addEventListener("click", function () {
+				hideToast(toast);
+			});
+		}
+		var category = toast.className || "";
+		var ttl = category.indexOf("toast-alert") >= 0 || category.indexOf("toast-danger") >= 0 ? 12000 : 6000;
+		window.setTimeout(function () {
+			hideToast(toast);
+		}, ttl);
+	}
+
+	function hideToast(toast) {
+		if (!toast || toast.getAttribute("data-leaving") === "1") {
+			return;
+		}
+		toast.setAttribute("data-leaving", "1");
+		toast.classList.add("is-leaving");
+		window.setTimeout(function () {
+			if (toast.parentNode) {
+				toast.parentNode.removeChild(toast);
+			}
+		}, 220);
+	}
 })();
