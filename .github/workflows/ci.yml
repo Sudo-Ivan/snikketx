@@ -78,10 +78,15 @@ jobs:
           pip install flask-babel
       - name: Check translations
         run: |
-          sed -ri '/^"POT-Creation-Date: /d;/^"Generated-By: /d' snikket_web/translations/messages.pot
+          strip_volatile() {
+            sed -ri \
+              '/^"POT-Creation-Date: /d;/^"Generated-By: /d;/^# Copyright (C) /d;/^# FIRST AUTHOR /d' \
+              snikket_web/translations/messages.pot
+          }
+          strip_volatile
           git add snikket_web/translations/messages.pot
           make extract_translations
-          sed -ri '/^"POT-Creation-Date: /d;/^"Generated-By: /d' snikket_web/translations/messages.pot
+          strip_volatile
           git diff --exit-code --color -- snikket_web/translations/messages.pot
 
   build:

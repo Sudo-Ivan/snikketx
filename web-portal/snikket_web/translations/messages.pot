@@ -1,21 +1,21 @@
 # Translations template for PROJECT.
-# Copyright (C) 2025 ORGANIZATION
+# Copyright (C) 2026 ORGANIZATION
 # This file is distributed under the same license as the PROJECT project.
-# FIRST AUTHOR <EMAIL@ADDRESS>, 2025.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
 #
 #, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2025-10-03 12:50+0200\n"
+"POT-Creation-Date: 2026-09-06 23:23-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.17.0\n"
+"Generated-By: Babel 2.18.0\n"
 
 #: snikket_web/admin.py:37
 msgid "Cannot remove the only administrator."
@@ -315,59 +315,59 @@ msgid ""
 "contact your Snikket operator."
 msgstr ""
 
-#: snikket_web/invite.py:124
+#: snikket_web/invite.py:126
 msgid "Username"
 msgstr ""
 
-#: snikket_web/invite.py:128 snikket_web/invite.py:200 snikket_web/main.py:43
+#: snikket_web/invite.py:130 snikket_web/invite.py:202 snikket_web/main.py:43
 msgid "Password"
 msgstr ""
 
-#: snikket_web/invite.py:136 snikket_web/invite.py:208
+#: snikket_web/invite.py:138 snikket_web/invite.py:210
 msgid "Confirm password"
 msgstr ""
 
-#: snikket_web/invite.py:140 snikket_web/invite.py:212
+#: snikket_web/invite.py:142 snikket_web/invite.py:214
 msgid "The passwords must match."
 msgstr ""
 
-#: snikket_web/invite.py:145
+#: snikket_web/invite.py:147
 msgid "Create account"
 msgstr ""
 
-#: snikket_web/invite.py:172
+#: snikket_web/invite.py:174
 msgid "That username is already taken."
 msgstr ""
 
-#: snikket_web/invite.py:176 snikket_web/invite.py:245
+#: snikket_web/invite.py:178 snikket_web/invite.py:247
 msgid "Registration was declined for unknown reasons."
 msgstr ""
 
-#: snikket_web/invite.py:180
+#: snikket_web/invite.py:182
 msgid "The username is not valid."
 msgstr ""
 
-#: snikket_web/invite.py:217 snikket_web/templates/user_home.html:37
+#: snikket_web/invite.py:219 snikket_web/templates/user_home.html:37
 #: snikket_web/templates/user_passwd.html:29
 msgid "Change password"
 msgstr ""
 
-#: snikket_web/invite.py:264
+#: snikket_web/invite.py:266
 msgid "Account data file"
 msgstr ""
 
-#: snikket_web/invite.py:268
+#: snikket_web/invite.py:270
 msgid "Import data"
 msgstr ""
 
-#: snikket_web/invite.py:289
+#: snikket_web/invite.py:291
 #, python-format
 msgid ""
 "The account data you tried to import is in an unknown format. Please "
 "upload an XML file in XEP-0227 format (provided format: %(mimetype)s)."
 msgstr ""
 
-#: snikket_web/invite.py:309 snikket_web/templates/unauth.html:18
+#: snikket_web/invite.py:311 snikket_web/templates/unauth.html:18
 #: snikket_web/user.py:197
 msgid "Error"
 msgstr ""
