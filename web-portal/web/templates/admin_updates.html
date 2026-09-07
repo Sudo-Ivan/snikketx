@@ -1,6 +1,6 @@
 {{define "content"}}
 <div class="page-head">
-	<p class="muted">Update channel from mod_update_check / mod_update_notify, shown here instead of only in server logs.</p>
+	<p class="muted">Software channel from Prosody, plus container image updates when the updater service is configured.</p>
 </div>
 
 {{if .Note}}
@@ -12,15 +12,75 @@
 {{end}}
 
 <section class="card">
-	<h2>Channel</h2>
+	<h2>Software channel</h2>
 	<dl class="details">
 		<dt>Check enabled</dt><dd>{{if .Info.CheckEnabled}}yes{{else}}no{{end}}</dd>
 		<dt>Branch</dt><dd class="mono">{{orDefault .Info.Branch "-"}}</dd>
-		<dt>Current</dt><dd class="mono">{{printf "%v" .Info.Current}}</dd>
-		<dt>Latest</dt><dd class="mono">{{printf "%v" .Info.Latest}}</dd>
-		<dt>Secure</dt><dd class="mono">{{printf "%v" .Info.Secure}}</dd>
-		<dt>Support</dt><dd class="mono">{{printf "%v" .Info.SupportStatus}}</dd>
-		<dt>Message</dt><dd>{{printf "%v" .Info.Message}}</dd>
+		<dt>Current</dt><dd class="mono">{{.Info.DisplayCurrent}}</dd>
+		<dt>Latest</dt><dd class="mono">{{.Info.DisplayLatest}}</dd>
+		<dt>Secure</dt><dd class="mono">{{.Info.DisplaySecure}}</dd>
+		<dt>Support</dt><dd class="mono">{{.Info.DisplaySupport}}</dd>
+		<dt>Message</dt><dd>{{.Info.DisplayMessage}}</dd>
 	</dl>
+</section>
+
+<section class="card">
+	<h2>Container updates</h2>
+	{{if .Updater.Configured}}
+	<div class="stats">
+		<div class="stat"><span class="stat-label">Status</span><span class="stat-value">{{.Updater.Status}}</span></div>
+		<div class="stat"><span class="stat-label">Updates</span><span class="stat-value">{{if .Updater.Available}}available{{else}}none{{end}}</span></div>
+		<div class="stat"><span class="stat-label">Last check</span><span class="stat-value">{{orDefault .Updater.LastCheck "-"}}</span></div>
+		<div class="stat"><span class="stat-label">Interval</span><span class="stat-value">{{.Updater.IntervalHours}}h</span></div>
+		<div class="stat"><span class="stat-label">Auto-update</span><span class="stat-value">{{if .Updater.AutoUpdate}}on{{else}}off{{end}}</span></div>
+	</div>
+	{{if .Updater.Services}}
+	<div class="card card-flush table-wrap" style="margin-top:0.75rem;border:0;padding:0">
+		<table class="table">
+			<thead>
+				<tr>
+					<th scope="col">Service</th>
+					<th scope="col">Image</th>
+					<th scope="col">State</th>
+				</tr>
+			</thead>
+			<tbody>
+				{{range .Updater.Services}}
+				<tr>
+					<td class="mono">{{.Name}}</td>
+					<td class="mono muted">{{.Image}}</td>
+					<td>{{if .UpdateAvailable}}<span class="badge badge-warn">update available</span>{{else}}<span class="badge badge-ok">current</span>{{end}}</td>
+				</tr>
+				{{end}}
+			</tbody>
+		</table>
+	</div>
+	{{end}}
+	<form method="post" action="/admin/updates" class="toolbar" style="margin-top:0.85rem">
+		{{csrf .CSRF}}
+		<button type="submit" name="action" value="check" class="btn btn-secondary">{{template "icon" "search"}}<span>Check now</span></button>
+		{{if .Updater.Available}}
+		<button type="submit" name="action" value="apply" class="btn btn-primary">{{template "icon" "download"}}<span>Update containers</span></button>
+		{{end}}
+	</form>
+	<form method="post" action="/admin/updates" class="form" style="margin-top:1rem">
+		{{csrf .CSRF}}
+		<input type="hidden" name="action" value="settings">
+		<div class="field">
+			<label for="interval-hours">Check interval (hours)</label>
+			<input type="number" id="interval-hours" name="interval_hours" min="1" max="168" value="{{.Updater.IntervalHours}}">
+		</div>
+		<label class="choice">
+			<input type="checkbox" name="auto_update" value="1"{{if .Updater.AutoUpdate}} checked{{end}}>
+			<span><strong>Auto-update</strong><span class="hint">Apply container updates after a successful check.</span></span>
+		</label>
+		<div class="actions">
+			<button type="submit" class="btn btn-secondary">{{template "icon" "check"}}<span>Save updater settings</span></button>
+		</div>
+	</form>
+	{{if .Updater.Detail}}<p class="muted">{{.Updater.Detail}}</p>{{end}}
+	{{else}}
+	<p class="muted">Updater service is not configured. Set <span class="mono">SNIKKET_WEB_UPDATER_ENDPOINT</span> and <span class="mono">SNIKKET_WEB_UPDATER_TOKEN</span>, and run the <span class="mono">snikket_updater</span> container.</p>
+	{{end}}
 </section>
 {{end}}

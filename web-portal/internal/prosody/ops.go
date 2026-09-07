@@ -3,9 +3,11 @@ package prosody
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -92,13 +94,83 @@ type ArchivesInfo struct {
 
 // UpdatesInfo is the update check / notify status.
 type UpdatesInfo struct {
-	Current       map[string]any `json:"current"`
+	Current       UpdatesCurrent `json:"current"`
 	Branch        string         `json:"branch"`
 	Latest        any            `json:"latest"`
 	Secure        any            `json:"secure"`
 	Message       any            `json:"message"`
 	SupportStatus any            `json:"support_status"`
 	CheckEnabled  bool           `json:"check_enabled"`
+}
+
+// UpdatesCurrent is the installed software identity.
+type UpdatesCurrent struct {
+	Version string `json:"version"`
+	Branch  string `json:"branch"`
+	Level   string `json:"level"`
+}
+
+// DisplayLatest returns a printable latest version or a dash.
+func (u *UpdatesInfo) DisplayLatest() string {
+	return displayAny(u.Latest)
+}
+
+// DisplaySecure returns a printable secure version or a dash.
+func (u *UpdatesInfo) DisplaySecure() string {
+	return displayAny(u.Secure)
+}
+
+// DisplayMessage returns a printable message or a dash.
+func (u *UpdatesInfo) DisplayMessage() string {
+	return displayAny(u.Message)
+}
+
+// DisplaySupport returns a printable support status or a dash.
+func (u *UpdatesInfo) DisplaySupport() string {
+	return displayAny(u.SupportStatus)
+}
+
+// DisplayCurrent returns the installed version string.
+func (u *UpdatesInfo) DisplayCurrent() string {
+	if u == nil {
+		return "-"
+	}
+	if strings.TrimSpace(u.Current.Version) != "" {
+		return u.Current.Version
+	}
+	if strings.TrimSpace(u.Current.Branch) != "" && strings.TrimSpace(u.Current.Level) != "" {
+		return u.Current.Branch + " " + u.Current.Level
+	}
+	if strings.TrimSpace(u.Current.Branch) != "" {
+		return u.Current.Branch
+	}
+	return "-"
+}
+
+func displayAny(value any) string {
+	if value == nil {
+		return "-"
+	}
+	switch v := value.(type) {
+	case string:
+		if strings.TrimSpace(v) == "" {
+			return "-"
+		}
+		return v
+	case float64:
+		if v == float64(int64(v)) {
+			return strconv.FormatInt(int64(v), 10)
+		}
+		return strconv.FormatFloat(v, 'f', -1, 64)
+	case json.Number:
+		return v.String()
+	default:
+		s := strings.TrimSpace(fmt.Sprint(v))
+		if s == "" || s == "<nil>" {
+			return "-"
+		}
+		return s
+	}
 }
 
 func (c *Client) opsEndpoint(parts ...string) string {

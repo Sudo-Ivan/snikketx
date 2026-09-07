@@ -22,6 +22,7 @@ import (
 	"github.com/sudo-ivan/snikketx/web-portal/internal/metrics"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/prosody"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/session"
+	"github.com/sudo-ivan/snikketx/web-portal/internal/updater"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/webui"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/xmpp"
 )
@@ -48,6 +49,7 @@ type App struct {
 	Audit     *audit.Store
 	Metrics   *metrics.Registry
 	LoginGate *authlimit.Limiter
+	Updater   *updater.Client
 	Started   time.Time
 	Static    http.Handler
 
@@ -536,6 +538,18 @@ func apiErrorMessage(err error) string {
 	}
 	if status := prosody.StatusOf(err); status == http.StatusConflict {
 		return "That already exists."
+	}
+	switch status := prosody.StatusOf(err); status {
+	case http.StatusUnauthorized:
+		return "Chat server authentication failed."
+	case http.StatusForbidden:
+		return "Administrator access was denied by the chat server."
+	case http.StatusNotFound:
+		return "That chat server feature is not available."
+	case http.StatusServiceUnavailable:
+		return "That chat server feature is unavailable right now."
+	case http.StatusBadGateway, http.StatusGatewayTimeout:
+		return "The chat server did not respond in time."
 	}
 	return "The chat server refused the request."
 }

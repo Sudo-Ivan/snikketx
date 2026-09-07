@@ -36,6 +36,8 @@ type Config struct {
 	SecurityEmail   string
 	ListenAddr      string
 	MetricsToken    string
+	UpdaterEndpoint string
+	UpdaterToken    string
 	Version         string
 	BuildCommit     string
 	BuildDate       string
@@ -140,6 +142,8 @@ func Load(version, commit, buildDate string) (*Config, error) {
 		SecurityEmail:   os.Getenv("SNIKKET_WEB_SECURITY_EMAIL"),
 		ListenAddr:      iface + ":" + port,
 		MetricsToken:    metricsToken,
+		UpdaterEndpoint: strings.TrimRight(os.Getenv("SNIKKET_WEB_UPDATER_ENDPOINT"), "/"),
+		UpdaterToken:    os.Getenv("SNIKKET_WEB_UPDATER_TOKEN"),
 		Version:         version,
 		BuildCommit:     commit,
 		BuildDate:       buildDate,

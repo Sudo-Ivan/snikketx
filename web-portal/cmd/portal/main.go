@@ -21,6 +21,7 @@ import (
 	"github.com/sudo-ivan/snikketx/web-portal/internal/metrics"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/prosody"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/session"
+	"github.com/sudo-ivan/snikketx/web-portal/internal/updater"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/webui"
 	"github.com/sudo-ivan/snikketx/web-portal/web"
 )
@@ -126,8 +127,12 @@ func run() error {
 		Audit:     auditStore,
 		Metrics:   metrics.New(),
 		LoginGate: authlimit.New(),
-		Started:   time.Now(),
-		Static:    staticHandler(staticFS),
+		Updater: &updater.Client{
+			Endpoint: cfg.UpdaterEndpoint,
+			Token:    cfg.UpdaterToken,
+		},
+		Started: time.Now(),
+		Static:  staticHandler(staticFS),
 	}
 
 	server := &http.Server{

@@ -46,6 +46,11 @@ jobs:
             title: snikketx-cert-manager
             description: SnikketX Let's Encrypt helper
             licenses: Apache-2.0
+          - component: updater
+            context: ./updater
+            title: snikketx-updater
+            description: SnikketX container updater service
+            licenses: Apache-2.0
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1

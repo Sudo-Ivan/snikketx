@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,6 +14,7 @@ import (
 	"github.com/sudo-ivan/snikketx/web-portal/internal/authlimit"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/health"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/prosody"
+	"github.com/sudo-ivan/snikketx/web-portal/internal/updater"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/webui"
 )
 
@@ -28,6 +30,7 @@ func (a *App) mountAdminOps(mux *http.ServeMux) {
 	mux.HandleFunc("GET /admin/archives", a.handleArchives)
 
 	mux.HandleFunc("GET /admin/updates", a.handleUpdates)
+	mux.HandleFunc("POST /admin/updates", a.handleUpdatesSubmit)
 
 	mux.HandleFunc("GET /admin/certs/", a.handleCerts)
 
@@ -184,8 +187,20 @@ func (a *App) handleArchives(w http.ResponseWriter, r *http.Request) {
 
 type updatesPage struct {
 	webui.PageData
-	Info *prosody.UpdatesInfo
-	Note string
+	Info    *prosody.UpdatesInfo
+	Updater updaterView
+	Note    string
+}
+
+type updaterView struct {
+	Configured    bool
+	Status        string
+	Available     bool
+	LastCheck     string
+	IntervalHours int
+	AutoUpdate    bool
+	Services      []updater.Service
+	Detail        string
 }
 
 func (a *App) handleUpdates(w http.ResponseWriter, r *http.Request) {
@@ -199,12 +214,81 @@ func (a *App) handleUpdates(w http.ResponseWriter, r *http.Request) {
 		note = "Update channel unavailable: " + apiErrorMessage(err)
 		info = &prosody.UpdatesInfo{}
 	}
+	view := a.loadUpdaterView(r.Context())
 	page := a.newPage(w, r, sess, "Updates", "updates", webui.ShellAdmin)
 	a.render(w, r, http.StatusOK, "admin_updates.html", updatesPage{
 		PageData: page,
 		Info:     info,
+		Updater:  view,
 		Note:     note,
 	})
+}
+
+func (a *App) handleUpdatesSubmit(w http.ResponseWriter, r *http.Request) {
+	sess, ok := a.requireAdmin(w, r)
+	if !ok {
+		return
+	}
+	if a.Updater == nil || !a.Updater.Enabled() {
+		a.flashRedirect(w, r, sess, "Updater service is not configured.", "alert", "/admin/updates")
+		return
+	}
+	action := strings.TrimSpace(r.FormValue("action"))
+	switch action {
+	case "check":
+		if _, err := a.Updater.Check(r.Context()); err != nil {
+			a.flashRedirect(w, r, sess, err.Error(), "alert", "/admin/updates")
+			return
+		}
+		a.recordAudit(r, sess, "updater.check", "", "")
+		a.flashRedirect(w, r, sess, "Update check started.", "success", "/admin/updates")
+	case "apply":
+		if _, err := a.Updater.Apply(r.Context()); err != nil {
+			a.flashRedirect(w, r, sess, err.Error(), "alert", "/admin/updates")
+			return
+		}
+		a.recordAudit(r, sess, "updater.apply", "", "")
+		a.flashRedirect(w, r, sess, "Container update applied.", "success", "/admin/updates")
+	case "settings":
+		hours, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("interval_hours")))
+		settings := updater.Settings{
+			IntervalHours: hours,
+			AutoUpdate:    r.FormValue("auto_update") == "1",
+		}
+		if err := a.Updater.SaveSettings(r.Context(), settings); err != nil {
+			a.flashRedirect(w, r, sess, err.Error(), "alert", "/admin/updates")
+			return
+		}
+		a.recordAudit(r, sess, "updater.settings", "", strconv.Itoa(settings.IntervalHours))
+		a.flashRedirect(w, r, sess, "Updater settings saved.", "success", "/admin/updates")
+	default:
+		a.flashRedirect(w, r, sess, "Unknown updater action.", "alert", "/admin/updates")
+	}
+}
+
+func (a *App) loadUpdaterView(ctx context.Context) updaterView {
+	view := updaterView{IntervalHours: 24}
+	if a.Updater == nil || !a.Updater.Enabled() {
+		return view
+	}
+	status, err := a.Updater.Status(ctx)
+	if err != nil {
+		view.Configured = true
+		view.Status = "error"
+		view.Detail = err.Error()
+		view.IntervalHours = 24
+		return view
+	}
+	return updaterView{
+		Configured:    true,
+		Status:        status.Status,
+		Available:     status.Available,
+		LastCheck:     status.LastCheck,
+		IntervalHours: status.IntervalHours,
+		AutoUpdate:    status.AutoUpdate,
+		Services:      status.Services,
+		Detail:        status.Detail,
+	}
 }
 
 type certsPage struct {
