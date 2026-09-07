@@ -1,5 +1,5 @@
 aiohttp~=3.12,<3.13
-quart~=0.18,<0.19
+quart~=0.23
 flask-wtf~=1.1,<1.2
 hsluv~=5.0
 flask-babel~=2.0,<3
