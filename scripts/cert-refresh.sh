@@ -2,13 +2,11 @@
 
 set -eo pipefail
 
-echo "Renewing certificates..."
-docker exec -it snikket-certs /etc/cron.daily/certbot
+echo "Renewing XMPP certificates..."
+docker exec snikket-certs /etc/cron.daily/certbot
 
-echo "Reloading services..."
-docker exec -it snikket-proxy service nginx reload
-docker exec -it snikket supervisorctl signal hup prosody
+echo "Reloading Prosody..."
+docker exec snikket supervisorctl signal hup prosody
 
+echo "HTTP TLS is managed by RavenGuard ACME. No nginx proxy reload is required."
 echo "Complete."
-
-exit 0;

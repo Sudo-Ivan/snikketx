@@ -52,6 +52,7 @@ func main() {
 	mux.HandleFunc("GET /v1/pins", s.auth(s.handleGetPins))
 	mux.HandleFunc("PUT /v1/pins", s.auth(s.handlePutPins))
 	mux.HandleFunc("DELETE /v1/pins", s.auth(s.handleClearPins))
+	mux.HandleFunc("GET /v1/logs", s.auth(s.handleLogs))
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))

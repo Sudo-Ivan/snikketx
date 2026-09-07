@@ -113,3 +113,31 @@ func (s *server) handleApply(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 	writeJSON(w, s.snapshot())
 }
+
+func (s *server) handleLogs(w http.ResponseWriter, r *http.Request) {
+	serviceID := strings.TrimSpace(r.URL.Query().Get("service"))
+	tail := clampTail(r.URL.Query().Get("tail"))
+	if serviceID == "" {
+		writeJSON(w, logsResponse{Tail: tail, Services: allowedLogServices})
+		return
+	}
+	svc, ok := resolveLogService(serviceID)
+	if !ok {
+		http.Error(w, "unknown or disallowed service", http.StatusBadRequest)
+		return
+	}
+	raw, err := s.fetchComposeLogs(r.Context(), svc.ID, tail)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	lines, truncated := splitLogLines(raw, 512<<10)
+	writeJSON(w, logsResponse{
+		Service:   svc.ID,
+		Label:     svc.Label,
+		Tail:      tail,
+		Lines:     lines,
+		Truncated: truncated,
+		Services:  allowedLogServices,
+	})
+}

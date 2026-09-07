@@ -215,6 +215,7 @@
 		initPasswordMeters();
 		initToasts();
 		initSidebar();
+		initAdminSearch();
 		initFilePickers();
 		initBusyForms();
 		initUpdaterPoll();
@@ -387,6 +388,203 @@
 		}
 
 		syncMode();
+	}
+
+	function initAdminSearch() {
+		var root = document.querySelector("[data-admin-search]");
+		if (!root) {
+			return;
+		}
+		var input = root.querySelector("[data-admin-search-input]");
+		var results = root.querySelector("[data-admin-search-results]");
+		var kbd = root.querySelector("[data-admin-search-kbd]");
+		if (!input || !results) {
+			return;
+		}
+		var items = [
+			{ title: "Home", href: "/admin/", group: "Manage", keywords: "dashboard overview slo" },
+			{ title: "Users", href: "/admin/users", group: "Manage", keywords: "accounts localpart disable admin" },
+			{ title: "Circles", href: "/admin/circles", group: "Manage", keywords: "groups contacts roster" },
+			{ title: "Group chats", href: "/admin/mucs", group: "Manage", keywords: "muc rooms chat" },
+			{ title: "Invitations", href: "/admin/invitations", group: "Manage", keywords: "invite link create" },
+			{ title: "Create invitation", href: "/admin/invitation/-/new", group: "Manage", keywords: "invite new user" },
+			{ title: "Devices", href: "/admin/devices", group: "Operations", keywords: "clients push sessions revoke" },
+			{ title: "Storage", href: "/admin/storage", group: "Operations", keywords: "uploads http files quota" },
+			{ title: "Archives", href: "/admin/archives", group: "Operations", keywords: "mam message history" },
+			{ title: "Certs and DNS", href: "/admin/certs/", group: "Operations", keywords: "tls acme srv certificates dns" },
+			{ title: "Rate limits", href: "/admin/limits/", group: "Operations", keywords: "lockout login throttle" },
+			{ title: "Updates", href: "/admin/updates", group: "Operations", keywords: "cosign signatures pin digests apply" },
+			{ title: "Apps", href: "/admin/apps", group: "Operations", keywords: "android apk download" },
+			{ title: "Backup", href: "/admin/backup/", group: "Operations", keywords: "restic restore retention schedule disaster" },
+			{ title: "Logs", href: "/admin/logs/", group: "System", keywords: "prosody portal docker container ravenguard" },
+			{ title: "System", href: "/admin/system/", group: "System", keywords: "announce announcement metrics version" },
+			{ title: "Health", href: "/admin/health/", group: "System", keywords: "probes errors status" },
+			{ title: "Audit log", href: "/admin/audit/", group: "System", keywords: "events security trail" }
+		];
+		var active = -1;
+		var matches = [];
+
+		if (kbd) {
+			var isMac = /Mac|iPhone|iPad/.test(navigator.platform || "");
+			kbd.textContent = isMac ? "⌘K" : "Ctrl K";
+		}
+
+		function normalize(value) {
+			return String(value || "").toLowerCase();
+		}
+
+		function scoreItem(item, query) {
+			var hay = normalize(item.title + " " + item.group + " " + item.keywords + " " + item.href);
+			if (!query) {
+				return 1;
+			}
+			if (normalize(item.title).indexOf(query) === 0) {
+				return 100;
+			}
+			if (hay.indexOf(query) >= 0) {
+				return 50;
+			}
+			var parts = query.split(/\s+/);
+			for (var i = 0; i < parts.length; i++) {
+				if (parts[i] && hay.indexOf(parts[i]) < 0) {
+					return 0;
+				}
+			}
+			return parts.length ? 25 : 0;
+		}
+
+		function closeResults() {
+			results.hidden = true;
+			results.innerHTML = "";
+			input.setAttribute("aria-expanded", "false");
+			active = -1;
+			matches = [];
+		}
+
+		function render() {
+			var query = normalize(input.value).trim();
+			matches = [];
+			for (var i = 0; i < items.length; i++) {
+				var scored = scoreItem(items[i], query);
+				if (scored > 0) {
+					matches.push({ item: items[i], score: scored });
+				}
+			}
+			matches.sort(function (a, b) {
+				if (b.score !== a.score) {
+					return b.score - a.score;
+				}
+				return a.item.title.localeCompare(b.item.title);
+			});
+			if (!query) {
+				matches = matches.slice(0, 8);
+			} else {
+				matches = matches.slice(0, 12);
+			}
+			results.innerHTML = "";
+			if (!matches.length) {
+				var empty = document.createElement("li");
+				empty.className = "admin-search-empty";
+				empty.textContent = "No matching pages or settings.";
+				results.appendChild(empty);
+				results.hidden = false;
+				input.setAttribute("aria-expanded", "true");
+				active = -1;
+				return;
+			}
+			for (var j = 0; j < matches.length; j++) {
+				var li = document.createElement("li");
+				li.setAttribute("role", "presentation");
+				var link = document.createElement("a");
+				link.className = "admin-search-option";
+				link.href = matches[j].item.href;
+				link.setAttribute("role", "option");
+				link.setAttribute("id", "admin-search-option-" + j);
+				link.innerHTML = "<span class=\"admin-search-option-title\"></span><span class=\"admin-search-option-meta\"></span>";
+				link.querySelector(".admin-search-option-title").textContent = matches[j].item.title;
+				link.querySelector(".admin-search-option-meta").textContent = matches[j].item.group + " · " + matches[j].item.href;
+				li.appendChild(link);
+				results.appendChild(li);
+			}
+			results.hidden = false;
+			input.setAttribute("aria-expanded", "true");
+			active = 0;
+			syncActive();
+		}
+
+		function syncActive() {
+			var options = results.querySelectorAll(".admin-search-option");
+			for (var i = 0; i < options.length; i++) {
+				if (i === active) {
+					options[i].classList.add("is-active");
+					input.setAttribute("aria-activedescendant", options[i].id);
+				} else {
+					options[i].classList.remove("is-active");
+				}
+			}
+		}
+
+		function openSelected() {
+			var options = results.querySelectorAll(".admin-search-option");
+			if (active >= 0 && options[active]) {
+				window.location.href = options[active].getAttribute("href");
+			}
+		}
+
+		input.addEventListener("focus", function () {
+			render();
+		});
+		input.addEventListener("input", function () {
+			render();
+		});
+		input.addEventListener("keydown", function (event) {
+			if (event.key === "ArrowDown") {
+				event.preventDefault();
+				if (!matches.length) {
+					render();
+				}
+				if (matches.length) {
+					active = (active + 1) % matches.length;
+					syncActive();
+				}
+				return;
+			}
+			if (event.key === "ArrowUp") {
+				event.preventDefault();
+				if (matches.length) {
+					active = (active - 1 + matches.length) % matches.length;
+					syncActive();
+				}
+				return;
+			}
+			if (event.key === "Enter") {
+				if (!results.hidden && matches.length) {
+					event.preventDefault();
+					openSelected();
+				}
+				return;
+			}
+			if (event.key === "Escape") {
+				event.preventDefault();
+				closeResults();
+				input.blur();
+			}
+		});
+
+		document.addEventListener("keydown", function (event) {
+			if ((event.ctrlKey || event.metaKey) && !event.altKey && String(event.key).toLowerCase() === "k") {
+				event.preventDefault();
+				input.focus();
+				input.select();
+				render();
+			}
+		});
+
+		document.addEventListener("click", function (event) {
+			if (!root.contains(event.target)) {
+				closeResults();
+			}
+		});
 	}
 
 	function initToasts() {

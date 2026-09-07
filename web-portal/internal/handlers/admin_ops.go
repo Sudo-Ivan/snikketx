@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/sudo-ivan/snikketx/web-portal/internal/authlimit"
+	backupclient "github.com/sudo-ivan/snikketx/web-portal/internal/backupclient"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/health"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/prosody"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/updater"
@@ -41,6 +42,8 @@ func (a *App) mountAdminOps(mux *http.ServeMux) {
 	mux.HandleFunc("POST /admin/backup/", a.handleBackupSubmit)
 	mux.HandleFunc("GET /admin/backup/config.json", a.handleBackupConfig)
 	mux.HandleFunc("GET /admin/backup/export/{localpart}", a.handleBackupExport)
+
+	mux.HandleFunc("GET /admin/logs/", a.handleAdminLogs)
 
 	mux.HandleFunc("GET /admin/apps", a.handleApps)
 	mux.HandleFunc("POST /admin/apps", a.handleAppsSubmit)
@@ -263,6 +266,7 @@ type updaterView struct {
 	Detail        string
 	ImagePrefix   string
 	VerifyEnabled bool
+	RequireVerify bool
 	Job           *updater.Job
 }
 
@@ -378,6 +382,7 @@ func (a *App) loadUpdaterView(ctx context.Context) updaterView {
 		Detail:        status.Detail,
 		ImagePrefix:   status.ImagePrefix,
 		VerifyEnabled: status.VerifyEnabled,
+		RequireVerify: status.RequireVerify,
 		Job:           status.Job,
 	}
 }
@@ -461,8 +466,12 @@ func (a *App) handleLimitsSubmit(w http.ResponseWriter, r *http.Request) {
 
 type backupPage struct {
 	webui.PageData
-	Users []prosody.AdminUserInfo
-	Note  string
+	Users      []prosody.AdminUserInfo
+	Note       string
+	Service    *backupclient.Status
+	DryRun     *backupclient.DryRun
+	ServiceOK  bool
+	ServiceErr string
 }
 
 func (a *App) handleBackup(w http.ResponseWriter, r *http.Request) {
@@ -477,11 +486,19 @@ func (a *App) handleBackup(w http.ResponseWriter, r *http.Request) {
 		users = nil
 	}
 	page := a.newPage(w, r, sess, "Backup and restore", "backup", webui.ShellAdmin)
-	a.render(w, r, http.StatusOK, "admin_backup.html", backupPage{
-		PageData: page,
-		Users:    users,
-		Note:     note,
-	})
+	view := backupPage{PageData: page, Users: users, Note: note}
+	if a.Backup != nil && a.Backup.Enabled() {
+		status, serr := a.Backup.Status(r.Context())
+		if serr != nil {
+			view.ServiceErr = serr.Error()
+		} else {
+			view.Service = status
+			view.ServiceOK = true
+		}
+	} else {
+		view.ServiceErr = "Backup service is not configured."
+	}
+	a.render(w, r, http.StatusOK, "admin_backup.html", view)
 }
 
 func (a *App) handleBackupConfig(w http.ResponseWriter, r *http.Request) {
@@ -550,32 +567,102 @@ func (a *App) handleBackupSubmit(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	localpart := strings.TrimSpace(r.FormValue("localpart"))
-	if localpart == "" {
-		a.flashRedirect(w, r, sess, "Choose an account to restore into.", "alert", "/admin/backup/")
-		return
+	action := strings.TrimSpace(r.FormValue("action"))
+	switch action {
+	case "save_settings":
+		if a.Backup == nil || !a.Backup.Enabled() {
+			a.flashRedirect(w, r, sess, "Backup service is not configured.", "alert", "/admin/backup/")
+			return
+		}
+		settings := backupclient.Settings{
+			Enabled:               r.FormValue("enabled") == "1",
+			Scope:                 strings.TrimSpace(r.FormValue("scope")),
+			ResticEnabled:         r.FormValue("restic_enabled") == "1",
+			IncludeACMEChallenges: r.FormValue("include_acme") == "1",
+		}
+		settings.IntervalHours, _ = strconv.Atoi(strings.TrimSpace(r.FormValue("interval_hours")))
+		settings.KeepCount, _ = strconv.Atoi(strings.TrimSpace(r.FormValue("keep_count")))
+		settings.KeepDays, _ = strconv.Atoi(strings.TrimSpace(r.FormValue("keep_days")))
+		settings.ResticKeepLast, _ = strconv.Atoi(strings.TrimSpace(r.FormValue("restic_keep_last")))
+		settings.ResticKeepDaily, _ = strconv.Atoi(strings.TrimSpace(r.FormValue("restic_keep_daily")))
+		if err := a.Backup.SaveSettings(r.Context(), settings); err != nil {
+			a.flashRedirect(w, r, sess, err.Error(), "alert", "/admin/backup/")
+			return
+		}
+		a.recordAudit(r, sess, "backup.settings", settings.Scope, "")
+		a.flashRedirect(w, r, sess, "Backup settings saved.", "success", "/admin/backup/")
+	case "run_backup":
+		if a.Backup == nil || !a.Backup.Enabled() {
+			a.flashRedirect(w, r, sess, "Backup service is not configured.", "alert", "/admin/backup/")
+			return
+		}
+		if _, err := a.Backup.RunBackup(r.Context()); err != nil {
+			a.flashRedirect(w, r, sess, err.Error(), "alert", "/admin/backup/")
+			return
+		}
+		a.recordAudit(r, sess, "backup.run", "", "")
+		a.flashRedirect(w, r, sess, "Backup started.", "success", "/admin/backup/")
+	case "dry_run":
+		if a.Backup == nil || !a.Backup.Enabled() {
+			a.flashRedirect(w, r, sess, "Backup service is not configured.", "alert", "/admin/backup/")
+			return
+		}
+		name := strings.TrimSpace(r.FormValue("archive"))
+		res, err := a.Backup.DryRunRestore(r.Context(), name)
+		if err != nil {
+			a.flashRedirect(w, r, sess, err.Error(), "alert", "/admin/backup/")
+			return
+		}
+		users, _ := a.Prosody.ListUsers(r.Context(), sess.Token())
+		status, _ := a.Backup.Status(r.Context())
+		page := a.newPage(w, r, sess, "Backup and restore", "backup", webui.ShellAdmin)
+		a.render(w, r, http.StatusOK, "admin_backup.html", backupPage{
+			PageData:  page,
+			Users:     users,
+			Service:   status,
+			ServiceOK: status != nil,
+			DryRun:    res,
+		})
+	case "restic_check":
+		if a.Backup == nil || !a.Backup.Enabled() {
+			a.flashRedirect(w, r, sess, "Backup service is not configured.", "alert", "/admin/backup/")
+			return
+		}
+		if err := a.Backup.ResticCheck(r.Context()); err != nil {
+			a.flashRedirect(w, r, sess, err.Error(), "alert", "/admin/backup/")
+			return
+		}
+		a.flashRedirect(w, r, sess, "Restic repository is reachable.", "success", "/admin/backup/")
+	case "import", "":
+		localpart := strings.TrimSpace(r.FormValue("localpart"))
+		if localpart == "" {
+			a.flashRedirect(w, r, sess, "Choose an account to restore into.", "alert", "/admin/backup/")
+			return
+		}
+		file, header, err := r.FormFile("package")
+		if err != nil {
+			a.flashRedirect(w, r, sess, "Upload a JSON account package.", "alert", "/admin/backup/")
+			return
+		}
+		defer file.Close()
+		if header.Size > maxImportSize {
+			a.flashRedirect(w, r, sess, "Package is too large.", "alert", "/admin/backup/")
+			return
+		}
+		data, err := io.ReadAll(io.LimitReader(file, maxImportSize+1))
+		if err != nil || int64(len(data)) > maxImportSize {
+			a.flashRedirect(w, r, sess, "Could not read the package.", "alert", "/admin/backup/")
+			return
+		}
+		if err := a.Prosody.ImportAccountPackage(r.Context(), sess.Token(), localpart, data); err != nil {
+			a.flashRedirect(w, r, sess, apiErrorMessage(err), "alert", "/admin/backup/")
+			return
+		}
+		a.recordAudit(r, sess, "backup.import", localpart, header.Filename)
+		a.flashRedirect(w, r, sess, "Account package imported.", "success", "/admin/backup/")
+	default:
+		a.flashRedirect(w, r, sess, "Unknown action.", "alert", "/admin/backup/")
 	}
-	file, header, err := r.FormFile("package")
-	if err != nil {
-		a.flashRedirect(w, r, sess, "Upload a JSON account package.", "alert", "/admin/backup/")
-		return
-	}
-	defer file.Close()
-	if header.Size > maxImportSize {
-		a.flashRedirect(w, r, sess, "Package is too large.", "alert", "/admin/backup/")
-		return
-	}
-	data, err := io.ReadAll(io.LimitReader(file, maxImportSize+1))
-	if err != nil || int64(len(data)) > maxImportSize {
-		a.flashRedirect(w, r, sess, "Could not read the package.", "alert", "/admin/backup/")
-		return
-	}
-	if err := a.Prosody.ImportAccountPackage(r.Context(), sess.Token(), localpart, data); err != nil {
-		a.flashRedirect(w, r, sess, apiErrorMessage(err), "alert", "/admin/backup/")
-		return
-	}
-	a.recordAudit(r, sess, "backup.import", localpart, header.Filename)
-	a.flashRedirect(w, r, sess, "Account package imported.", "success", "/admin/backup/")
 }
 
 func (a *App) handleUsersBulk(w http.ResponseWriter, r *http.Request) {

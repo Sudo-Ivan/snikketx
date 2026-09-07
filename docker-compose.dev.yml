@@ -101,6 +101,30 @@ services:
       SNIKKET_UPDATER_VERIFY_SIGNATURES: "true"
       SNIKKET_UPDATER_REQUIRE_SIGNATURES: "false"
 
+  snikket_backup:
+    image: snikketx/backup:dev
+    pull_policy: build
+    build:
+      context: ./backup
+      dockerfile: Dockerfile
+    environment:
+      SNIKKET_BACKUP_TOKEN: ${SNIKKET_BACKUP_TOKEN:-snikket-backup-local}
+      SNIKKET_BACKUP_COMPOSE_DIR: /work
+      SNIKKET_BACKUP_STATE_DIR: /var/lib/snikket-backup
+      SNIKKET_BACKUP_ARCHIVE_DIR: /var/lib/snikket-backup/archives
+      SNIKKET_BACKUP_LISTEN: 0.0.0.0:9292
+      RESTIC_REPOSITORY: ${RESTIC_REPOSITORY:-}
+      RESTIC_PASSWORD: ${RESTIC_PASSWORD:-}
+      RESTIC_PASSWORD_FILE: ${RESTIC_PASSWORD_FILE:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./:/work:ro
+      - backup_data:/var/lib/snikket-backup
+    ports:
+      - "127.0.0.1:9292:9292"
+
   snikket_portal:
     image: snikketx/web-portal:dev
     pull_policy: build
@@ -117,6 +141,8 @@ services:
       SNIKKET_WEB_INSECURE_COOKIES: "true"
       SNIKKET_WEB_UPDATER_ENDPOINT: http://snikket_updater:9191
       SNIKKET_WEB_UPDATER_TOKEN: ${SNIKKET_UPDATER_TOKEN:-snikket-updater-local}
+      SNIKKET_WEB_BACKUP_ENDPOINT: http://snikket_backup:9292
+      SNIKKET_WEB_BACKUP_TOKEN: ${SNIKKET_BACKUP_TOKEN:-snikket-backup-local}
     volumes:
       - portal_data:/var/lib/snikket-web-portal
 

@@ -253,7 +253,7 @@ func TestGetRoutesRender(t *testing.T) {
 		"/admin/circle/g1/delete", "/admin/circle/g1/add_chat",
 		"/admin/system/", "/admin/health/", "/admin/audit/", "/admin/audit/export.csv", "/admin/audit/export.json", "/admin/mucs", "/admin/muc/-/new", "/admin/muc/family",
 		"/admin/devices", "/admin/storage", "/admin/invites/analytics", "/admin/archives", "/admin/updates", "/admin/apps",
-		"/admin/certs/", "/admin/limits/", "/admin/backup/", "/admin/backup/export/alice",
+		"/admin/certs/", "/admin/limits/", "/admin/backup/", "/admin/backup/export/alice", "/admin/logs/",
 		"/download/android.apk",
 		"/invite/inv1/", "/invite/inv1/register", "/invite/reset-inv/reset",
 		"/invite/reset-inv/", "/invite/success", "/invite/success/reset",

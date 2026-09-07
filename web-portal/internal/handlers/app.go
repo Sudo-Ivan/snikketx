@@ -17,6 +17,7 @@ import (
 	"github.com/sudo-ivan/snikketx/web-portal/internal/appcache"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/audit"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/authlimit"
+	backupclient "github.com/sudo-ivan/snikketx/web-portal/internal/backupclient"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/config"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/csrf"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/health"
@@ -52,6 +53,7 @@ type App struct {
 	Metrics   *metrics.Registry
 	LoginGate *authlimit.Limiter
 	Updater   *updater.Client
+	Backup    *backupclient.Client
 	AppCache  *appcache.Cache
 	APKGate   *appcache.DownloadLimiter
 	Started   time.Time

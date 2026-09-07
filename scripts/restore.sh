@@ -11,16 +11,19 @@ snikketx_parse_mode "$@"
 ARCHIVE=""
 FULL=0
 YES=0
+DRY_RUN=0
 
 usage() {
 	cat <<'EOF'
-Usage: ./scripts/restore.sh /absolute/path/to/snikket-data-*.tar.gz [--full] [--yes] [--dev]
+Usage: ./scripts/restore.sh /absolute/path/to/snikket-data-*.tar.gz [flags]
 
 Restores Prosody /snikket from a backup tarball into container snikket
 (accounts, MAM chats, MUCs, uploads). Stack should be stopped or snikket stopped.
 
---full   Also restore portal/ravenguard sibling tarballs from the same backup directory
---yes    Skip confirmation prompt
+--full      Also restore portal/ravenguard/updater sibling tarballs and host conf
+--yes       Skip confirmation prompt
+--dry-run   Validate the archive and print the restore plan without writing
+--dev/--prod  Accepted for compose mode compatibility
 EOF
 }
 
@@ -36,6 +39,10 @@ while [[ $# -gt 0 ]]; do
 		;;
 	--yes|-y)
 		YES=1
+		shift
+		;;
+	--dry-run)
+		DRY_RUN=1
 		shift
 		;;
 	--dev|dev|--prod|prod)
@@ -61,11 +68,40 @@ fi
 
 first=$(tar tzf "$ARCHIVE" | head -n1 || true)
 if [[ "$first" != "snikket/" && "$first" != "./snikket/" ]]; then
-	# Accept archives that start with snikket/... nested
 	if ! tar tzf "$ARCHIVE" | head -n20 | grep -qE '^(\./)?snikket/'; then
 		echo "Not a valid Snikket data backup (expected snikket/ prefix)." >&2
 		exit 1
 	fi
+fi
+
+SRC_DIR=$(dirname "$ARCHIVE")
+SRC_BASE=$(basename "$ARCHIVE")
+stamp=${SRC_BASE#snikket-data-}
+stamp=${stamp%.tar.gz}
+
+if [[ "$DRY_RUN" -eq 1 ]]; then
+	echo "Dry-run restore plan"
+	echo "  Prosody data: ${ARCHIVE}"
+	echo "  Will replace /snikket in container snikket"
+	if [[ "$FULL" -eq 1 ]]; then
+		echo "  Full restore enabled"
+		for f in \
+			"${SRC_DIR}/portal-data-${stamp}.tar.gz" \
+			"${SRC_DIR}/ravenguard-data-${stamp}.tar.gz" \
+			"${SRC_DIR}/updater-data-${stamp}.tar.gz" \
+			"${SRC_DIR}/backup-data-${stamp}.tar.gz"
+		do
+			if [[ -f "$f" ]]; then
+				echo "  found $(basename "$f")"
+			else
+				echo "  missing $(basename "$f") (skipped)"
+			fi
+		done
+		[[ -f "${SRC_DIR}/snikket.conf" ]] && echo "  would restore snikket.conf" || true
+		[[ -f "${SRC_DIR}/env" ]] && echo "  would restore .env" || true
+	fi
+	echo "No changes were made."
+	exit 0
 fi
 
 if docker container inspect snikket >/dev/null 2>&1; then
@@ -92,8 +128,6 @@ if [[ "$YES" -ne 1 ]]; then
 fi
 
 ALPINE="alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b"
-SRC_DIR=$(dirname "$ARCHIVE")
-SRC_BASE=$(basename "$ARCHIVE")
 
 docker run --rm --volumes-from=snikket \
 	--mount type=bind,source="$ARCHIVE",destination=/backup.tar.gz,readonly \
@@ -115,17 +149,10 @@ restore_vol() {
 }
 
 if [[ "$FULL" -eq 1 ]]; then
-	# Prefer matching stamp siblings
-	stamp=${SRC_BASE#snikket-data-}
-	stamp=${stamp%.tar.gz}
 	restore_vol "${SRC_DIR}/portal-data-${stamp}.tar.gz" snikketx_portal_data
 	restore_vol "${SRC_DIR}/ravenguard-data-${stamp}.tar.gz" snikketx_ravenguard_data
 	restore_vol "${SRC_DIR}/updater-data-${stamp}.tar.gz" snikketx_updater_data
-	# Also support directory layout from backup.sh
-	parent=$(dirname "$SRC_DIR")
-	if [[ -f "${SRC_DIR}/../snikket.conf" ]]; then
-		true
-	fi
+	restore_vol "${SRC_DIR}/backup-data-${stamp}.tar.gz" snikketx_backup_data
 	if [[ -f "${SRC_DIR}/snikket.conf" ]]; then
 		cp -a "${SRC_DIR}/snikket.conf" ./snikket.conf
 		echo "Restored snikket.conf"

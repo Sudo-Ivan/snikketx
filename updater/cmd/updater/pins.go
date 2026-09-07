@@ -51,6 +51,7 @@ func (s *server) snapshot() statusResponse {
 		Configured:    true,
 		ImagePrefix:   s.imagePrefix,
 		VerifyEnabled: s.verifyEnabled,
+		RequireVerify: s.requireVerify,
 	}
 	if !s.lastCheck.IsZero() {
 		resp.LastCheck = s.lastCheck.Format(time.RFC3339)

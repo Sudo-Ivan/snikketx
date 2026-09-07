@@ -49,13 +49,16 @@ make rollback FROM=/etc/snikket BACKUP_DIR=/var/backups/snikketx/snikketx-backup
 
 | Command | Purpose |
 |---------|---------|
-| `make status` | Compose ps + login HTTP probe |
-| `make logs` | Follow compose logs |
+| `make status` | Compose ps + login HTTP probe (dev / `:8080`) |
+| `make status-prod` | Same probe against prod compose / HTTPS |
+| `make logs` | Follow compose logs (dev) |
+| `make logs-prod` | Follow compose logs (prod) |
 | `make admin` | Create/reset local admin (dev password `admin`) |
 | `make invite` | Admin invite link |
 | `make preflight` | Docker, DNS, ports, firewall hints |
 | `make backup DEST=/abs/dir` | Full backup (data + config + SnikketX volumes) |
-| `make restore ARCHIVE=/abs/snikket-data-....tar.gz` | Restore Prosody `/snikket` |
+| `make backup-status` | Backup service status when the sidecar is running |
+| `make restore ARCHIVE=/abs/snikket-data-....tar.gz` | Restore Prosody `/snikket` (`RESTORE_FLAGS=--full --dry-run` supported) |
 | `make down` / `make down-dev` | Stop stack |
 | `make screenshot` | Refresh README dark dashboard shot |
 
@@ -66,13 +69,14 @@ Config files:
 
 ## Major changes from upstream
 
-- One monorepo instead of separate Snikket packages (server, portal, cert-manager, proxy).
-- HTTP edge is RavenGuard alone (TLS via ACME in prod). Traefik and the nginx web-proxy image are unused by default compose.
-- Server, cert-manager, and web-proxy images build on Alpine 3.24. Prosody comes from apk (13.x), not Debian nightlies.
+- One monorepo instead of separate Snikket packages (server, portal, cert-manager).
+- HTTP edge is RavenGuard alone (TLS via ACME in prod). Traefik and the legacy nginx `web-proxy/` tree are not part of the default stack or publish pipeline.
+- Server and cert-manager images build on Alpine 3.24. Prosody comes from apk (13.x), not Debian nightlies.
 - Web portal is a stdlib Go single binary on distroless, not the upstream Python/Quart app, with a refreshed dark-mode admin panel (footer shows build metadata, uptime, and Healthy / Degraded / Down).
 - Optional self-hosted Android APK on the portal (`Admin → Apps`, public `/download/android.apk`) with cache refresh, source override for forks, and per-IP download limits.
+- Backup sidecar schedules local archives, retention, dry-run restore checks, and optional Restic offsite (`Admin → Backup`).
 - Invite helpers use `prosodyctl shell invite` (create_account / create_reset). The old `mod_invites generate` path is gone.
-- Publish pipeline signs images keyless with Cosign, attaches Syft SPDX SBOMs, runs Trivy and container smoke tests.
+- Publish pipeline signs images keyless with Cosign, attaches Syft SPDX SBOMs, runs Trivy and container smoke tests. Production compose requires Cosign verification before applying updates.
 
 HTTP path:
 
@@ -92,11 +96,14 @@ WebSocket clients are not blocked. See the
 
 ## Backup scope
 
-`make backup DEST=/abs/dir` writes a timestamped directory with:
+`make backup DEST=/abs/dir` or the `snikket_backup` sidecar writes a timestamped directory with:
 
 - `snikket-data-*.tar.gz` — entire `/snikket` volume (accounts, message archives, group chats, uploads, XMPP LE material)
 - copies of `snikket.conf` and `.env`
-- SnikketX-only volumes when present: portal, RavenGuard, updater
+- SnikketX-only volumes when present: portal, RavenGuard, updater, backup state
+- optional Restic push to an S3-compatible (or other) repository
+
+Configure schedule, retention, and offsite under **Admin → Backup**. Use `./scripts/restore.sh … --dry-run` to validate an archive without writing.
 
 Classic Snikket used the same `/snikket` layout and container name `snikket`, so the data tarball is compatible for migrate/rollback.
 
@@ -104,14 +111,16 @@ Classic Snikket used the same `/snikket` layout and container name `snikket`, so
 
 - `server/` - Prosody-based SnikketX server image
 - `web-portal/` - account and admin web UI
-- `updater/` - optional container update service
-- `web-proxy/` - legacy nginx front door (not used by default compose)
+- `updater/` - container update service with Cosign verify
+- `backup/` - scheduled backup / retention / Restic sidecar
+- `web-proxy/` - legacy nginx front door (archive only, not published)
 - `cert-manager/` - Let's Encrypt for XMPP TLS (prod)
 - `deploy/ravenguard/` - RavenGuard TOML and blocklists
 - `deploy/migrate/` - volume override written by migrate script
+- `deploy/legacy/` - unused Traefik configs kept for reference
 - `scripts/` - install and ops helpers
 - `docker-compose.yml` - production stack (pull GHCR + RavenGuard edge)
-- `docker-compose.dev.yml` - local builds, no proxy/certs package
+- `docker-compose.dev.yml` - local builds, no certs package
 
 ## Build images only
 
@@ -119,7 +128,7 @@ Classic Snikket used the same `/snikket` layout and container name `snikket`, so
 make docker
 ```
 
-Images land as `ghcr.io/sudo-ivan/snikketx/{server,web-portal,web-proxy,cert-manager,updater}`.
+Images land as `ghcr.io/sudo-ivan/snikketx/{server,web-portal,cert-manager,updater,backup}`.
 
 Publish tags each image with mutable tags (`latest`, `dev`, `sha-<commit>`) and
 records the immutable digest (`ghcr.io/sudo-ivan/snikketx/<component>@sha256:...`)
@@ -138,5 +147,5 @@ cosign verify \
 
 ## License
 
-Each package keeps its upstream license file. See `server/LICENSE`,
-`web-portal/LICENSE`, and `web-proxy/LICENSE`.
+Each package keeps its upstream license file. See `server/LICENSE` and
+`web-portal/LICENSE`. The legacy `web-proxy/LICENSE` remains with that archive tree.

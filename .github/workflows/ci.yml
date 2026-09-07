@@ -69,15 +69,15 @@ jobs:
             title: snikketx-web-portal
             description: SnikketX web portal
             licenses: AGPL-3.0-or-later
-          - component: web-proxy
-            context: ./web-proxy
-            title: snikketx-web-proxy
-            description: Legacy SnikketX nginx proxy
-            licenses: Apache-2.0
           - component: cert-manager
             context: ./cert-manager
             title: snikketx-cert-manager
             description: SnikketX Let's Encrypt helper
+            licenses: Apache-2.0
+          - component: backup
+            context: ./backup
+            title: snikketx-backup
+            description: SnikketX backup service
             licenses: Apache-2.0
     steps:
       - name: Harden runner

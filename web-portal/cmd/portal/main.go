@@ -17,6 +17,7 @@ import (
 	"github.com/sudo-ivan/snikketx/web-portal/internal/appcache"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/audit"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/authlimit"
+	backupclient "github.com/sudo-ivan/snikketx/web-portal/internal/backupclient"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/config"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/handlers"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/health"
@@ -147,6 +148,10 @@ func run() error {
 		Updater: &updater.Client{
 			Endpoint: cfg.UpdaterEndpoint,
 			Token:    cfg.UpdaterToken,
+		},
+		Backup: &backupclient.Client{
+			Endpoint: cfg.BackupEndpoint,
+			Token:    cfg.BackupToken,
 		},
 		AppCache: apkCache,
 		APKGate:  appcache.NewDownloadLimiter(cfg.AndroidDownloadLimitHour),

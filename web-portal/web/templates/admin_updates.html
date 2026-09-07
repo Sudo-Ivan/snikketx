@@ -42,6 +42,7 @@
 		<div class="stat"><span class="stat-label">Auto-update</span><span class="stat-value">{{if .Updater.AutoUpdate}}on{{else}}off{{end}}</span></div>
 		<div class="stat"><span class="stat-label">Digest pin</span><span class="stat-value">{{if .Updater.PinDigests}}on{{else}}off{{end}}</span></div>
 		<div class="stat"><span class="stat-label">Signatures</span><span class="stat-value">{{if .Updater.VerifyEnabled}}cosign keyless{{else}}off{{end}}</span></div>
+		<div class="stat"><span class="stat-label">Require signatures</span><span class="stat-value">{{if .Updater.RequireVerify}}required{{else}}advisory{{end}}</span></div>
 	</div>
 	{{with .Updater.ImagePrefix}}<p class="muted">Image prefix <span class="mono">{{.}}</span></p>{{end}}
 

@@ -1,0 +1,45 @@
+{{define "content"}}
+<div class="page-head">
+	<div>
+		<h1>Logs</h1>
+		<p class="muted">Recent container logs from allowlisted compose services, fetched through the updater. Live follow stays on the host with <span class="mono">make logs</span>.</p>
+	</div>
+	<a class="btn btn-secondary" href="/admin/logs/?service={{.Service}}&amp;tail={{.Tail}}">{{template "icon" "refresh"}}<span>Refresh</span></a>
+</div>
+
+{{if .Note}}{{template "inline_toast" .Note}}{{end}}
+
+<section class="card">
+	<form method="get" action="/admin/logs/" class="toolbar" role="search">
+		<div class="field field-grow">
+			<label for="log-service">Source</label>
+			<select id="log-service" name="service">
+				{{range .Sources}}
+				<option value="{{.ID}}"{{if eq $.Service .ID}} selected{{end}}>{{.Label}}</option>
+				{{end}}
+			</select>
+		</div>
+		<div class="field">
+			<label for="log-tail">Lines</label>
+			<select id="log-tail" name="tail">
+				<option value="100"{{if eq .Tail 100}} selected{{end}}>100</option>
+				<option value="200"{{if eq .Tail 200}} selected{{end}}>200</option>
+				<option value="500"{{if eq .Tail 500}} selected{{end}}>500</option>
+			</select>
+		</div>
+		<div class="toolbar-actions">
+			<button type="submit" class="btn btn-secondary">{{template "icon" "search"}}<span>Load</span></button>
+		</div>
+	</form>
+</section>
+
+<section class="card card-flush">
+	{{if .Truncated}}<p class="hint log-truncated">Output was capped for size. Narrow the source or reduce lines.</p>{{end}}
+	{{if .Lines}}
+	<pre class="log-view" tabindex="0">{{range .Lines}}{{.}}
+{{end}}</pre>
+	{{else}}
+	<p class="muted empty-logs">No log lines for this source yet.</p>
+	{{end}}
+</section>
+{{end}}

@@ -11,6 +11,7 @@ volumes:
   ravenguard_data:
   portal_data:
   updater_data:
+  backup_data:
 
 services:
   ravenguard:
@@ -137,6 +138,8 @@ services:
       SNIKKET_WEB_PROSODY_ENDPOINT: http://snikket_server:5280/
       SNIKKET_WEB_UPDATER_ENDPOINT: ${SNIKKET_WEB_UPDATER_ENDPOINT:-http://snikket_updater:9191}
       SNIKKET_WEB_UPDATER_TOKEN: ${SNIKKET_UPDATER_TOKEN:-snikket-updater-local}
+      SNIKKET_WEB_BACKUP_ENDPOINT: ${SNIKKET_WEB_BACKUP_ENDPOINT:-http://snikket_backup:9292}
+      SNIKKET_WEB_BACKUP_TOKEN: ${SNIKKET_BACKUP_TOKEN:-snikket-backup-local}
     volumes:
       - portal_data:/var/lib/snikket-web-portal
     networks:
@@ -198,7 +201,7 @@ services:
       SNIKKET_UPDATER_LISTEN: 0.0.0.0:9191
       SNIKKET_UPDATER_IMAGE_PREFIX: ${SNIKKET_UPDATER_IMAGE_PREFIX:-ghcr.io/sudo-ivan/snikketx}
       SNIKKET_UPDATER_VERIFY_SIGNATURES: ${SNIKKET_UPDATER_VERIFY_SIGNATURES:-true}
-      SNIKKET_UPDATER_REQUIRE_SIGNATURES: ${SNIKKET_UPDATER_REQUIRE_SIGNATURES:-false}
+      SNIKKET_UPDATER_REQUIRE_SIGNATURES: ${SNIKKET_UPDATER_REQUIRE_SIGNATURES:-true}
       SNIKKET_UPDATER_COSIGN_IDENTITY_REGEXP: ${SNIKKET_UPDATER_COSIGN_IDENTITY_REGEXP:-https://github.com/Sudo-Ivan/snikketx/.*}
       SNIKKET_UPDATER_COSIGN_OIDC_ISSUER: ${SNIKKET_UPDATER_COSIGN_OIDC_ISSUER:-https://token.actions.githubusercontent.com}
     volumes:
@@ -209,3 +212,32 @@ services:
       - snikketx
     expose:
       - "9191"
+
+  snikket_backup:
+    image: ghcr.io/sudo-ivan/snikketx/backup:latest
+    container_name: snikket-backup
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    env_file: snikket.conf
+    environment:
+      SNIKKET_BACKUP_TOKEN: ${SNIKKET_BACKUP_TOKEN:-snikket-backup-local}
+      SNIKKET_BACKUP_COMPOSE_DIR: /work
+      SNIKKET_BACKUP_STATE_DIR: /var/lib/snikket-backup
+      SNIKKET_BACKUP_ARCHIVE_DIR: /var/lib/snikket-backup/archives
+      SNIKKET_BACKUP_LISTEN: 0.0.0.0:9292
+      RESTIC_REPOSITORY: ${RESTIC_REPOSITORY:-}
+      RESTIC_PASSWORD: ${RESTIC_PASSWORD:-}
+      RESTIC_PASSWORD_FILE: ${RESTIC_PASSWORD_FILE:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./:/work:ro
+      - backup_data:/var/lib/snikket-backup
+    networks:
+      - snikketx
+    ports:
+      - "127.0.0.1:9292:9292"
+    expose:
+      - "9292"

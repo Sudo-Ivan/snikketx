@@ -38,6 +38,8 @@ type Config struct {
 	MetricsToken    string
 	UpdaterEndpoint string
 	UpdaterToken    string
+	BackupEndpoint  string
+	BackupToken     string
 	Version         string
 	BuildCommit     string
 	BuildDate       string
@@ -189,6 +191,8 @@ func Load(version, commit, buildDate string) (*Config, error) {
 		MetricsToken:    metricsToken,
 		UpdaterEndpoint: strings.TrimRight(envOr("SNIKKET_WEB_UPDATER_ENDPOINT", "http://snikket_updater:9191"), "/"),
 		UpdaterToken:    envOr("SNIKKET_WEB_UPDATER_TOKEN", envOr("SNIKKET_UPDATER_TOKEN", "snikket-updater-local")),
+		BackupEndpoint:  strings.TrimRight(envOr("SNIKKET_WEB_BACKUP_ENDPOINT", "http://snikket_backup:9292"), "/"),
+		BackupToken:     envOr("SNIKKET_WEB_BACKUP_TOKEN", envOr("SNIKKET_BACKUP_TOKEN", "snikket-backup-local")),
 		Version:         version,
 		BuildCommit:     commit,
 		BuildDate:       buildDate,

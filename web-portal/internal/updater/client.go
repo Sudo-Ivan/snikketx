@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -85,12 +86,29 @@ type Status struct {
 	Configured    bool      `json:"configured"`
 	ImagePrefix   string    `json:"image_prefix"`
 	VerifyEnabled bool      `json:"verify_enabled"`
+	RequireVerify bool      `json:"require_signatures"`
 	Job           *Job      `json:"job"`
 }
 
 // Pins is the locked digest map.
 type Pins struct {
 	Services map[string]string `json:"services"`
+}
+
+// LogService is one allowlisted compose service for log viewing.
+type LogService struct {
+	ID    string `json:"id"`
+	Label string `json:"label"`
+}
+
+// Logs is a capped container log tail from the updater.
+type Logs struct {
+	Service   string       `json:"service"`
+	Label     string       `json:"label"`
+	Tail      int          `json:"tail"`
+	Lines     []string     `json:"lines"`
+	Truncated bool         `json:"truncated"`
+	Services  []LogService `json:"services"`
 }
 
 // Enabled reports whether the portal should call the updater.
@@ -131,7 +149,7 @@ func (c *Client) do(ctx context.Context, method, path string, body any, out any)
 		return 0, err
 	}
 	defer resp.Body.Close()
-	data, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	data, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
 	if resp.StatusCode >= 300 {
 		msg := strings.TrimSpace(string(data))
 		if msg == "" {
@@ -188,6 +206,30 @@ func (c *Client) SaveSettings(ctx context.Context, settings Settings) error {
 func (c *Client) ClearPins(ctx context.Context) error {
 	_, err := c.do(ctx, http.MethodDelete, "/v1/pins", nil, nil)
 	return err
+}
+
+// Logs fetches a capped log tail for an allowlisted compose service.
+// Pass an empty service to list available services only.
+func (c *Client) Logs(ctx context.Context, service string, tail int) (*Logs, error) {
+	path := "/v1/logs"
+	query := ""
+	if strings.TrimSpace(service) != "" {
+		query += "service=" + url.QueryEscape(strings.TrimSpace(service))
+	}
+	if tail > 0 {
+		if query != "" {
+			query += "&"
+		}
+		query += fmt.Sprintf("tail=%d", tail)
+	}
+	if query != "" {
+		path += "?" + query
+	}
+	var out Logs
+	if _, err := c.do(ctx, http.MethodGet, path, nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 // Healthz probes the updater liveness endpoint without auth.

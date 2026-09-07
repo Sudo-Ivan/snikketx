@@ -29,6 +29,7 @@
 		<nav class="sidenav" aria-label="System">
 			<p class="sidenav-label">System</p>
 			<a href="/admin/system/" class="sidenav-link{{if eq .Nav "system"}} is-active{{end}}">{{template "icon" "server"}}<span>{{t "nav.system"}}</span></a>
+			<a href="/admin/logs/" class="sidenav-link{{if eq .Nav "logs"}} is-active{{end}}">{{template "icon" "activity"}}<span>{{t "nav.logs"}}</span></a>
 			<a href="/admin/health/" class="sidenav-link{{if eq .Nav "health"}} is-active{{end}}">{{template "icon" "heart-pulse"}}<span>{{t "nav.health"}}</span></a>
 			<a href="/admin/audit/" class="sidenav-link{{if eq .Nav "audit"}} is-active{{end}}">{{template "icon" "scroll-text"}}<span>{{t "nav.audit"}}</span></a>
 		</nav>
@@ -39,8 +40,19 @@
 	</aside>
 	<div class="admin-main">
 		<header class="admin-bar">
-			<button type="button" class="btn btn-ghost btn-icon admin-menu" data-sidebar-toggle aria-controls="sidebar" aria-expanded="true" aria-label="Toggle navigation">{{template "icon" "menu"}}</button>
-			<h1 class="admin-title">{{orDefault .Title (t "admin.welcome")}}</h1>
+			<div class="admin-bar-start">
+				<button type="button" class="btn btn-ghost btn-icon admin-menu" data-sidebar-toggle aria-controls="sidebar" aria-expanded="true" aria-label="Toggle navigation">{{template "icon" "menu"}}</button>
+				<h1 class="admin-title">{{orDefault .Title (t "admin.welcome")}}</h1>
+			</div>
+			<div class="admin-search" data-admin-search>
+				<label class="visually-hidden" for="admin-search-input">{{t "nav.search"}}</label>
+				<div class="admin-search-field">
+					{{template "icon" "search"}}
+					<input type="search" id="admin-search-input" data-admin-search-input placeholder="{{t "nav.search_placeholder"}}" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="admin-search-results" aria-autocomplete="list">
+					<kbd class="admin-search-kbd" data-admin-search-kbd>Ctrl K</kbd>
+				</div>
+				<ul class="admin-search-results" id="admin-search-results" data-admin-search-results role="listbox" hidden></ul>
+			</div>
 			<div class="topbar-actions">
 				{{template "theme_toggle" .}}
 				{{with .User}}

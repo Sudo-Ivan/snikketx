@@ -1,6 +1,6 @@
-.PHONY: all docker docker-server docker-portal docker-proxy docker-certs docker-updater \
-	init-dev up up-dev down down-dev status logs admin invite preflight \
-	backup restore migrate rollback screenshot
+.PHONY: all docker docker-server docker-portal docker-proxy docker-certs docker-updater docker-backup \
+	init-dev up up-dev down down-dev status status-prod logs logs-prod admin invite preflight \
+	backup backup-status restore migrate rollback screenshot
 
 IMAGE_PREFIX ?= ghcr.io/sudo-ivan/snikketx
 TAG ?= latest
@@ -22,7 +22,7 @@ BUILD_ARGS = \
 
 all: docker
 
-docker: docker-server docker-portal docker-proxy docker-certs docker-updater
+docker: docker-server docker-portal docker-certs docker-updater docker-backup
 
 docker-server:
 	docker build $(BUILD_ARGS) -t $(IMAGE_PREFIX)/server:$(TAG) ./server
@@ -38,6 +38,9 @@ docker-certs:
 
 docker-updater:
 	docker build $(BUILD_ARGS) -t $(IMAGE_PREFIX)/updater:$(TAG) ./updater
+
+docker-backup:
+	docker build $(BUILD_ARGS) -t $(IMAGE_PREFIX)/backup:$(TAG) ./backup
 
 init-dev:
 	./scripts/init.sh --dev
@@ -55,10 +58,16 @@ down-dev:
 	./scripts/stop.sh --dev
 
 status:
-	./scripts/status.sh
+	./scripts/status.sh --dev
+
+status-prod:
+	./scripts/status.sh --prod
 
 logs:
-	./scripts/logs.sh
+	./scripts/logs.sh --dev
+
+logs-prod:
+	./scripts/logs.sh --prod
 
 admin:
 	./scripts/bootstrap-admin.sh --dev
@@ -73,9 +82,12 @@ backup:
 	@test -n "$(DEST)" || (echo "Set DEST=/absolute/backup/dir" >&2; exit 1)
 	./scripts/backup.sh "$(DEST)"
 
+backup-status:
+	./scripts/backup-status.sh
+
 restore:
 	@test -n "$(ARCHIVE)" || (echo "Set ARCHIVE=/absolute/path/to/snikket-data-*.tar.gz" >&2; exit 1)
-	./scripts/restore.sh "$(ARCHIVE)"
+	./scripts/restore.sh "$(ARCHIVE)" $(RESTORE_FLAGS)
 
 migrate:
 	./scripts/migrate-from-snikket.sh --from "$(FROM)" --backup-dir "$(BACKUP_DIR)"

@@ -56,6 +56,7 @@ type statusResponse struct {
 	Configured    bool           `json:"configured"`
 	ImagePrefix   string         `json:"image_prefix,omitempty"`
 	VerifyEnabled bool           `json:"verify_enabled"`
+	RequireVerify bool           `json:"require_signatures"`
 	Job           *jobState      `json:"job,omitempty"`
 }
 

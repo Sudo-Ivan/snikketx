@@ -1,10 +1,139 @@
 {{define "content"}}
 <div class="page-head">
-	<p class="muted">Operator tooling for a host config snapshot, per-account export packages and restore. This is not a full disaster-recovery product.</p>
+	<div>
+		<h1>Backup</h1>
+		<p class="muted">Scheduled host backups, retention, dry-run restore checks, and optional Restic offsite. Per-account JSON export remains below for roster and vcard moves.</p>
+	</div>
 	<a class="btn btn-secondary" href="/admin/backup/config.json">{{template "icon" "download"}}<span>Host config snapshot</span></a>
 </div>
 
 {{if .Note}}{{template "inline_toast" .Note}}{{end}}
+{{if .ServiceErr}}<div class="alert alert-warn" role="status">{{template "icon" "alert-triangle"}}<p>{{.ServiceErr}}</p></div>{{end}}
+
+{{if .ServiceOK}}
+<section class="card">
+	<h2>Disaster recovery status</h2>
+	<div class="stats">
+		<div class="stat"><span class="stat-label">Schedule</span><span class="stat-value">{{if .Service.Enabled}}every {{.Service.IntervalHours}}h{{else}}off{{end}}</span></div>
+		<div class="stat"><span class="stat-label">Scope</span><span class="stat-value">{{.Service.Scope}}</span></div>
+		<div class="stat"><span class="stat-label">Archives</span><span class="stat-value">{{.Service.ArchiveCount}}</span></div>
+		<div class="stat"><span class="stat-label">Retention</span><span class="stat-value">{{.Service.KeepCount}} / {{.Service.KeepDays}}d</span></div>
+		<div class="stat"><span class="stat-label">Restic</span><span class="stat-value">{{if .Service.ResticEnabled}}{{if .Service.ResticRepoSet}}on{{else}}on (repo unset){{end}}{{else}}off{{end}}</span></div>
+		<div class="stat"><span class="stat-label">Job</span><span class="stat-value">{{.Service.Status}}</span></div>
+	</div>
+	{{with .Service.LastBackup}}<p class="hint">Last backup {{formatRFC3339Ago .}}</p>{{end}}
+	{{with .Service.NextDue}}<p class="hint">Next due {{formatRFC3339Ago .}}</p>{{end}}
+	{{with .Service.Detail}}<p class="muted">{{.}}</p>{{end}}
+	{{with .Service.Job}}
+	<section class="job-log">
+		<h3>Job {{.Kind}} <span class="badge">{{.Status}}</span></h3>
+		{{if .Steps}}
+		<ol class="job-steps">
+			{{range .Steps}}
+			<li class="job-step job-step-{{.Status}}"><strong>{{.Name}}</strong> <span class="muted">{{.Status}}</span>{{with .Detail}} <span class="muted">{{.}}</span>{{end}}</li>
+			{{end}}
+		</ol>
+		{{end}}
+		{{with .Error}}<p class="alert alert-alert">{{.}}</p>{{end}}
+	</section>
+	{{end}}
+</section>
+
+<section class="card">
+	<h2>Schedule and retention</h2>
+	<form method="post" action="/admin/backup/" class="form">
+		{{csrf .CSRF}}
+		<input type="hidden" name="action" value="save_settings">
+		<label class="choice">
+			<input type="checkbox" name="enabled" value="1"{{if .Service.Enabled}} checked{{end}}>
+			<span><strong>Enable scheduled backups</strong></span>
+		</label>
+		<div class="field">
+			<label for="interval_hours">Interval (hours)</label>
+			<input type="number" id="interval_hours" name="interval_hours" min="1" max="168" value="{{.Service.IntervalHours}}">
+		</div>
+		<div class="field">
+			<label for="scope">Scope</label>
+			<select id="scope" name="scope">
+				<option value="full"{{if eq .Service.Scope "full"}} selected{{end}}>Full (Prosody + SnikketX volumes)</option>
+				<option value="data-only"{{if eq .Service.Scope "data-only"}} selected{{end}}>Prosody /snikket only</option>
+			</select>
+		</div>
+		<div class="field">
+			<label for="keep_count">Keep count</label>
+			<input type="number" id="keep_count" name="keep_count" min="1" max="365" value="{{.Service.KeepCount}}">
+		</div>
+		<div class="field">
+			<label for="keep_days">Keep days</label>
+			<input type="number" id="keep_days" name="keep_days" min="1" max="3650" value="{{.Service.KeepDays}}">
+		</div>
+		<label class="choice">
+			<input type="checkbox" name="restic_enabled" value="1"{{if .Service.ResticEnabled}} checked{{end}}>
+			<span><strong>Push to Restic after each backup</strong><span class="hint">Repository and password come from compose env (RESTIC_REPOSITORY / RESTIC_PASSWORD).</span></span>
+		</label>
+		<div class="field">
+			<label for="restic_keep_last">Restic keep-last</label>
+			<input type="number" id="restic_keep_last" name="restic_keep_last" min="1" max="365" value="{{.Service.ResticKeepLast}}">
+		</div>
+		<div class="field">
+			<label for="restic_keep_daily">Restic keep-daily</label>
+			<input type="number" id="restic_keep_daily" name="restic_keep_daily" min="0" max="365" value="{{.Service.ResticKeepDaily}}">
+		</div>
+		<label class="choice">
+			<input type="checkbox" name="include_acme" value="1"{{if .Service.IncludeACMEChallenges}} checked{{end}}>
+			<span><strong>Include ACME challenge volume</strong></span>
+		</label>
+		<div class="actions">
+			<button type="submit" class="btn btn-primary">{{template "icon" "check"}}<span>Save settings</span></button>
+		</div>
+	</form>
+	<form method="post" action="/admin/backup/" class="form form-inline">
+		{{csrf .CSRF}}
+		<input type="hidden" name="action" value="run_backup">
+		<button type="submit" class="btn btn-secondary"{{if eq .Service.Status "busy"}} disabled{{end}}>{{template "icon" "download"}}<span>Backup now</span></button>
+	</form>
+	<form method="post" action="/admin/backup/" class="form form-inline">
+		{{csrf .CSRF}}
+		<input type="hidden" name="action" value="restic_check">
+		<button type="submit" class="btn btn-ghost">{{template "icon" "search"}}<span>Check Restic repo</span></button>
+	</form>
+</section>
+
+<section class="card">
+	<h2>Local archives</h2>
+	{{if .Service.RecentArchives}}
+	<table class="table">
+		<thead><tr><th>Archive</th><th>Size</th><th>Created</th><th></th></tr></thead>
+		<tbody>
+		{{range .Service.RecentArchives}}
+			<tr>
+				<td class="mono">{{.Name}}</td>
+				<td>{{formatBytes .SizeBytes}}</td>
+				<td class="muted">{{formatRFC3339Ago .Created}}</td>
+				<td>
+					<form method="post" action="/admin/backup/" class="form-inline">
+						{{csrf $.CSRF}}
+						<input type="hidden" name="action" value="dry_run">
+						<input type="hidden" name="archive" value="{{.Name}}">
+						<button type="submit" class="btn btn-ghost btn-small">Dry-run restore</button>
+					</form>
+				</td>
+			</tr>
+		{{end}}
+		</tbody>
+	</table>
+	{{else}}
+	<p class="muted">No archives yet. Run a backup to create the first one.</p>
+	{{end}}
+	{{with .DryRun}}
+	<div class="alert {{if .OK}}alert-success{{else}}alert-warn{{end}}" role="status">
+		<p><strong>Dry-run {{.Archive}}</strong></p>
+		<ul class="plain-list">{{range .Messages}}<li>{{.}}</li>{{end}}</ul>
+	</div>
+	{{end}}
+	<p class="hint">Destructive restore stays on the host: <span class="mono">./scripts/restore.sh /path/to/snikket-data-*.tar.gz --full --yes</span></p>
+</section>
+{{end}}
 
 <section class="card">
 	<h2>Restore checklist</h2>
@@ -57,6 +186,7 @@
 	<p class="muted">Writes roster and vcard from a previously exported JSON package into an existing account.</p>
 	<form method="post" action="/admin/backup/" enctype="multipart/form-data" class="form">
 		{{csrf .CSRF}}
+		<input type="hidden" name="action" value="import">
 		<div class="field">
 			<label for="import-user">Account</label>
 			<select id="import-user" name="localpart" required>

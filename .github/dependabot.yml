@@ -21,12 +21,17 @@ updates:
       interval: weekly
     open-pull-requests-limit: 5
   - package-ecosystem: docker
-    directory: /web-proxy
+    directory: /cert-manager
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
   - package-ecosystem: docker
-    directory: /cert-manager
+    directory: /updater
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+  - package-ecosystem: docker
+    directory: /backup
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
