@@ -65,6 +65,17 @@
 </form>
 {{end}}
 
+{{define "store_links"}}
+<p class="store-links">
+	{{if .PlayStoreURL}}<a href="{{.PlayStoreURL}}" rel="noopener noreferrer" target="_blank"><img class="store-badge" src="/static/img/google/en_badge_web_generic.png" alt="Get it on Google Play"></a>{{end}}
+	{{if .AppleStoreURL}}<a href="{{.AppleStoreURL}}" rel="noopener noreferrer" target="_blank"><img class="store-badge" src="/static/img/apple/en.svg" alt="Download on the App Store"></a>{{end}}
+	{{if .FDroidURL}}<a href="{{safeURL .FDroidURL}}"><img class="store-badge" src="/static/img/f-droid-badge.png" alt="Get it on F-Droid"></a>{{end}}
+	{{if .AndroidAPKReady}}
+	<a class="btn btn-secondary store-apk" href="{{.AndroidDownloadURL}}">{{template "icon" "download"}}<span>Download APK{{if .AndroidAPKVersion}} {{.AndroidAPKVersion}}{{end}}{{if .AndroidAPKSizeLabel}} ({{.AndroidAPKSizeLabel}}){{end}}</span></a>
+	{{end}}
+</p>
+{{end}}
+
 {{define "copy_field"}}
 <div class="copy-field">
 	<label class="sr-only" for="{{.ID}}">{{.Label}}</label>

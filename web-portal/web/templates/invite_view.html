@@ -21,11 +21,7 @@
 	<ol class="steps">
 		<li>
 			<h3>Install a chat app</h3>
-			<p class="store-links">
-				<a href="{{.PlayStoreURL}}" rel="noopener noreferrer" target="_blank"><img class="store-badge" src="{{.PlayBadge}}" alt="Get it on Google Play"></a>
-				{{if .AppleStoreURL}}<a href="{{.AppleStoreURL}}" rel="noopener noreferrer" target="_blank"><img class="store-badge" src="{{.AppleBadge}}" alt="Download on the App Store"></a>{{end}}
-				<a href="{{safeURL .FDroidURL}}"><img class="store-badge" src="/static/img/f-droid-badge.png" alt="Get it on F-Droid"></a>
-			</p>
+			{{template "store_links" .}}
 		</li>
 		<li>
 			<h3>Open this invitation in the app</h3>

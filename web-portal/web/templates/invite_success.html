@@ -9,11 +9,7 @@
 	{{end}}
 
 	<h2>Install the app</h2>
-	<p class="store-links">
-		<a href="https://play.google.com/store/apps/details?id=org.snikket.android" rel="noopener noreferrer" target="_blank"><img class="store-badge" src="{{.PlayBadge}}" alt="Get it on Google Play"></a>
-		{{if .AppleStoreURL}}<a href="{{.AppleStoreURL}}" rel="noopener noreferrer" target="_blank"><img class="store-badge" src="{{.AppleBadge}}" alt="Download on the App Store"></a>{{end}}
-		<a href="{{safeURL .FDroidURL}}"><img class="store-badge" src="/static/img/f-droid-badge.png" alt="Get it on F-Droid"></a>
-	</p>
+	{{template "store_links" .}}
 
 	{{if .CanImport}}
 	<details class="disclosure">

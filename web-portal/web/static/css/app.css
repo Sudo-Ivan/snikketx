@@ -1885,6 +1885,11 @@ table.data tbody tr:hover > * {
 	display: block;
 }
 
+.store-links .store-apk {
+	line-height: 1.2;
+	min-height: 2.5rem;
+}
+
 .qr {
 	display: inline-flex;
 	padding: 0.5rem;

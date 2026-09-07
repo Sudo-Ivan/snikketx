@@ -47,10 +47,6 @@
 <section class="card">
 	<h2>Get the app</h2>
 	<p class="muted">SnikketX works best with a mobile XMPP app on your phone. The portal is only here for account settings.</p>
-	<p class="store-links">
-		<a href="https://play.google.com/store/apps/details?id=org.snikket.android" rel="noopener noreferrer" target="_blank"><img class="store-badge" src="/static/img/google/en_badge_web_generic.png" alt="Get it on Google Play"></a>
-		{{if .AppleStoreURL}}<a href="{{.AppleStoreURL}}" rel="noopener noreferrer" target="_blank"><img class="store-badge" src="/static/img/apple/en.svg" alt="Download on the App Store"></a>{{end}}
-		<a href="https://f-droid.org/packages/org.snikket.android/" rel="noopener noreferrer" target="_blank"><img class="store-badge" src="/static/img/f-droid-badge.png" alt="Get it on F-Droid"></a>
-	</p>
+	{{template "store_links" .}}
 </section>
 {{end}}

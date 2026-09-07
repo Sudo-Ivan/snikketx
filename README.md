@@ -70,6 +70,7 @@ Config files:
 - HTTP edge is RavenGuard alone (TLS via ACME in prod). Traefik and the nginx web-proxy image are unused by default compose.
 - Server, cert-manager, and web-proxy images build on Alpine 3.24. Prosody comes from apk (13.x), not Debian nightlies.
 - Web portal is a stdlib Go single binary on distroless, not the upstream Python/Quart app, with a refreshed dark-mode admin panel (footer shows build metadata, uptime, and Healthy / Degraded / Down).
+- Optional self-hosted Android APK on the portal (`Admin → Apps`, public `/download/android.apk`) with cache refresh, source override for forks, and per-IP download limits.
 - Invite helpers use `prosodyctl shell invite` (create_account / create_reset). The old `mod_invites generate` path is gone.
 - Publish pipeline signs images keyless with Cosign, attaches Syft SPDX SBOMs, runs Trivy and container smoke tests.
 

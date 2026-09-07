@@ -13,6 +13,7 @@ var en = map[string]string{
 	"nav.certs":              "Certs and DNS",
 	"nav.limits":             "Rate limits",
 	"nav.updates":            "Updates",
+	"nav.apps":               "Apps",
 	"nav.backup":             "Backup",
 	"nav.system":             "System",
 	"nav.health":             "Health",

@@ -1,0 +1,94 @@
+{{define "content"}}
+<section class="page-head">
+	<div>
+		<h1>Apps</h1>
+		<p class="muted">Host an Android APK on this server so invite and setup pages can offer a direct download beside the stores. Useful when stores are blocked, or when you ship a forked client.</p>
+	</div>
+</section>
+
+{{if .Note}}
+<div class="alert alert-warn" role="status">{{template "icon" "alert-triangle"}}<p>{{.Note}}</p></div>
+{{end}}
+
+<section class="card">
+	<h2>Cache status</h2>
+	<div class="stats">
+		<div class="stat"><span class="stat-label">Hosting</span><span class="stat-value">{{if .Settings.Enabled}}enabled{{else}}disabled{{end}}</span></div>
+		<div class="stat"><span class="stat-label">Cached</span><span class="stat-value">{{if .Ready}}ready{{else}}none{{end}}</span></div>
+		{{if .Meta.Version}}<div class="stat"><span class="stat-label">Version</span><span class="stat-value mono">{{.Meta.Version}}</span></div>{{end}}
+		{{if .Meta.Size}}<div class="stat"><span class="stat-label">Size</span><span class="stat-value">{{formatBytes .Meta.Size}}</span></div>{{end}}
+	</div>
+	{{if .Meta.SHA256}}<p class="hint mono">sha256 {{.Meta.SHA256}}</p>{{end}}
+	{{if not .Meta.FetchedAt.IsZero}}<p class="hint">Fetched {{formatAgo .Meta.FetchedAt}}</p>{{end}}
+	{{if .Meta.SourceURL}}<p class="hint">Source {{.Meta.SourceURL}}</p>{{end}}
+	{{if .Meta.LastError}}<div class="alert alert-warn" role="status"><p>{{.Meta.LastError}}</p></div>{{end}}
+	{{if .Ready}}
+	<p class="actions">
+		<a class="btn btn-secondary" href="/download/android.apk">{{template "icon" "download"}}<span>Public download</span></a>
+	</p>
+	{{end}}
+</section>
+
+<section class="card">
+	<h2>Hosting settings</h2>
+	<form method="post" action="/admin/apps" class="form">
+		{{csrf .CSRF}}
+		<input type="hidden" name="action" value="save">
+		<label class="choice">
+			<input type="checkbox" name="enabled" value="1"{{if .Settings.Enabled}} checked{{end}}>
+			<span><strong>Enable self-hosted Android APK</strong><span class="hint">Shows a Download APK button on /user/, invite, and setup pages when a cache is ready.</span></span>
+		</label>
+		<div class="field">
+			<label for="source_url">APK source</label>
+			<input type="text" id="source_url" name="source_url" value="{{.Settings.SourceURL}}" placeholder="https://example.com/app.apk or github:Owner/repo" spellcheck="false">
+			<p class="hint">Direct APK URL, GitHub repo, or github:Owner/repo for the latest release asset. Point this at your fork when it publishes builds.</p>
+		</div>
+		<div class="field">
+			<label for="package_id">Android package id</label>
+			<input type="text" id="package_id" name="package_id" value="{{.Settings.PackageID}}" required spellcheck="false">
+		</div>
+		<div class="field">
+			<label for="play_store_url">Play Store URL (optional)</label>
+			<input type="url" id="play_store_url" name="play_store_url" value="{{.Settings.PlayStoreURL}}" placeholder="Leave blank to derive from package id">
+		</div>
+		<div class="field">
+			<label for="fdroid_url">F-Droid URL (optional)</label>
+			<input type="text" id="fdroid_url" name="fdroid_url" value="{{.Settings.FDroidURL}}" placeholder="Leave blank to derive from package id">
+		</div>
+		<div class="field">
+			<label for="download_limit">Downloads per IP per hour</label>
+			<input type="number" id="download_limit" name="download_limit" min="1" max="100" value="{{.Settings.DownloadLimitPerHour}}">
+		</div>
+		<div class="field">
+			<label for="refresh_hours">Refresh interval (hours)</label>
+			<input type="number" id="refresh_hours" name="refresh_hours" min="1" max="168" value="{{.Settings.RefreshIntervalHours}}">
+		</div>
+		<div class="actions">
+			<button type="submit" class="btn btn-primary">{{template "icon" "check"}}<span>Save settings</span></button>
+		</div>
+	</form>
+</section>
+
+<section class="card">
+	<h2>Cache actions</h2>
+	<form method="post" action="/admin/apps" class="form form-inline">
+		{{csrf .CSRF}}
+		<input type="hidden" name="action" value="refresh">
+		<button type="submit" class="btn btn-secondary"{{if not .Settings.SourceURL}} disabled{{end}}>{{template "icon" "refresh"}}<span>Fetch latest from source</span></button>
+	</form>
+	<form method="post" action="/admin/apps" class="form" enctype="multipart/form-data">
+		{{csrf .CSRF}}
+		<input type="hidden" name="action" value="upload">
+		<div class="field">
+			<label for="apk_file">Upload APK</label>
+			{{template "file_picker" dict "ID" "apk_file" "Name" "apk_file" "Accept" ".apk,application/vnd.android.package-archive" "Button" "Choose APK" "Icon" "upload" "Empty" "No APK chosen" "Required" "1"}}
+		</div>
+		<button type="submit" class="btn btn-secondary">{{template "icon" "upload"}}<span>Store uploaded APK</span></button>
+	</form>
+	<form method="post" action="/admin/apps" class="form form-inline" onsubmit="return confirm('Clear the cached APK?');">
+		{{csrf .CSRF}}
+		<input type="hidden" name="action" value="clear">
+		<button type="submit" class="btn btn-ghost"{{if not .Meta.Size}} disabled{{end}}>{{template "icon" "trash"}}<span>Clear cache</span></button>
+	</form>
+</section>
+{{end}}
