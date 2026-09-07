@@ -90,6 +90,10 @@ func (c *Client) RegisterClient(ctx context.Context) error {
 	c.clientID = registration.ClientID
 	c.clientSecret = registration.ClientSecret
 	c.mu.Unlock()
+
+	if err := c.saveStoredCredentials(registration.ClientID, registration.ClientSecret); err != nil {
+		return fmt.Errorf("prosody: persist client registration: %w", err)
+	}
 	return nil
 }
 

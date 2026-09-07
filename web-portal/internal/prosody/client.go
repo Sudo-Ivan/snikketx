@@ -41,9 +41,10 @@ type Client struct {
 	// logins share one set of credentials.
 	registerMu sync.Mutex
 
-	mu           sync.Mutex
-	clientID     string
-	clientSecret string
+	mu              sync.Mutex
+	clientID        string
+	clientSecret    string
+	credentialsPath string
 }
 
 // New returns a Client for the given Prosody endpoint and virtual host.

@@ -111,9 +111,15 @@ func run() error {
 		return err
 	}
 
+	prosodyClient := prosody.New(cfg.ProsodyEndpoint, cfg.Domain, version)
+	prosodyClient.SetCredentialsPath(prosody.DefaultOAuthCredentialsPath(stateDir))
+	if err := prosodyClient.LoadStoredCredentials(); err != nil {
+		slog.Warn("oauth credentials not loaded", slog.String("error", err.Error()))
+	}
+
 	app := &handlers.App{
 		Cfg:       cfg,
-		Prosody:   prosody.New(cfg.ProsodyEndpoint, cfg.Domain, version),
+		Prosody:   prosodyClient,
 		Sessions:  sessStore,
 		Templates: renderer,
 		Errors:    health.NewRing(errorRingSize),
