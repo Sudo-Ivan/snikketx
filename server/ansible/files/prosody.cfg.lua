@@ -143,6 +143,8 @@ modules_enabled = {
 		"http_oauth2";
 		"http_admin_api";
 		"rest";
+		"snikket_audit_api";
+		"snikket_muc_api";
 
 	-- Monitoring & maintenance
 		"measure_process";
