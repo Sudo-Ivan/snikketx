@@ -222,8 +222,7 @@ func (s *server) runApplyJob(ctx context.Context) error {
 			if img.Digest == "" || !strings.HasPrefix(img.Ref, s.imagePrefix+"/") {
 				continue
 			}
-			base := strings.Split(img.Ref, ":")[0]
-			base = strings.Split(base, "@")[0]
+			base := imageRefBase(img.Ref)
 			nextPins[name] = base + "@" + img.Digest
 		}
 		s.mu.Lock()

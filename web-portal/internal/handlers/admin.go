@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/sudo-ivan/snikketx/web-portal/internal/health"
@@ -286,12 +287,24 @@ func (a *App) handleAdminHome(w http.ResponseWriter, r *http.Request) {
 
 // buildHealthSLO returns ticket-shaped red/green tiles for the home strip.
 func (a *App) buildHealthSLO(ctx context.Context) []sloItem {
-	prosodyProbe := a.probeProsody(ctx)
-	httpsProbe := health.ProbeTLS(ctx, a.Cfg.Domain)
-	xmppProbe := health.ProbeXMPPTLS(ctx, a.Cfg.Domain, a.Cfg.ProsodyEndpoint)
-	s2sProbe := health.ProbeS2S(ctx, a.Cfg.Domain, a.Cfg.ProsodyEndpoint)
-	pushProbe := health.ProbePush(ctx, a.Cfg.Domain)
-	turnProbe := health.ProbeTURN(ctx, a.Cfg.Domain, a.Cfg.ProsodyEndpoint)
+	var (
+		prosodyProbe health.Component
+		httpsProbe   health.Component
+		xmppProbe    health.Component
+		s2sProbe     health.Component
+		pushProbe    health.Component
+		turnProbe    health.Component
+		updaterItem  sloItem
+	)
+	var wg sync.WaitGroup
+	wg.Go(func() { prosodyProbe = a.probeProsody(ctx) })
+	wg.Go(func() { httpsProbe = health.ProbeTLS(ctx, a.Cfg.Domain) })
+	wg.Go(func() { xmppProbe = health.ProbeXMPPTLS(ctx, a.Cfg.Domain, a.Cfg.ProsodyEndpoint) })
+	wg.Go(func() { s2sProbe = health.ProbeS2S(ctx, a.Cfg.Domain, a.Cfg.ProsodyEndpoint) })
+	wg.Go(func() { pushProbe = health.ProbePush(ctx, a.Cfg.Domain) })
+	wg.Go(func() { turnProbe = health.ProbeTURN(ctx, a.Cfg.Domain, a.Cfg.ProsodyEndpoint) })
+	wg.Go(func() { updaterItem = a.updaterSLO(ctx) })
+	wg.Wait()
 
 	s2sPush := mergeProbeComponents("S2S / Push", s2sProbe, pushProbe)
 
@@ -301,7 +314,7 @@ func (a *App) buildHealthSLO(ctx context.Context) []sloItem {
 		certSLO("XMPP TLS", "/admin/certs/", xmppProbe),
 		componentSLO("S2S / Push", "/admin/health/", s2sPush, "Blocked"),
 		componentSLO("TURN", "/admin/health/", turnProbe, "Blocked"),
-		a.updaterSLO(ctx),
+		updaterItem,
 	}
 }
 
@@ -343,8 +356,8 @@ func certSLO(name, href string, probe health.Component) sloItem {
 
 func mergeProbeComponents(name string, parts ...health.Component) health.Component {
 	out := health.Component{Name: name, OK: true}
-	var details []string
-	var hints []string
+	details := make([]string, 0, len(parts))
+	hints := make([]string, 0, len(parts))
 	var maxLatency time.Duration
 	for _, part := range parts {
 		if !part.OK {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -40,9 +39,6 @@ var allowedLogServices = []logService{
 	{ID: "snikket_backup", Label: "Backup"},
 	{ID: "snikket_certs", Label: "Cert manager"},
 }
-
-// composeLogRE matches docker compose logs --timestamps lines.
-var composeLogRE = regexp.MustCompile(`^(\S+)\s+\|\s+(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)\s(.*)$`)
 
 func resolveLogService(id string) (logService, bool) {
 	id = strings.TrimSpace(id)
@@ -90,21 +86,43 @@ func splitLogLines(raw string, maxBytes int) ([]string, bool) {
 		}
 		truncated = true
 	}
-	raw = strings.ReplaceAll(raw, "\r\n", "\n")
+	if strings.IndexByte(raw, '\r') >= 0 {
+		raw = strings.ReplaceAll(raw, "\r\n", "\n")
+		raw = strings.ReplaceAll(raw, "\r", "\n")
+	}
 	raw = strings.TrimRight(raw, "\n")
 	if raw == "" {
 		return []string{}, truncated
 	}
-	return strings.Split(raw, "\n"), truncated
+	n := 1 + strings.Count(raw, "\n")
+	out := make([]string, 0, n)
+	for {
+		i := strings.IndexByte(raw, '\n')
+		if i < 0 {
+			out = append(out, raw)
+			return out, truncated
+		}
+		out = append(out, raw[:i])
+		raw = raw[i+1:]
+	}
 }
 
+// parseComposeLogLine parses docker compose logs --timestamps output without a regexp.
 func parseComposeLogLine(line string) logEntry {
-	m := composeLogRE.FindStringSubmatch(line)
-	if m == nil {
+	pipe := strings.Index(line, " | ")
+	if pipe < 0 {
 		return logEntry{Text: compactLogText(line)}
 	}
-	tsRaw := m[2]
-	msg := compactLogText(m[3])
+	rest := line[pipe+3:]
+	sp := strings.IndexByte(rest, ' ')
+	if sp < 20 {
+		return logEntry{Text: compactLogText(line)}
+	}
+	tsRaw := rest[:sp]
+	if !looksLikeComposeTimestamp(tsRaw) {
+		return logEntry{Text: compactLogText(line)}
+	}
+	msg := compactLogText(rest[sp+1:])
 	ts, err := time.Parse(time.RFC3339Nano, tsRaw)
 	if err != nil {
 		ts, err = time.Parse(time.RFC3339, tsRaw)
@@ -120,20 +138,45 @@ func parseComposeLogLine(line string) logEntry {
 	}
 }
 
+func looksLikeComposeTimestamp(s string) bool {
+	// YYYY-MM-DDTHH:MM:SS[.fffffffff]Z
+	n := len(s)
+	if n < 20 || n > 40 {
+		return false
+	}
+	if s[n-1] != 'Z' || s[4] != '-' || s[7] != '-' || s[10] != 'T' || s[13] != ':' || s[16] != ':' {
+		return false
+	}
+	return true
+}
+
 func compactLogText(s string) string {
-	return strings.Join(strings.Fields(strings.TrimSpace(s)), " ")
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return ""
+	}
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c == '\t' || c == '\n' || c == '\r' {
+			return strings.Join(strings.Fields(s), " ")
+		}
+		if c == ' ' && i+1 < len(s) && s[i+1] == ' ' {
+			return strings.Join(strings.Fields(s), " ")
+		}
+	}
+	return s
 }
 
 func buildLogEntries(rawLines []string) ([]logEntry, []string) {
-	entries := make([]logEntry, 0, len(rawLines))
-	lines := make([]string, 0, len(rawLines))
-	for _, raw := range rawLines {
+	entries := make([]logEntry, len(rawLines))
+	lines := make([]string, len(rawLines))
+	for i, raw := range rawLines {
 		entry := parseComposeLogLine(raw)
-		entries = append(entries, entry)
+		entries[i] = entry
 		if entry.Display != "" {
-			lines = append(lines, entry.Display+" "+entry.Text)
+			lines[i] = entry.Display + " " + entry.Text
 		} else {
-			lines = append(lines, entry.Text)
+			lines[i] = entry.Text
 		}
 	}
 	return entries, lines

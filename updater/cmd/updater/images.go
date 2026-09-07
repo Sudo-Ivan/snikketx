@@ -106,7 +106,7 @@ func (s *server) imageInventory(ctx context.Context) (map[string]imageInfo, erro
 			if digest != "" && !strings.Contains(ref, "@") {
 				base := repo
 				if base == "" {
-					base = strings.Split(ref, ":")[0]
+					base = imageRefBase(ref)
 				}
 				ref = base + "@" + digest
 			}
@@ -133,4 +133,18 @@ func (s *server) imageDigest(ctx context.Context, id string) string {
 		return line[i+1:]
 	}
 	return ""
+}
+
+// imageRefBase strips tag and digest suffixes from an image reference.
+func imageRefBase(ref string) string {
+	if i := strings.IndexByte(ref, '@'); i >= 0 {
+		ref = ref[:i]
+	}
+	if i := strings.LastIndexByte(ref, ':'); i >= 0 {
+		// Keep registry ports like host:5000/name by only stripping a tag after the last slash.
+		if j := strings.LastIndexByte(ref, '/'); j < i {
+			ref = ref[:i]
+		}
+	}
+	return ref
 }

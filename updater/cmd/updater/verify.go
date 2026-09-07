@@ -9,7 +9,7 @@ import (
 func (s *server) verifyImage(ctx context.Context, img imageInfo) (bool, string) {
 	target := img.Ref
 	if img.Digest != "" && !strings.Contains(target, "@") {
-		base := strings.Split(target, ":")[0]
+		base := imageRefBase(target)
 		target = base + "@" + img.Digest
 	}
 	if target == "" {

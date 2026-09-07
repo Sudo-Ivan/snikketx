@@ -1,15 +1,37 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
+	"sync"
 )
 
+var jsonBufPool = sync.Pool{
+	New: func() any {
+		return bytes.NewBuffer(make([]byte, 0, 1024))
+	},
+}
+
 func writeJSON(w http.ResponseWriter, v any) {
+	buf := jsonBufPool.Get().(*bytes.Buffer)
+	buf.Reset()
+	enc := json.NewEncoder(buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(v); err != nil {
+		jsonBufPool.Put(buf)
+		http.Error(w, "encode failed", http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(v)
+	w.Header().Set("Content-Length", strconv.Itoa(buf.Len()))
+	_, _ = w.Write(buf.Bytes())
+	if buf.Cap() <= 1<<20 {
+		jsonBufPool.Put(buf)
+	}
 }
 
 func envOr(key, fallback string) string {

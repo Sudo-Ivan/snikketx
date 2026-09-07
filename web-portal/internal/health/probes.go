@@ -60,7 +60,7 @@ func ProbeTLS(ctx context.Context, domain string) Component {
 		return component
 	}
 
-	dialer := &net.Dialer{Timeout: probeTimeout}
+	dialer := probeDialer
 	conn, err := tls.DialWithDialer(dialer, "tcp", net.JoinHostPort(domain, "443"), &tls.Config{
 		ServerName: domain,
 		MinVersion: tls.VersionTLS12,

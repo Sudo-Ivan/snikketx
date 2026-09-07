@@ -69,7 +69,7 @@ func ProbeCertHost(ctx context.Context, host, role string) CertHost {
 		out.CAA = caa
 	}
 
-	dialer := &net.Dialer{Timeout: probeTimeout}
+	dialer := probeDialer
 	conn, err := tls.DialWithDialer(dialer, "tcp", net.JoinHostPort(host, "443"), &tls.Config{
 		ServerName: host,
 		MinVersion: tls.VersionTLS12,

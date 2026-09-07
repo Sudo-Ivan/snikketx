@@ -78,6 +78,50 @@ func TestBuildLogEntries(t *testing.T) {
 	}
 }
 
+func BenchmarkParseComposeLogLine(b *testing.B) {
+	line := "snikket  | 2026-09-07T11:33:33.406097562Z Waiting for certificates to become available..."
+	b.ReportAllocs()
+	for b.Loop() {
+		_ = parseComposeLogLine(line)
+	}
+}
+
+func BenchmarkCompactLogTextHot(b *testing.B) {
+	line := "Waiting for certificates to become available..."
+	b.ReportAllocs()
+	for b.Loop() {
+		_ = compactLogText(line)
+	}
+}
+
+func TestImageRefBase(t *testing.T) {
+	cases := map[string]string{
+		"ghcr.io/sudo-ivan/snikketx/server:latest":          "ghcr.io/sudo-ivan/snikketx/server",
+		"ghcr.io/sudo-ivan/snikketx/server@sha256:abc":      "ghcr.io/sudo-ivan/snikketx/server",
+		"localhost:5000/snikketx/server:dev":                "localhost:5000/snikketx/server",
+		"alpine:3.24":                                       "alpine",
+	}
+	for in, want := range cases {
+		if got := imageRefBase(in); got != want {
+			t.Fatalf("%q: got %q want %q", in, got, want)
+		}
+	}
+}
+
+func BenchmarkSplitLogLines(b *testing.B) {
+	var raw strings.Builder
+	for i := 0; i < 200; i++ {
+		raw.WriteString("snikket  | 2026-09-07T11:33:33.406097562Z line ")
+		raw.WriteByte(byte('0' + i%10))
+		raw.WriteByte('\n')
+	}
+	s := raw.String()
+	b.ReportAllocs()
+	for b.Loop() {
+		_, _ = splitLogLines(s, 512<<10)
+	}
+}
+
 func stringsRepeat(s string, n int) string {
 	out := make([]byte, 0, len(s)*n)
 	for i := 0; i < n; i++ {

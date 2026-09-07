@@ -76,11 +76,15 @@ func (c *Client) restEndpoint() string {
 // adminEndpoint builds a mod_admin_api URL, percent encoding every path
 // segment so URL unsafe characters inside a segment cannot escape it.
 func (c *Client) adminEndpoint(segments ...string) string {
-	escaped := make([]string, len(segments))
-	for i, segment := range segments {
-		escaped[i] = url.PathEscape(segment)
+	var b strings.Builder
+	b.Grow(len(c.Endpoint) + 11 + len(segments)*12)
+	b.WriteString(c.Endpoint)
+	b.WriteString("/admin_api")
+	for _, segment := range segments {
+		b.WriteByte('/')
+		b.WriteString(url.PathEscape(segment))
 	}
-	return c.Endpoint + "/admin_api/" + strings.Join(escaped, "/")
+	return b.String()
 }
 
 func (c *Client) publicEndpoint(subpath string) string {

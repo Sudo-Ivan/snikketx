@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 func main() {
@@ -56,11 +57,24 @@ func main() {
 	mux.HandleFunc("POST /v1/restore/dry-run", s.auth(s.handleDryRun))
 	mux.HandleFunc("POST /v1/restic/check", s.auth(s.handleResticCheck))
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Header().Set("Content-Length", "2")
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("ok"))
+		_, _ = w.Write(okBody)
 	})
 
 	go s.loop()
+	srv := &http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      10 * time.Minute,
+		IdleTimeout:       90 * time.Second,
+		MaxHeaderBytes:    16 << 10,
+	}
 	log.Printf("snikket backup listening on %s archives=%s", addr, s.archiveDir)
-	log.Fatal(http.ListenAndServe(addr, mux))
+	log.Fatal(srv.ListenAndServe())
 }
+
+var okBody = []byte("ok")

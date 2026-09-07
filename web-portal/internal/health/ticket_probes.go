@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -17,6 +18,23 @@ const (
 	pushHostAndroid = "push.snikket.net"
 	pushHostIOS     = "push-ios.snikket.net"
 	stunMagicCookie = 0x2112A442
+)
+
+var (
+	xmlAttrEscaper = strings.NewReplacer(
+		`&`, "&amp;",
+		`'`, "&apos;",
+		`"`, "&quot;",
+		`<`, "&lt;",
+		`>`, "&gt;",
+	)
+	probeDialer = &net.Dialer{Timeout: probeTimeout}
+	stunBufPool = sync.Pool{
+		New: func() any {
+			b := make([]byte, 148)
+			return &b
+		},
+	}
 )
 
 // ProbeS2S dials TCP 5269 on the chat domain. Federation and mobile push both
@@ -321,8 +339,7 @@ func xmppStartTLSCert(ctx context.Context, dialHost, serverName string) (peerCer
 }
 
 func dialTCP(ctx context.Context, host, port string) error {
-	d := &net.Dialer{Timeout: probeTimeout}
-	conn, err := d.DialContext(ctx, "tcp", net.JoinHostPort(host, port))
+	conn, err := probeDialer.DialContext(ctx, "tcp", net.JoinHostPort(host, port))
 	if err != nil {
 		return err
 	}
@@ -331,38 +348,47 @@ func dialTCP(ctx context.Context, host, port string) error {
 }
 
 func stunBinding(ctx context.Context, host, port string) error {
-	var d net.Dialer
-	conn, err := d.DialContext(ctx, "udp", net.JoinHostPort(host, port))
+	conn, err := probeDialer.DialContext(ctx, "udp", net.JoinHostPort(host, port))
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
 
-	req := make([]byte, 20)
+	bufp := stunBufPool.Get().(*[]byte)
+	buf := *bufp
+	req := buf[:20]
+	clear(req)
 	req[0], req[1] = 0x00, 0x01
 	binary.BigEndian.PutUint32(req[4:8], stunMagicCookie)
 	if _, err := rand.Read(req[8:20]); err != nil {
+		stunBufPool.Put(bufp)
 		return err
 	}
 
 	_ = conn.SetDeadline(time.Now().Add(probeTimeout))
 	if _, err := conn.Write(req); err != nil {
+		stunBufPool.Put(bufp)
 		return err
 	}
-	resp := make([]byte, 128)
+	resp := buf[20:148]
 	n, err := conn.Read(resp)
 	if err != nil {
+		stunBufPool.Put(bufp)
 		return err
 	}
 	if n < 20 {
+		stunBufPool.Put(bufp)
 		return fmt.Errorf("short STUN response")
 	}
 	if resp[0] != 0x01 || resp[1] != 0x01 {
+		stunBufPool.Put(bufp)
 		return fmt.Errorf("unexpected STUN message type %02x%02x", resp[0], resp[1])
 	}
 	if binary.BigEndian.Uint32(resp[4:8]) != stunMagicCookie {
+		stunBufPool.Put(bufp)
 		return fmt.Errorf("bad STUN magic cookie")
 	}
+	stunBufPool.Put(bufp)
 	return nil
 }
 
@@ -379,14 +405,7 @@ func elapsed(start time.Time) string {
 }
 
 func xmlEscapeAttr(s string) string {
-	r := strings.NewReplacer(
-		`&`, "&amp;",
-		`'`, "&apos;",
-		`"`, "&quot;",
-		`<`, "&lt;",
-		`>`, "&gt;",
-	)
-	return r.Replace(s)
+	return xmlAttrEscaper.Replace(s)
 }
 
 // FormatComponentDetail joins Detail and Hint for display surfaces.

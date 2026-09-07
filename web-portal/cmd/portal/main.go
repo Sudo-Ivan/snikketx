@@ -163,8 +163,10 @@ func run() error {
 		Addr:              cfg.ListenAddr,
 		Handler:           app.Routes(),
 		ReadHeaderTimeout: readHeaderTimeout,
+		ReadTimeout:       60 * time.Second,
 		WriteTimeout:      writeTimeout,
 		IdleTimeout:       idleTimeout,
+		MaxHeaderBytes:    32 << 10,
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
