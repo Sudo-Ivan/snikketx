@@ -1,10 +1,12 @@
-FROM golang:1.24-alpine AS build
+# syntax=docker/dockerfile:1.27.0@sha256:bde3983e9c939224420ddaf6b784cc30e09b035a4dea01f581230c50809f372e
+
+FROM golang:1.27-alpine@sha256:cf6fca6641884b8433441b2b0652976f975e1d0fdd26d177eaaf8596087f3125 AS build
 WORKDIR /src
 COPY go.mod ./
 COPY cmd/updater ./cmd/updater
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/updater ./cmd/updater
 
-FROM alpine:3.21 AS cosign
+FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b AS cosign
 ARG TARGETARCH=amd64
 ARG COSIGN_VERSION=2.4.3
 RUN apk add --no-cache curl ca-certificates \
@@ -13,8 +15,10 @@ RUN apk add --no-cache curl ca-certificates \
 	&& curl -fsSL -o /cosign "https://github.com/sigstore/cosign/releases/download/v${COSIGN_VERSION}/cosign-linux-${arch}" \
 	&& chmod +x /cosign
 
-FROM docker:27-cli
-RUN apk add --no-cache ca-certificates
+FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
+RUN apk upgrade --no-cache \
+	&& apk add --no-cache ca-certificates docker-cli docker-cli-compose \
+	&& rm -rf /var/cache/apk/*
 COPY --from=cosign /cosign /usr/local/bin/cosign
 COPY --from=build /out/updater /usr/local/bin/snikket-updater
 USER root
