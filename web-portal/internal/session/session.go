@@ -24,8 +24,8 @@ const (
 	// #nosec G101 -- session map keys, not credential values
 	KeyToken = "prosody_access_token"
 	// #nosec G101 -- session map keys, not credential values
-	KeyScope = "prosody_scope_cache"
-	KeyJID   = "prosody_jid"
+	KeyScope  = "prosody_scope_cache"
+	KeyJID    = "prosody_jid"
 	KeyInvite = "invite-session-jid"
 	KeyFlashM = "_flash_m"
 	KeyFlashC = "_flash_c"

@@ -11,7 +11,8 @@ ARG PROSODY_MODULES_REV=7851ba324048
 
 ENV LANG=C.UTF-8
 
-RUN apk add --no-cache \
+RUN apk upgrade --no-cache \
+    && apk add --no-cache \
       ca-certificates curl wget tar gzip bash coreutils shadow \
       prosody coturn s6 msmtp idn2-utils libqrencode-tools \
       lua5.4 lua5.4-expat lua5.4-filesystem lua5.4-sec lua5.4-socket \

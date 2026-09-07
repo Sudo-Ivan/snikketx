@@ -5,7 +5,8 @@ FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec4
 
 ENV LANG=C.UTF-8
 
-RUN apk add --no-cache \
+RUN apk upgrade --no-cache \
+    && apk add --no-cache \
       certbot tini idn2-utils jq bash coreutils shadow python3 \
     && adduser -S -D -H -h /snikket/letsencrypt -s /sbin/nologin letsencrypt \
     && install -d -m 755 /etc/cron.daily \
