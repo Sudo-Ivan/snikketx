@@ -1,0 +1,9 @@
+.git
+.gitignore
+*.md
+docs
+.hg_archival.txt
+.hgignore
+mkdocs.yml
+po4a.conf
+NOTICE

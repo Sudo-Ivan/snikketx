@@ -1,1 +1,10 @@
-/.direnv
+.git
+.gitignore
+*.md
+docs
+.envrc
+.direnv
+__pycache__
+*.pyc
+.venv
+venv
