@@ -51,32 +51,33 @@ if test -f /snikket/prosody/turn-auth-secret; then
 	rm /snikket/prosody/turn-auth-secret;
 fi
 
-# Migrate between storage backends if needed
+# Migrate between storage backends if needed.
 # Note: this happens before we do any other operations that touch Prosody's
 # data store, to ensure consistency.
+# Alpine images may not ship prosody-migrator. Skip when unavailable.
 
-if test "${SNIKKET_TWEAK_STORAGE:-files}" = "sqlite" && ! test -f /snikket/prosody/prosody.sqlite; then
-	sed -i "s/SNIKKET_DOMAIN/$SNIKKET_DOMAIN/" /etc/prosody/migrator.cfg.lua
-	if prosody-migrator files sqlite; then
-		# Migration succeeded, delete leftovers
-		find /snikket/prosody -mindepth 2 -maxdepth 3 -type f \( -name \*.dat -o -name \*.list -o -name \*.lidx \) -delete
-		find /snikket/prosody -mindepth 1 -type d -empty -delete
-	else
-		# Migration failed, delete sqlite file and try again
-		rm -fv /snikket/prosody/prosody.sqlite
-		exit 1
+if command -v prosody-migrator >/dev/null 2>&1; then
+	if test "${SNIKKET_TWEAK_STORAGE:-files}" = "sqlite" && ! test -f /snikket/prosody/prosody.sqlite; then
+		sed -i "s/SNIKKET_DOMAIN/$SNIKKET_DOMAIN/" /etc/prosody/migrator.cfg.lua
+		if prosody-migrator files sqlite; then
+			find /snikket/prosody -mindepth 2 -maxdepth 3 -type f \( -name \*.dat -o -name \*.list -o -name \*.lidx \) -delete
+			find /snikket/prosody -mindepth 1 -type d -empty -delete
+		else
+			rm -fv /snikket/prosody/prosody.sqlite
+			exit 1
+		fi
+	elif test "${SNIKKET_TWEAK_STORAGE:-files}" = "files" && test -f /snikket/prosody/prosody.sqlite; then
+		sed -i "s/SNIKKET_DOMAIN/$SNIKKET_DOMAIN/" /etc/prosody/migrator.cfg.lua
+		if prosody-migrator sqlite files; then
+			rm -fv /snikket/prosody/prosody.sqlite
+		else
+			find /snikket/prosody -mindepth 2 -maxdepth 3 -type f \( -name \*.dat -o -name \*.list -o -name \*.lidx \) -delete
+			find /snikket/prosody -mindepth 1 -type d -empty -delete
+			exit 1
+		fi
 	fi
-elif test "${SNIKKET_TWEAK_STORAGE:-files}" = "files" && test -f /snikket/prosody/prosody.sqlite; then
-	sed -i "s/SNIKKET_DOMAIN/$SNIKKET_DOMAIN/" /etc/prosody/migrator.cfg.lua
-	if prosody-migrator sqlite files; then
-		# Migration succeeded, delete leftover database
-		rm -fv /snikket/prosody/prosody.sqlite
-	else
-		# Migration failed, delete files and try again
-		find /snikket/prosody -mindepth 2 -maxdepth 3 -type f \( -name \*.dat -o -name \*.list -o -name \*.lidx \) -delete
-		find /snikket/prosody -mindepth 1 -type d -empty -delete
-		exit 1
-	fi
+elif test "${SNIKKET_TWEAK_STORAGE:-files}" = "sqlite" || test -f /snikket/prosody/prosody.sqlite; then
+	echo "WW: prosody-migrator not installed. Storage migration skipped."
 fi
 
 if test -d /snikket/prosody/http_upload; then

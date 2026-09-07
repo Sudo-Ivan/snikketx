@@ -1,31 +1,29 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1.27.0@sha256:bde3983e9c939224420ddaf6b784cc30e09b035a4dea01f581230c50809f372e
 
 
-FROM debian:bookworm-slim@sha256:88200866dfff7ea7f5cbcb6ec7c8a701889efe6fe859fe64d6990e4b07ea4171 AS build
+FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b AS build
 
-ENV DEBIAN_FRONTEND=noninteractive \
-    LANG=C.UTF-8
+ENV LANG=C.UTF-8
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        certbot tini anacron idn2 jq \
-    && mv /etc/cron.daily/0anacron /tmp/0anacron \
-    && rm -f /etc/cron.daily/* /etc/cron.d/* \
-    && mv /tmp/0anacron /etc/cron.daily/0anacron \
-    && rm -rf /var/lib/apt/lists/* /var/cache/* /tmp/* \
-    && useradd --system --create-home --home-dir /snikket/letsencrypt letsencrypt
+RUN apk add --no-cache \
+      certbot tini idn2-utils jq bash coreutils shadow python3 \
+    && adduser -S -D -H -h /snikket/letsencrypt -s /sbin/nologin letsencrypt \
+    && install -d -m 755 /etc/cron.daily \
+    && rm -rf /var/cache/apk/*
 
 COPY entrypoint.sh /entrypoint.sh
 COPY certbot.cron /etc/cron.daily/certbot
-COPY sendmail /usr/sbin/sendmail
+COPY sendmail /usr/local/bin/snikket-sendmail
 COPY wait_for_http.py /usr/local/bin/wait_for_http.py
 COPY tools/report-error.sh /usr/local/bin/report-error.sh
 
-RUN chmod 0555 /entrypoint.sh /etc/cron.daily/certbot \
-        /usr/sbin/sendmail /usr/local/bin/wait_for_http.py \
+RUN rm -f /usr/sbin/sendmail \
+    && ln -s /usr/local/bin/snikket-sendmail /usr/sbin/sendmail \
+    && chmod 0555 /entrypoint.sh /etc/cron.daily/certbot \
+        /usr/local/bin/snikket-sendmail /usr/local/bin/wait_for_http.py \
         /usr/local/bin/report-error.sh
 
-FROM debian:bookworm-slim@sha256:88200866dfff7ea7f5cbcb6ec7c8a701889efe6fe859fe64d6990e4b07ea4171
+FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
 
 ARG BUILD_SERIES=dev
 ARG BUILD_ID=0
@@ -36,14 +34,13 @@ ENV LANG=C.UTF-8
 
 COPY --from=build / /
 
-# Entrypoint adjusts volume ownership then runs anacron. Certbot runs as letsencrypt.
 USER root
 
 VOLUME ["/snikket"]
 
 STOPSIGNAL SIGTERM
 
-ENTRYPOINT ["/usr/bin/tini", "--"]
+ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["/bin/bash", "/entrypoint.sh"]
 
 LABEL org.opencontainers.image.title="snikketx-cert-manager" \

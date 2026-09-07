@@ -1,49 +1,45 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1.27.0@sha256:bde3983e9c939224420ddaf6b784cc30e09b035a4dea01f581230c50809f372e
 
 
-FROM debian:bookworm-slim@sha256:88200866dfff7ea7f5cbcb6ec7c8a701889efe6fe859fe64d6990e4b07ea4171 AS build
+FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b AS build
 
 ARG BUILD_SERIES=dev
 ARG BUILD_ID=0
 ARG VCS_REF=unknown
 ARG BUILD_DATE=unknown
+ARG PROSODY_MODULES_REV=7851ba324048
 
-ENV LANG=C.UTF-8 \
-    DEBIAN_FRONTEND=noninteractive
+ENV LANG=C.UTF-8
 
-RUN install -d -m 755 /snikket
+RUN apk add --no-cache \
+      ca-certificates curl wget tar gzip bash coreutils shadow \
+      prosody coturn s6 msmtp idn2-utils libqrencode-tools \
+      lua5.4 lua5.4-expat lua5.4-filesystem lua5.4-sec lua5.4-socket \
+      lua5.4-unbound lua5.4-dbi-sqlite3 openssl
 
 COPY tools/smtp-url-to-msmtp.lua /usr/local/bin/smtp-url-to-msmtp
 COPY docker/entrypoint.sh /bin/entrypoint.sh
-RUN chmod 550 /usr/local/bin/smtp-url-to-msmtp \
-    && chmod 550 /bin/entrypoint.sh
-
-COPY ansible /opt/ansible
+COPY docker/install-alpine.sh /opt/snikket-build/install-alpine.sh
 COPY snikket-modules /usr/local/lib/snikket-modules
+COPY ansible/files/prosody.cfg.lua \
+     ansible/files/migrator.cfg.lua \
+     ansible/files/restricted_users.pfw \
+     ansible/files/turnserver.conf \
+     ansible/files/msmtp.conf \
+     ansible/files/snikket-logo.png \
+     ansible/files/refresh-certs.cron \
+     /opt/snikket-build/
+COPY ansible/files/bin /opt/snikket-build/bin
+COPY ansible/files/services /opt/snikket-build/services
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        software-properties-common ca-certificates \
-        gpg gpg-agent \
-        ansible python3-passlib \
-        build-essential \
-    && c_rehash \
-    && ansible-playbook -c local -i localhost, \
-        --extra-vars "ansible_python_interpreter=/usr/bin/python3" \
-        /opt/ansible/snikket.yml \
-    && apt-get remove --purge -y \
-         ansible \
-         software-properties-common \
-         gpg gpg-agent \
-         python3-passlib \
-         build-essential \
-    && apt-get autoremove -y \
-    && rm -rf /var/lib/apt/lists/* /var/cache/* /root/.cache /tmp/* \
-    && rm -rf /opt/ansible \
-    && echo "Snikket $BUILD_SERIES $BUILD_ID" > /usr/lib/prosody/snikket.version
+RUN chmod 550 /usr/local/bin/smtp-url-to-msmtp /bin/entrypoint.sh \
+      /opt/snikket-build/install-alpine.sh \
+    && BUILD_SERIES="$BUILD_SERIES" BUILD_ID="$BUILD_ID" \
+       PROSODY_MODULES_REV="$PROSODY_MODULES_REV" \
+       /opt/snikket-build/install-alpine.sh \
+    && rm -rf /opt/snikket-build /var/cache/apk/* /tmp/*
 
-# Runtime image: copy the built rootfs, keep a small attack surface.
-FROM debian:bookworm-slim@sha256:88200866dfff7ea7f5cbcb6ec7c8a701889efe6fe859fe64d6990e4b07ea4171
+FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
 
 ARG BUILD_SERIES=dev
 ARG BUILD_ID=0
@@ -54,7 +50,6 @@ ENV LANG=C.UTF-8
 
 COPY --from=build / /
 
-# Entrypoint needs root for volume ownership and s6. Child services drop via s6-setuidgid.
 USER root
 
 VOLUME ["/snikket"]

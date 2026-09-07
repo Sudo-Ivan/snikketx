@@ -28,10 +28,16 @@ if [ "${SNIKKET_CERTS_WAIT-0}" = "1" ]; then
 	/usr/local/bin/wait_for_http.py "http://${SNIKKET_DOMAIN_ASCII}";
 fi
 
-# Run once, now
-/usr/sbin/anacron -d -n;
+# Run once, now (Alpine has no anacron. Run daily scripts directly.)
+for f in /etc/cron.daily/*; do
+	[ -x "$f" ] || continue
+	"$f" || true
+done
 
 # Run every hour
 while sleep 3600; do
-	/usr/sbin/anacron -d -n;
+	for f in /etc/cron.daily/*; do
+		[ -x "$f" ] || continue
+		"$f" || true
+	done
 done

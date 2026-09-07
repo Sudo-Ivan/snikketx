@@ -30,7 +30,7 @@ services:
     profiles: ["prod-only"]
 
   bootstrap_certs:
-    image: docker.io/library/alpine:3.21@sha256:48b0309ca019d89d40f670aa1bc06e426dc0931948452e8491e3d65087abc07d
+    image: docker.io/library/alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
     container_name: snikketx-bootstrap-certs
     env_file: snikket.conf
     security_opt:
@@ -73,6 +73,8 @@ services:
         BUILD_SERIES: dev
         BUILD_ID: local
     user: "10001:10001"
+    environment:
+      SNIKKET_WEB_INSECURE_COOKIES: "true"
     volumes:
       - portal_data:/var/lib/snikket-web-portal
 

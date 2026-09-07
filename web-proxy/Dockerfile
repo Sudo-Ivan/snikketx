@@ -1,16 +1,14 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1.27.0@sha256:bde3983e9c939224420ddaf6b784cc30e09b035a4dea01f581230c50809f372e
 
 
-FROM debian:bookworm-slim@sha256:88200866dfff7ea7f5cbcb6ec7c8a701889efe6fe859fe64d6990e4b07ea4171 AS build
+FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b AS build
 
-ENV DEBIAN_FRONTEND=noninteractive \
-    LANG=C.UTF-8
+ENV LANG=C.UTF-8
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        tini nginx s6 gettext-base idn2 libjs-bootstrap4 libjs-jquery \
-    && rm -f /etc/nginx/sites-enabled/default \
-    && rm -rf /var/lib/apt/lists/* /var/cache/* /tmp/*
+RUN apk add --no-cache \
+      tini nginx s6 gettext idn2-utils \
+    && rm -f /etc/nginx/http.d/default.conf \
+    && rm -rf /var/cache/apk/* /tmp/*
 
 COPY entrypoint.sh /entrypoint.sh
 COPY render-template.sh /usr/local/bin/render-template.sh
@@ -25,10 +23,12 @@ COPY startup.html /var/www/html/index.html
 COPY error-pages /var/www/html/_errors
 
 RUN chmod 0555 /entrypoint.sh /usr/local/bin/render-template.sh \
-    && chown -R www-data:www-data /var/www/html /var/lib/nginx /var/log/nginx \
-    && install -d -o www-data -g www-data -m 0755 /run/nginx /etc/nginx/sites-enabled /etc/nginx/snippets
+    && addgroup -S -g 82 www-data 2>/dev/null || true \
+    && adduser -S -u 82 -G www-data -H -s /sbin/nologin www-data 2>/dev/null || true \
+    && chown -R www-data:www-data /var/www/html \
+    && install -d -o www-data -g www-data -m 0755 /run/nginx /etc/nginx/http.d /var/lib/nginx /var/log/nginx
 
-FROM debian:bookworm-slim@sha256:88200866dfff7ea7f5cbcb6ec7c8a701889efe6fe859fe64d6990e4b07ea4171
+FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
 
 ARG BUILD_SERIES=dev
 ARG BUILD_ID=0
@@ -39,14 +39,13 @@ ENV LANG=C.UTF-8
 
 COPY --from=build / /
 
-# Entrypoint renders configs then s6. nginx workers run as www-data.
 USER root
 
 VOLUME ["/snikket"]
 
 STOPSIGNAL SIGTERM
 
-ENTRYPOINT ["/usr/bin/tini", "--"]
+ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["/bin/sh", "/entrypoint.sh"]
 
 LABEL org.opencontainers.image.title="snikketx-web-proxy" \

@@ -36,5 +36,5 @@ exec docker run \
   --rm \
   --volumes-from=snikket \
   --mount type=bind,source="$1",destination=/backup.tar.gz \
-  debian:bookworm-slim \
+  alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b \
   bash -c "rm -rf /snikket/*; tar xvf /backup.tar.gz -C /"

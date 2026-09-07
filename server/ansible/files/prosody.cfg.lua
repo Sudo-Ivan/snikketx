@@ -148,7 +148,7 @@ modules_enabled = {
 		"measure_process";
 		"measure_active_users";
 		"measure_lua";
-		"measure_malloc";
+		-- measure_malloc needs LuaJIT meminfo. Disabled for Alpine/PUC-Rio Lua.
 }
 
 max_resources = Lua.tonumber(ENV_SNIKKET_MAX_USER_CLIENTS) or 10
