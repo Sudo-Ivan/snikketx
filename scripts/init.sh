@@ -43,7 +43,6 @@ if [ -f snikket.conf ]; then
 	case "$remove_existing_config" in
 	n|N) rm snikket.conf .env 2>/dev/null || true ;;
 	*)
-		./scripts/render-edge.sh prod
 		exit 0
 		;;
 	esac
@@ -101,6 +100,7 @@ RG_CHALLENGE_SECRET=$(head -c 32 /dev/urandom | base64 | tr -d '\n=/+' | head -c
 if [ "${#RG_CHALLENGE_SECRET}" -lt 16 ]; then
 	RG_CHALLENGE_SECRET="rg-replace-this-secret!!"
 fi
+RG_ADMIN_BOOTSTRAP_PASSWORD=$(head -c 24 /dev/urandom | base64 | tr -d '\n=/+' | head -c 24)
 
 echo ""
 sed \
@@ -113,9 +113,8 @@ cat > .env <<EOF
 SNIKKET_DOMAIN=${SNIKKET_DOMAIN}
 SNIKKET_ADMIN_EMAIL=${SNIKKET_ADMIN_EMAIL}
 RG_CHALLENGE_SECRET=${RG_CHALLENGE_SECRET}
+RG_ADMIN_BOOTSTRAP_PASSWORD=${RG_ADMIN_BOOTSTRAP_PASSWORD}
 EOF
-
-./scripts/render-edge.sh prod
 
 echo ""
 echo 'Success! Configuration saved to snikket.conf and .env.'

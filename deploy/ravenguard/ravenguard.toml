@@ -1,14 +1,26 @@
-# RavenGuard behind Traefik for snikketx.
-# Topology: Client -> Traefik -> RavenGuard -> web-portal
-# Prosody HTTP (BOSH, websocket, upload) is routed by Traefik directly.
-# Docs: https://ravenguard.quad4.io/docs/intro
-#       https://ravenguard.quad4.io/docs/configuration
+# RavenGuard as the HTTPS edge (no Traefik).
+# Topology: Client -> RavenGuard (:80/:443 ACME) -> portal | Prosody | ACME webroot
+# Docs: https://ravenguard.quad4.io/docs/deployment
+#
+# TLS-ALPN-01 issues RavenGuard HTTPS certs. HTTP-01 on :80 is left free so
+# snikket_certs (certbot) can publish XMPP certs via acme_webroot.
+# Challenge stays off: RavenGuard's PoW gate cannot run during XMPP WebSocket
+# upgrades, and Prosody paths share this edge.
 
 [listen]
-http = ":8080"
+http = ":80"
+https = ":443"
 
 [tls]
-mode = "off"
+mode = "acme"
+
+[tls.acme]
+# email / hosts / agree_tos come from RG_ACME_* env in compose
+staging = false
+storage_dir = "/data/certs"
+http01 = false
+tls_alpn01 = true
+redirect_http = true
 
 [upstream]
 url = "http://snikket_portal:5765"
@@ -24,11 +36,7 @@ interval = "10s"
 timeout = "3s"
 
 [trust]
-mode = "behind_proxy"
-trusted_proxies = ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "fc00::/7", "::1/128"]
-real_ip_header = "X-Real-IP"
-proto_header = "X-Forwarded-Proto"
-proxy_protocol = false
+mode = "edge"
 
 [blocklists]
 ip_files = ["/blocklists/ips.txt"]
@@ -45,7 +53,7 @@ requests = 120
 window = "1m"
 burst = 60
 per_path = false
-challenge_over = true
+challenge_over = false
 
 [protect]
 enabled = true
@@ -66,14 +74,13 @@ challenge_score = 40
 block_score = 90
 
 [challenge]
-enabled = true
+enabled = false
 mode = "detect"
 algorithm = "adaptive"
 difficulty = 16
 env_probe = "on"
 cookie_name = "rg_clear"
 cookie_ttl = "24h"
-# Overridden by RG_CHALLENGE_SECRET in compose
 secret = "rg-change-me-please!!"
 path_prefix = "/_rg"
 
@@ -102,5 +109,17 @@ stats_interval = "30s"
 [sandbox]
 mode = "best_effort"
 
+[sandbox.landlock]
+restrict_net = true
+restrict_scoped = true
+ignore_missing = true
+connect_tcp = [53, 80, 443, 5280, 5765, 8080]
+
 [admin]
-enabled = false
+enabled = true
+listen = "0.0.0.0:9090"
+base_path = "/"
+data_dir = "/data/admin"
+bootstrap_user = "admin"
+session_ttl = "12h"
+cookie_secure = "auto"

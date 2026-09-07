@@ -1,4 +1,7 @@
-# Dev RavenGuard: Traefik -> RavenGuard -> portal, no JS challenge friction.
+# RavenGuard as the HTTP edge (no Traefik).
+# Topology: Client -> RavenGuard -> portal | Prosody (admin routes)
+# Docs: https://ravenguard.quad4.io/docs/deployment
+# Challenge stays off so XMPP WebSocket upgrades are not blocked.
 
 [listen]
 http = ":8080"
@@ -20,11 +23,7 @@ interval = "10s"
 timeout = "3s"
 
 [trust]
-mode = "behind_proxy"
-trusted_proxies = ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "fc00::/7", "::1/128"]
-real_ip_header = "X-Real-IP"
-proto_header = "X-Forwarded-Proto"
-proxy_protocol = false
+mode = "edge"
 
 [blocklists]
 ip_files = ["/blocklists/ips.txt"]
@@ -90,5 +89,17 @@ stats_interval = "30s"
 [sandbox]
 mode = "best_effort"
 
+[sandbox.landlock]
+restrict_net = true
+restrict_scoped = true
+ignore_missing = true
+connect_tcp = [53, 80, 443, 5280, 5765, 8080]
+
 [admin]
-enabled = false
+enabled = true
+listen = "0.0.0.0:9090"
+base_path = "/"
+data_dir = "/data/admin"
+bootstrap_user = "admin"
+session_ttl = "12h"
+cookie_secure = "auto"

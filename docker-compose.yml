@@ -8,41 +8,10 @@ networks:
 volumes:
   snikket_data:
   acme_challenges:
-  traefik_acme:
+  ravenguard_data:
   portal_data:
 
 services:
-  traefik:
-    image: docker.io/library/traefik:v3.7.13@sha256:f86a2cab1b5c649070c49f883c743dd32d8485a56e3368c5f93b9e91f1e91259
-    container_name: snikketx-traefik
-    restart: unless-stopped
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    cap_add:
-      - NET_BIND_SERVICE
-    read_only: true
-    tmpfs:
-      - /tmp:size=32m,mode=1777
-    env_file:
-      - .env
-      - snikket.conf
-    environment:
-      TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_EMAIL: ${SNIKKET_ADMIN_EMAIL}
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./deploy/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
-      - ./deploy/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
-      - traefik_acme:/data
-    networks:
-      - snikketx
-    depends_on:
-      - ravenguard
-      - acme_webroot
-
   ravenguard:
     image: ghcr.io/quad4-software/ravenguard:edge@sha256:36e9df0c1812cb015443d6e5690e6e487b73ee02e281e83b6036d5475ecf0365
     container_name: snikketx-ravenguard
@@ -52,28 +21,62 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    cap_add:
+      - NET_BIND_SERVICE
     read_only: true
     tmpfs:
       - /tmp:size=64m,mode=1777
-      - /data:size=32m,mode=1777
     env_file:
       - .env
       - snikket.conf
     environment:
       RG_CHALLENGE_SECRET: ${RG_CHALLENGE_SECRET}
-      RG_TLS_MODE: "off"
+      RG_TLS_MODE: acme
+      RG_ACME_EMAIL: ${SNIKKET_ADMIN_EMAIL}
+      RG_ACME_AGREE_TOS: "true"
+      RG_ACME_HOSTS: ${SNIKKET_DOMAIN},share.${SNIKKET_DOMAIN},groups.${SNIKKET_DOMAIN}
+      RG_ACME_STORAGE_DIR: /data/certs
+      RG_TRUST_MODE: edge
       RG_SANDBOX_MODE: best_effort
-      RG_TRUST_MODE: behind_proxy
-      RG_TRUSTED_PROXIES: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8,fc00::/7,::1/128"
       RG_UPSTREAM_URL: http://snikket_portal:5765
+      RG_ADMIN_ENABLED: "true"
+      RG_ADMIN_LISTEN: 0.0.0.0:9090
+      RG_ADMIN_DATA_DIR: /data/admin
+      RG_ADMIN_BOOTSTRAP_USER: admin
+      RG_ADMIN_BOOTSTRAP_PASSWORD: ${RG_ADMIN_BOOTSTRAP_PASSWORD}
+    ports:
+      - "80:80"
+      - "443:443"
     volumes:
       - ./deploy/ravenguard/ravenguard.toml:/config/ravenguard.toml:ro
       - ./deploy/ravenguard/blocklists:/blocklists:ro
+      - ravenguard_data:/data
     command: ["-config", "/config/ravenguard.toml"]
     networks:
       - snikketx
     depends_on:
-      - snikket_portal
+      bootstrap_ravenguard:
+        condition: service_completed_successfully
+      snikket_portal:
+        condition: service_started
+
+  bootstrap_ravenguard:
+    image: docker.io/library/alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
+    container_name: snikketx-bootstrap-ravenguard
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ravenguard_data:/data
+    networks:
+      - snikketx
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        mkdir -p /data/admin /data/certs
+        chown -R 65532:65532 /data
+        echo "ravenguard data owned by 65532"
 
   acme_webroot:
     image: docker.io/library/busybox:1.38.0@sha256:dc2d74b28e4cf8984fa52af1f39bc7c3d9c73760b41a74d629f5d11b1ab28616
