@@ -11,7 +11,7 @@ import (
 
 // oauthCredentialsFile is the on-disk OAuth client registration used across
 // portal restarts so existing browser sessions keep working.
-const oauthCredentialsFile = "oauth_client.json"
+const oauthCredentialsFile = "oauth_client.json" // #nosec G101 -- state filename, not a credential value
 
 type storedOAuthClient struct {
 	ClientID     string `json:"client_id"`
@@ -70,7 +70,7 @@ func (c *Client) saveStoredCredentials(clientID, clientSecret string) error {
 		return nil
 	}
 
-	payload, err := json.Marshal(storedOAuthClient{
+	payload, err := json.Marshal(storedOAuthClient{ // #nosec G117 -- writing the Prosody client secret to the private state file
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
 	})

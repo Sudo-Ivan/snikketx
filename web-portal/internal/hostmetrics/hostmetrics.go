@@ -171,7 +171,7 @@ func readDisk(path string) (total, used, avail int64, ok bool) {
 	}
 	total = int64(st.Blocks) * bs // #nosec G115 -- block counts fit int64 for host disks
 	avail = int64(st.Bavail) * bs // #nosec G115 -- free blocks for unprivileged callers
-	used = total - int64(st.Bfree)*bs
+	used = total - int64(st.Bfree)*bs // #nosec G115 -- free block counts fit int64 for host disks
 	if used < 0 {
 		used = 0
 	}
@@ -179,7 +179,12 @@ func readDisk(path string) (total, used, avail int64, ok bool) {
 }
 
 func readPressureAvg10(kind string) (float64, bool) {
-	data, err := os.ReadFile("/proc/pressure/" + kind)
+	switch kind {
+	case "cpu", "memory", "io":
+	default:
+		return 0, false
+	}
+	data, err := os.ReadFile("/proc/pressure/" + kind) // #nosec G304 -- kind is allowlisted above
 	if err != nil {
 		return 0, false
 	}

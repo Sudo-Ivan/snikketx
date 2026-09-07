@@ -43,7 +43,7 @@ jobs:
       - name: Race
         run: go test -race ./...
       - name: Install gosec
-        run: go install github.com/securego/gosec/v2/cmd/gosec@v2.22.10
+        run: go install github.com/securego/gosec/v2/cmd/gosec@v2.29.0
       - name: Gosec
         run: |
           set -euo pipefail

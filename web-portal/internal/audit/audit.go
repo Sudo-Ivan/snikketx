@@ -134,7 +134,7 @@ func truncate(value string, limit int) string {
 }
 
 func (s *Store) appendLocked(e Event) error {
-	f, err := os.OpenFile(s.path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o640) // #nosec G304 -- path is under the portal state directory
+	f, err := os.OpenFile(s.path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600) // #nosec G304 -- path is under the portal state directory
 	if err != nil {
 		return err
 	}

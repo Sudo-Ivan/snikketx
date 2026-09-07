@@ -193,16 +193,23 @@ type updatesPage struct {
 }
 
 type updaterView struct {
-	Configured    bool
-	Status        string
-	Available     bool
-	LastCheck     string
-	IntervalHours int
-	AutoUpdate    bool
-	Services      []updater.Service
-	Detail        string
-	ImagePrefix   string
-	VerifyEnabled bool
+	Configured     bool
+	Status         string
+	Phase          string
+	Busy           bool
+	StatusLabel    string
+	StatusTone     string
+	Available      bool
+	LastCheck      string
+	LastCheckAgo   string
+	LastApply      string
+	LastApplyAgo   string
+	IntervalHours  int
+	AutoUpdate     bool
+	Services       []updater.Service
+	Detail         string
+	ImagePrefix    string
+	VerifyEnabled  bool
 }
 
 func (a *App) handleUpdates(w http.ResponseWriter, r *http.Request) {
@@ -269,7 +276,7 @@ func (a *App) handleUpdatesSubmit(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) loadUpdaterView(ctx context.Context) updaterView {
-	view := updaterView{IntervalHours: 24}
+	view := updaterView{IntervalHours: 24, StatusLabel: "Not configured", StatusTone: "muted"}
 	if a.Updater == nil || !a.Updater.Enabled() {
 		return view
 	}
@@ -277,21 +284,54 @@ func (a *App) loadUpdaterView(ctx context.Context) updaterView {
 	if err != nil {
 		view.Configured = true
 		view.Status = "error"
+		view.Phase = "error"
+		view.StatusLabel = "Updater error"
+		view.StatusTone = "warn"
 		view.Detail = err.Error()
 		view.IntervalHours = 24
 		return view
 	}
+	phase := strings.TrimSpace(status.Phase)
+	if phase == "" {
+		phase = status.Status
+	}
+	busy := status.Status == "busy" || phase == "checking" || phase == "applying"
+	label, tone := updaterStatusCopy(busy, phase, status.Available, status.LastApply)
 	return updaterView{
 		Configured:    true,
 		Status:        status.Status,
+		Phase:         phase,
+		Busy:          busy,
+		StatusLabel:   label,
+		StatusTone:    tone,
 		Available:     status.Available,
 		LastCheck:     status.LastCheck,
+		LastCheckAgo:  webui.FormatRFC3339Ago(status.LastCheck),
+		LastApply:     status.LastApply,
+		LastApplyAgo:  webui.FormatRFC3339Ago(status.LastApply),
 		IntervalHours: status.IntervalHours,
 		AutoUpdate:    status.AutoUpdate,
 		Services:      status.Services,
 		Detail:        status.Detail,
 		ImagePrefix:   status.ImagePrefix,
 		VerifyEnabled: status.VerifyEnabled,
+	}
+}
+
+func updaterStatusCopy(busy bool, phase string, available bool, lastApply string) (string, string) {
+	switch {
+	case busy && phase == "applying":
+		return "Updating containers", "busy"
+	case busy && phase == "checking":
+		return "Checking for updates", "busy"
+	case busy:
+		return "Working", "busy"
+	case available:
+		return "Updates available", "warn"
+	case strings.TrimSpace(lastApply) != "":
+		return "Up to date", "ok"
+	default:
+		return "Idle", "muted"
 	}
 }
 
@@ -438,7 +478,7 @@ func (a *App) handleBackupExport(w http.ResponseWriter, r *http.Request) {
 	a.recordAudit(r, sess, "backup.export", localpart, "")
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s-account.json"`, localpart))
-	_, _ = w.Write(data)
+	_, _ = w.Write(data) // #nosec G705 -- account package JSON from Prosody for an admin-selected localpart
 }
 
 func (a *App) handleBackupSubmit(w http.ResponseWriter, r *http.Request) {
