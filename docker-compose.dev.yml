@@ -1,28 +1,90 @@
-# Local builds from this monorepo. Use with:
-#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+# Local development stack.
+# Builds portal + server from this tree. Does not pull snikketx GHCR images.
+#
+#   ./scripts/start.sh --dev
 
 services:
-  snikket_proxy:
-    image: ghcr.io/sudo-ivan/snikketx/web-proxy:dev
-    build:
-      context: ./web-proxy
-      args:
-        BUILD_SERIES: dev
+  traefik:
+    ports: !override
+      - "8080:8080"
+    volumes: !override
+      - ./deploy/traefik/traefik.dev.yml:/etc/traefik/traefik.yml:ro
+      - ./deploy/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+    environment: !override {}
+    depends_on: !override
+      - ravenguard
+    cap_add: !override []
+
+  ravenguard:
+    volumes: !override
+      - ./deploy/ravenguard/ravenguard.dev.toml:/config/ravenguard.toml:ro
+      - ./deploy/ravenguard/blocklists:/blocklists:ro
+    environment:
+      RG_CHALLENGE_SECRET: rg-dev-local-secret!!
+      RG_CHALLENGE_ENABLED: "false"
+
+  acme_webroot:
+    profiles: ["prod-only"]
+
   snikket_certs:
-    image: ghcr.io/sudo-ivan/snikketx/cert-manager:dev
-    build:
-      context: ./cert-manager
-      args:
-        BUILD_SERIES: dev
+    profiles: ["prod-only"]
+
+  bootstrap_certs:
+    image: docker.io/library/alpine:3.21@sha256:48b0309ca019d89d40f670aa1bc06e426dc0931948452e8491e3d65087abc07d
+    container_name: snikketx-bootstrap-certs
+    env_file: snikket.conf
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    volumes:
+      - snikket_data:/snikket
+    networks:
+      - snikketx
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        apk add --no-cache openssl >/dev/null
+        d="$${SNIKKET_DOMAIN:?SNIKKET_DOMAIN required}"
+        live="/snikket/letsencrypt/live/$${d}"
+        if [ -f "$${live}/fullchain.pem" ] && [ -f "$${live}/privkey.pem" ]; then
+          echo "dev certs already present for $${d}"
+          exit 0
+        fi
+        mkdir -p "$${live}"
+        openssl req -x509 -newkey rsa:2048 -nodes \
+          -keyout "$${live}/privkey.pem" \
+          -out "$${live}/fullchain.pem" \
+          -days 365 \
+          -subj "/CN=$${d}"
+        cp "$${live}/fullchain.pem" "$${live}/cert.pem"
+        cp "$${live}/fullchain.pem" "$${live}/chain.pem"
+        echo "wrote self-signed certs under $${live}"
+
   snikket_portal:
-    image: ghcr.io/sudo-ivan/snikketx/web-portal:dev
+    image: snikketx/web-portal:dev
+    pull_policy: build
     build:
       context: ./web-portal
+      dockerfile: Dockerfile
       args:
         BUILD_SERIES: dev
+        BUILD_ID: local
+    user: "10001:10001"
+    volumes:
+      - portal_data:/var/lib/snikket-web-portal
+
   snikket_server:
-    image: ghcr.io/sudo-ivan/snikketx/server:dev
+    image: snikketx/server:dev
+    pull_policy: build
     build:
       context: ./server
+      dockerfile: Dockerfile
       args:
         BUILD_SERIES: dev
+        BUILD_ID: local
+    depends_on:
+      bootstrap_certs:
+        condition: service_completed_successfully

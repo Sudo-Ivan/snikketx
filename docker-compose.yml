@@ -1,40 +1,179 @@
-version: "3.3"
+name: snikketx
+
+networks:
+  snikketx:
+    name: snikketx
+    driver: bridge
+
+volumes:
+  snikket_data:
+  acme_challenges:
+  traefik_acme:
+  portal_data:
 
 services:
-  snikket_proxy:
-    container_name: snikket-proxy
-    image: ghcr.io/sudo-ivan/snikketx/web-proxy:latest
-    env_file: snikket.conf
-    network_mode: host
+  traefik:
+    image: docker.io/library/traefik:v3.3.5@sha256:104204dadedf5d1284f8ef8f97f705649ac81aa6f7a6c9abf13e2c59245b8abc
+    container_name: snikketx-traefik
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    env_file:
+      - .env
+      - snikket.conf
+    environment:
+      TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_EMAIL: ${SNIKKET_ADMIN_EMAIL}
+    ports:
+      - "80:80"
+      - "443:443"
     volumes:
-      - snikket_data:/snikket
-      - acme_challenges:/var/www/html/.well-known/acme-challenge
-    restart: "unless-stopped"
+      - ./deploy/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./deploy/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+      - traefik_acme:/data
+    networks:
+      - snikketx
+    depends_on:
+      - ravenguard
+      - acme_webroot
+
+  ravenguard:
+    image: ghcr.io/quad4-software/ravenguard:edge@sha256:36e9df0c1812cb015443d6e5690e6e487b73ee02e281e83b6036d5475ecf0365
+    container_name: snikketx-ravenguard
+    restart: unless-stopped
+    user: "65532:65532"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+      - /data:size=32m,mode=1777
+    env_file:
+      - .env
+      - snikket.conf
+    environment:
+      RG_CHALLENGE_SECRET: ${RG_CHALLENGE_SECRET}
+      RG_TLS_MODE: "off"
+      RG_SANDBOX_MODE: best_effort
+      RG_TRUST_MODE: behind_proxy
+      RG_TRUSTED_PROXIES: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8,fc00::/7,::1/128"
+      RG_UPSTREAM_URL: http://snikket_portal:5765
+    volumes:
+      - ./deploy/ravenguard/ravenguard.toml:/config/ravenguard.toml:ro
+      - ./deploy/ravenguard/blocklists:/blocklists:ro
+    command: ["-config", "/config/ravenguard.toml"]
+    networks:
+      - snikketx
+    depends_on:
+      - snikket_portal
+
+  acme_webroot:
+    image: docker.io/library/busybox:1.36@sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662
+    container_name: snikketx-acme-webroot
+    restart: unless-stopped
+    user: "65534:65534"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:size=8m,mode=1777
+    command: ["httpd", "-f", "-v", "-p", "8080", "-h", "/www"]
+    volumes:
+      - acme_challenges:/www/.well-known/acme-challenge:ro
+    networks:
+      - snikketx
+
   snikket_certs:
-    container_name: snikket-certs
     image: ghcr.io/sudo-ivan/snikketx/cert-manager:latest
+    container_name: snikket-certs
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+      - FOWNER
+      - DAC_OVERRIDE
     env_file: snikket.conf
-    network_mode: host
     volumes:
       - snikket_data:/snikket
       - acme_challenges:/var/www/.well-known/acme-challenge
-    restart: "unless-stopped"
+    networks:
+      - snikketx
+
   snikket_portal:
-    container_name: snikket-portal
     image: ghcr.io/sudo-ivan/snikketx/web-portal:latest
-    network_mode: host
+    container_name: snikket-portal
+    restart: unless-stopped
+    user: "10001:10001"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
     env_file: snikket.conf
-    restart: "unless-stopped"
+    environment:
+      SNIKKET_TWEAK_PORTAL_INTERNAL_HTTP_INTERFACE: "0.0.0.0"
+      SNIKKET_TWEAK_PORTAL_INTERNAL_HTTP_PORT: "5765"
+      SNIKKET_WEB_PROSODY_ENDPOINT: http://snikket_server:5280/
+    volumes:
+      - portal_data:/var/lib/snikket-web-portal
+    networks:
+      - snikketx
+    depends_on:
+      - snikket_server
+    expose:
+      - "5765"
 
   snikket_server:
-    container_name: snikket
     image: ghcr.io/sudo-ivan/snikketx/server:latest
-    network_mode: host
+    container_name: snikket
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+      - FOWNER
+      - DAC_OVERRIDE
+      - NET_BIND_SERVICE
+    env_file: snikket.conf
+    environment:
+      SNIKKET_TWEAK_INTERNAL_HTTP_INTERFACE: "0.0.0.0"
+      SNIKKET_TWEAK_INTERNAL_HTTP_PORT: "5280"
     volumes:
       - snikket_data:/snikket
-    env_file: snikket.conf
-    restart: "unless-stopped"
-
-volumes:
-  acme_challenges:
-  snikket_data:
+    ports:
+      - "5222:5222"
+      - "5269:5269"
+      - "5000:5000"
+      - "3478:3478"
+      - "3478:3478/udp"
+      - "3479:3479"
+      - "3479:3479/udp"
+      - "5349:5349"
+      - "5349:5349/udp"
+      - "5350:5350"
+      - "5350:5350/udp"
+    networks:
+      - snikketx
+    expose:
+      - "5280"

@@ -1,0 +1,19 @@
+# Dev Traefik: plain HTTP on :8080, no ACME.
+
+api:
+  dashboard: false
+
+ping:
+  entryPoint: web
+
+providers:
+  file:
+    filename: /etc/traefik/dynamic.yml
+    watch: true
+
+entryPoints:
+  web:
+    address: ":8080"
+
+log:
+  level: INFO

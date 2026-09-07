@@ -41,8 +41,11 @@ if [ -f snikket.conf ]; then
 	echo -n "Would you like to keep the existing file? [Y/n] "
 	read -r -n1 -p "" remove_existing_config
 	case "$remove_existing_config" in
-	n|N) rm snikket.conf ;;
-	*) exit 0 ;;
+	n|N) rm snikket.conf .env 2>/dev/null || true ;;
+	*)
+		./scripts/render-edge.sh prod
+		exit 0
+		;;
 	esac
 	echo ""
 	echo ""
@@ -94,6 +97,11 @@ Y|y) ;;
 ;;
 esac
 
+RG_CHALLENGE_SECRET=$(head -c 32 /dev/urandom | base64 | tr -d '\n=/+' | head -c 32)
+if [ "${#RG_CHALLENGE_SECRET}" -lt 16 ]; then
+	RG_CHALLENGE_SECRET="rg-replace-this-secret!!"
+fi
+
 echo ""
 sed \
   -e 's/^\(SNIKKET_DOMAIN\)=.*$/\1='"$SNIKKET_DOMAIN"'/;' \
@@ -101,7 +109,17 @@ sed \
   -e 's/^\(SNIKKET_LETSENCRYPT_TOS_AGREE\)=.*$/\1='"$SNIKKET_LETSENCRYPT_TOS_AGREE"'/;' \
   snikket.conf.example > snikket.conf
 
+cat > .env <<EOF
+SNIKKET_DOMAIN=${SNIKKET_DOMAIN}
+SNIKKET_ADMIN_EMAIL=${SNIKKET_ADMIN_EMAIL}
+RG_CHALLENGE_SECRET=${RG_CHALLENGE_SECRET}
+EOF
+
+./scripts/render-edge.sh prod
+
 echo ""
-echo 'Success! Your configuration has been saved. You may now run ./scripts/start.sh'
+echo 'Success! Configuration saved to snikket.conf and .env.'
+echo 'Start with ./scripts/start.sh'
+echo 'For local builds: ./scripts/start.sh --dev'
 
 exit 0;

@@ -1,0 +1,94 @@
+# Dev RavenGuard: Traefik -> RavenGuard -> portal, no JS challenge friction.
+
+[listen]
+http = ":8080"
+
+[tls]
+mode = "off"
+
+[upstream]
+url = "http://snikket_portal:5765"
+connect_timeout = "5s"
+response_header_timeout = "60s"
+idle_conn_timeout = "90s"
+max_idle_conns = 256
+
+[upstream.health]
+enabled = true
+path = "/_health"
+interval = "10s"
+timeout = "3s"
+
+[trust]
+mode = "behind_proxy"
+trusted_proxies = ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "fc00::/7", "::1/128"]
+real_ip_header = "X-Real-IP"
+proto_header = "X-Forwarded-Proto"
+proxy_protocol = false
+
+[blocklists]
+ip_files = ["/blocklists/ips.txt"]
+dns_files = ["/blocklists/domains.txt"]
+ua_files = ["/blocklists/ua.txt"]
+reload_interval = "60s"
+
+[allowlists]
+reload_interval = "60s"
+
+[ratelimit]
+enabled = false
+
+[protect]
+enabled = true
+max_body_bytes = 10485760
+max_header_bytes = 16384
+max_url_bytes = 8192
+max_concurrent_global = 2048
+max_concurrent_per_client = 32
+ban_after_strikes = 20
+ban_ttl = "1m"
+attack_block = true
+attack_score = 90
+write_method_cost = 1
+
+[detect]
+enabled = false
+
+[challenge]
+enabled = false
+mode = "detect"
+algorithm = "adaptive"
+difficulty = 8
+env_probe = "off"
+cookie_name = "rg_clear"
+cookie_ttl = "24h"
+secret = "rg-dev-local-secret!!"
+path_prefix = "/_rg"
+
+[ui]
+brand = "Snikket Dev"
+status_text = "Local snikketx edge"
+test_mode = true
+
+[site]
+description = "snikketx local"
+theme_color = "#050505"
+robots = "noindex, nofollow"
+lang = "en"
+
+[privacy]
+hash_client_ip = true
+log_ip = "hash"
+retention = "30m"
+
+[logging]
+level = "debug"
+format = "text"
+stats = true
+stats_interval = "30s"
+
+[sandbox]
+mode = "best_effort"
+
+[admin]
+enabled = false
