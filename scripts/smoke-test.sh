@@ -24,17 +24,27 @@ web-portal)
 	name="smoke-portal-$$"
 	cleanup() { docker rm -f "$name" >/dev/null 2>&1 || true; }
 	trap cleanup EXIT
-	docker run -d --name "$name" \
+	docker run -d --name "$name" -p 127.0.0.1::5765 \
 		-e SNIKKET_DOMAIN=ci.example \
+		-e SNIKKET_WEB_DOMAIN=ci.example \
+		-e SNIKKET_WEB_SECRET_KEY=0123456789abcdef0123456789abcdef \
+		-e SNIKKET_WEB_INSECURE_COOKIES=true \
 		-e SNIKKET_TWEAK_PORTAL_INTERNAL_HTTP_INTERFACE=0.0.0.0 \
 		-e SNIKKET_TWEAK_PORTAL_INTERNAL_HTTP_PORT=5765 \
 		-e SNIKKET_WEB_PROSODY_ENDPOINT=http://127.0.0.1:5280/ \
 		"$IMAGE" >/dev/null
+	port="$(docker port "$name" 5765/tcp | head -1 | awk -F: '{print $NF}')"
 	ok=0
 	for _ in $(seq 1 30); do
-		if docker exec "$name" python3 -c 'import urllib.request; urllib.request.urlopen("http://127.0.0.1:5765/_health", timeout=2).read()' 2>/dev/null; then
+		if wget -q -O- --timeout=2 "http://127.0.0.1:${port}/_health" 2>/dev/null | grep -q 'STATUS OK'; then
 			ok=1
 			break
+		fi
+		if command -v curl >/dev/null 2>&1; then
+			if curl -fsS --max-time 2 "http://127.0.0.1:${port}/_health" | grep -q 'STATUS OK'; then
+				ok=1
+				break
+			fi
 		fi
 		sleep 1
 	done

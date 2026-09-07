@@ -13,9 +13,9 @@ permissions:
   actions: read
 
 jobs:
-  portal-mypy:
+  portal-go:
     runs-on: ubuntu-latest
-    name: "portal: mypy"
+    name: "portal: go"
     defaults:
       run:
         working-directory: web-portal
@@ -25,71 +25,26 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+      - uses: actions/setup-go@f111f3307d8850f501ac008e556dcbcd4dcf7d21 # v5.3.0
         with:
-          python-version: "3.11"
-      - name: Install
+          go-version: "1.27.x"
+      - name: Fmt
+        run: test -z "$$(gofmt -l .)"
+      - name: Vet
+        run: go vet ./...
+      - name: Test
+        run: go test ./...
+      - name: Race
+        run: go test -race ./...
+      - name: Install gosec
+        run: go install github.com/securego/gosec/v2/cmd/gosec@v2.22.10
+      - name: Gosec
         run: |
           set -euo pipefail
-          pip install mypy
-          pip install -r requirements.txt
-          pip install -r build-requirements.txt
-      - name: Typecheck
-        run: python -m mypy --config mypy.ini -p snikket_web
-
-  portal-lint:
-    runs-on: ubuntu-latest
-    name: "portal: flake8"
-    defaults:
-      run:
-        working-directory: web-portal
-    steps:
-      - name: Harden runner
-        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
-        with:
-          egress-policy: audit
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
-        with:
-          python-version: "3.11"
-      - name: Install
-        run: |
-          set -euo pipefail
-          pip install flake8 flake8-print
-      - name: Lint
-        run: make flake8
-
-  portal-i18n:
-    runs-on: ubuntu-latest
-    name: "portal: i18n"
-    defaults:
-      run:
-        working-directory: web-portal
-    steps:
-      - name: Harden runner
-        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
-        with:
-          egress-policy: audit
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
-        with:
-          python-version: "3.11"
-      - name: Install
-        run: |
-          set -euo pipefail
-          pip install flask-babel
-      - name: Check translations
-        run: |
-          strip_volatile() {
-            sed -ri \
-              '/^"POT-Creation-Date: /d;/^"Generated-By: /d;/^# Copyright (C) /d;/^# FIRST AUTHOR /d' \
-              snikket_web/translations/messages.pot
-          }
-          strip_volatile
-          git add snikket_web/translations/messages.pot
-          make extract_translations
-          strip_volatile
-          git diff --exit-code --color -- snikket_web/translations/messages.pot
+          export PATH="$(go env GOPATH)/bin:$PATH"
+          gosec -fmt=text ./...
+      - name: Build
+        run: make build-offline
 
   container:
     runs-on: ubuntu-latest
@@ -101,22 +56,22 @@ jobs:
           - component: server
             context: ./server
             title: snikketx-server
-            description: Snikket Prosody server image
+            description: SnikketX Prosody server image
             licenses: Apache-2.0
           - component: web-portal
             context: ./web-portal
             title: snikketx-web-portal
-            description: Snikket web portal
+            description: SnikketX web portal
             licenses: AGPL-3.0-or-later
           - component: web-proxy
             context: ./web-proxy
             title: snikketx-web-proxy
-            description: Legacy Snikket nginx proxy
+            description: Legacy SnikketX nginx proxy
             licenses: Apache-2.0
           - component: cert-manager
             context: ./cert-manager
             title: snikketx-cert-manager
-            description: Snikket Let's Encrypt helper
+            description: SnikketX Let's Encrypt helper
             licenses: Apache-2.0
     steps:
       - name: Harden runner
