@@ -16,9 +16,6 @@ import (
 // so the app can pick the invitation up after installation.
 const playStoreCampaign = "pcampaignidMKT-Other-global-all-co-prtnr-py-PartBadge-Mar2515-1"
 
-// fDroidURL opens the app listing in the F-Droid client.
-const fDroidURL = "market://details?id=org.snikket.android"
-
 // importTypes are the content types accepted for an account data import.
 var importTypes = []string{"application/xml", "text/xml"}
 
@@ -78,7 +75,7 @@ func (a *App) handleInviteView(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query := url.Values{}
-	query.Set("id", "org.snikket.android")
+	query.Set("id", a.androidPackageID())
 	query.Set("referrer", invite.XMPPURI)
 	query.Set("pcampaignid", playStoreCampaign)
 
@@ -89,7 +86,7 @@ func (a *App) handleInviteView(w http.ResponseWriter, r *http.Request) {
 		Inviter:       invite.Inviter,
 		XMPPURI:       invite.XMPPURI,
 		PlayStoreURL:  "https://play.google.com/store/apps/details?" + query.Encode(),
-		FDroidURL:     fDroidURL,
+		FDroidURL:     a.androidFDroidMarketURL(),
 		PlayBadge:     "/static/img/google/en_badge_web_generic.png",
 		AppleBadge:    "/static/img/apple/en.svg",
 		InvitePageURL: "https://" + a.Cfg.Domain + "/invite/" + url.PathEscape(id) + "/",
@@ -363,7 +360,7 @@ func (a *App) renderInviteSuccess(w http.ResponseWriter, r *http.Request, sess s
 		CanImport:     !migrated,
 		PlayBadge:     "/static/img/google/en_badge_web_generic.png",
 		AppleBadge:    "/static/img/apple/en.svg",
-		FDroidURL:     fDroidURL,
+		FDroidURL:     a.androidFDroidMarketURL(),
 	})
 }
 
@@ -378,7 +375,7 @@ func (a *App) handleResetSuccess(w http.ResponseWriter, r *http.Request) {
 		JID:        jid,
 		PlayBadge:  "/static/img/google/en_badge_web_generic.png",
 		AppleBadge: "/static/img/apple/en.svg",
-		FDroidURL:  fDroidURL,
+		FDroidURL:  a.androidFDroidMarketURL(),
 	})
 }
 

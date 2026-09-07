@@ -39,6 +39,8 @@ func (a *App) mountMain(mux *http.ServeMux) {
 	mux.HandleFunc("HEAD /avatar/{from}/{code}", a.handleAvatar)
 	mux.HandleFunc("GET /_health", a.handleHealth)
 	mux.HandleFunc("GET /_health/ready", a.handleReady)
+	mux.HandleFunc("GET /download/android.apk", a.handleAndroidAPK)
+	mux.HandleFunc("HEAD /download/android.apk", a.handleAndroidAPK)
 }
 
 // handleIndex sends the caller to their home page or to the login page.

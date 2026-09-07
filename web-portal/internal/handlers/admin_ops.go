@@ -42,6 +42,9 @@ func (a *App) mountAdminOps(mux *http.ServeMux) {
 	mux.HandleFunc("GET /admin/backup/config.json", a.handleBackupConfig)
 	mux.HandleFunc("GET /admin/backup/export/{localpart}", a.handleBackupExport)
 
+	mux.HandleFunc("GET /admin/apps", a.handleApps)
+	mux.HandleFunc("POST /admin/apps", a.handleAppsSubmit)
+
 	mux.HandleFunc("POST /admin/users/bulk", a.handleUsersBulk)
 }
 

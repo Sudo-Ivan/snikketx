@@ -4,10 +4,12 @@ import (
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/sudo-ivan/snikketx/web-portal/internal/appcache"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/audit"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/authlimit"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/config"
@@ -161,22 +163,23 @@ func newTestApp(t *testing.T, endpoint string) *App {
 	}
 
 	cfg := &config.Config{
-		SecretKey:       []byte("0123456789abcdef0123456789abcdef"),
-		ProsodyEndpoint: endpoint,
-		Domain:          "example.test",
-		SiteName:        "Example Chat",
-		AvatarCacheTTL:  time.Minute,
-		AppleStoreURL:   "https://apps.apple.com/app/id1",
-		MaxAvatarSize:   1 << 20,
-		ShowMetrics:     true,
-		MetricsToken:    "metrics-test-token",
-		TOSURI:          "https://example.test/tos",
-		PrivacyURI:      "https://example.test/privacy",
-		AbuseEmail:      "abuse@example.test",
-		SecurityEmail:   "security@example.test",
-		Version:         "test",
-		BuildCommit:     "abc1234",
-		BuildDate:       "2026-09-07",
+		SecretKey:        []byte("0123456789abcdef0123456789abcdef"),
+		ProsodyEndpoint:  endpoint,
+		Domain:           "example.test",
+		SiteName:         "Example Chat",
+		AvatarCacheTTL:   time.Minute,
+		AppleStoreURL:    "https://apps.apple.com/app/id1",
+		MaxAvatarSize:    1 << 20,
+		ShowMetrics:      true,
+		MetricsToken:     "metrics-test-token",
+		TOSURI:           "https://example.test/tos",
+		PrivacyURI:       "https://example.test/privacy",
+		AbuseEmail:       "abuse@example.test",
+		SecurityEmail:    "security@example.test",
+		Version:          "test",
+		BuildCommit:      "abc1234",
+		BuildDate:        "2026-09-07",
+		AndroidPackageID: "org.snikket.android",
 	}
 
 	store, err := session.New(cfg.SecretKey, false)
@@ -184,7 +187,16 @@ func newTestApp(t *testing.T, endpoint string) *App {
 		t.Fatal(err)
 	}
 
-	auditStore, err := audit.Open(t.TempDir(), 32)
+	stateDir := t.TempDir()
+	auditStore, err := audit.Open(stateDir, 32)
+	if err != nil {
+		t.Fatal(err)
+	}
+	apkCache, err := appcache.Open(filepath.Join(stateDir, "android"), appcache.Defaults{
+		PackageID:            "org.snikket.android",
+		DownloadLimitPerHour: 4,
+		RefreshIntervalHours: 12,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -198,6 +210,8 @@ func newTestApp(t *testing.T, endpoint string) *App {
 		Audit:     auditStore,
 		Metrics:   metrics.New(),
 		LoginGate: authlimit.NewFast(),
+		AppCache:  apkCache,
+		APKGate:   appcache.NewDownloadLimiter(4),
 		Started:   time.Now().Add(-time.Hour),
 		Static:    http.StripPrefix("/static/", http.FileServerFS(staticFS)),
 	}
@@ -238,8 +252,9 @@ func TestGetRoutesRender(t *testing.T) {
 		"/admin/circles", "/admin/circle/-/new", "/admin/circle/g1",
 		"/admin/circle/g1/delete", "/admin/circle/g1/add_chat",
 		"/admin/system/", "/admin/health/", "/admin/audit/", "/admin/audit/export.csv", "/admin/audit/export.json", "/admin/mucs", "/admin/muc/-/new", "/admin/muc/family",
-		"/admin/devices", "/admin/storage", "/admin/invites/analytics", "/admin/archives", "/admin/updates",
+		"/admin/devices", "/admin/storage", "/admin/invites/analytics", "/admin/archives", "/admin/updates", "/admin/apps",
 		"/admin/certs/", "/admin/limits/", "/admin/backup/", "/admin/backup/export/alice",
+		"/download/android.apk",
 		"/invite/inv1/", "/invite/inv1/register", "/invite/reset-inv/reset",
 		"/invite/reset-inv/", "/invite/success", "/invite/success/reset",
 		"/invite/missing-x/",

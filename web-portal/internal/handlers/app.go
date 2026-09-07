@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sudo-ivan/snikketx/web-portal/internal/appcache"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/audit"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/authlimit"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/config"
@@ -31,7 +32,8 @@ const (
 	// minPasswordLength is the shortest password the portal accepts.
 	minPasswordLength = 10
 	// maxRequestBody caps the size of any request body the portal parses.
-	maxRequestBody = 16 << 20
+	// Sized to allow admin Android APK uploads under the appcache ceiling.
+	maxRequestBody = 64 << 20
 	// maxImportSize caps an uploaded XEP-0227 account data document.
 	maxImportSize = 5 << 20
 	// resetInviteTTL is the lifetime of an administrator issued password
@@ -50,6 +52,8 @@ type App struct {
 	Metrics   *metrics.Registry
 	LoginGate *authlimit.Limiter
 	Updater   *updater.Client
+	AppCache  *appcache.Cache
+	APKGate   *appcache.DownloadLimiter
 	Started   time.Time
 	Static    http.Handler
 
@@ -355,6 +359,7 @@ func (a *App) newPage(w http.ResponseWriter, r *http.Request, sess session.Data,
 		Now:           time.Now().UTC(),
 	}
 	page.HealthStatus, page.HealthLabel = a.footerHealth(r.Context())
+	a.applyAppLinks(&page)
 
 	if flash != nil {
 		page.Flash = &webui.Flash{Message: flash.Message, Category: flash.Category}
@@ -665,4 +670,41 @@ func formatUptime(d time.Duration) string {
 	default:
 		return fmt.Sprintf("%ds", secs)
 	}
+}
+
+// applyAppLinks fills store and self-hosted APK fields used by invite and user pages.
+func (a *App) applyAppLinks(page *webui.PageData) {
+	if a.AppCache == nil {
+		page.PlayStoreURL = "https://play.google.com/store/apps/details?id=org.snikket.android"
+		page.FDroidURL = "https://f-droid.org/packages/org.snikket.android/"
+		return
+	}
+	page.PlayStoreURL = a.AppCache.PlayURL()
+	page.FDroidURL = a.AppCache.FDroidWebURL()
+	if a.AppCache.Ready() {
+		meta := a.AppCache.Meta()
+		page.AndroidAPKReady = true
+		page.AndroidDownloadURL = "/download/android.apk"
+		page.AndroidAPKVersion = meta.Version
+		page.AndroidAPKSizeLabel = webui.FormatBytes(meta.Size)
+	}
+}
+
+// androidPackageID returns the configured Android package id for store links.
+func (a *App) androidPackageID() string {
+	if a.AppCache != nil {
+		return a.AppCache.PackageID()
+	}
+	if a.Cfg != nil && a.Cfg.AndroidPackageID != "" {
+		return a.Cfg.AndroidPackageID
+	}
+	return "org.snikket.android"
+}
+
+// androidFDroidMarketURL returns the F-Droid market:// link for invite pages.
+func (a *App) androidFDroidMarketURL() string {
+	if a.AppCache != nil {
+		return a.AppCache.FDroidMarketURL()
+	}
+	return "market://details?id=" + a.androidPackageID()
 }

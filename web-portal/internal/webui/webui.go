@@ -173,33 +173,39 @@ type UserSummary struct {
 // PageData is the base data every page template can rely on. Page specific
 // structs embed it so its fields stay reachable as top level template fields.
 type PageData struct {
-	Title         string
-	SiteName      string
-	Domain        string
-	Lang          string
-	Shell         string
-	Nav           string
-	Theme         string
-	CSRF          string
-	RequestID     string
-	Version       string
-	BuildCommit   string
-	BuildDate     string
-	Uptime        string
-	HealthStatus  string
-	HealthLabel   string
-	HasSession    bool
-	IsAdmin       bool
-	ShowMetrics   bool
-	TOSURI        string
-	PrivacyURI    string
-	AbuseEmail    string
-	SecurityEmail string
-	AppleStoreURL string
-	Flash         *Flash
-	User          *UserSummary
-	Errors        []string
-	Now           time.Time
+	Title               string
+	SiteName            string
+	Domain              string
+	Lang                string
+	Shell               string
+	Nav                 string
+	Theme               string
+	CSRF                string
+	RequestID           string
+	Version             string
+	BuildCommit         string
+	BuildDate           string
+	Uptime              string
+	HealthStatus        string
+	HealthLabel         string
+	HasSession          bool
+	IsAdmin             bool
+	ShowMetrics         bool
+	TOSURI              string
+	PrivacyURI          string
+	AbuseEmail          string
+	SecurityEmail       string
+	AppleStoreURL       string
+	PlayStoreURL        string
+	FDroidURL           string
+	AndroidAPKReady     bool
+	AndroidDownloadURL  string
+	AndroidAPKVersion   string
+	AndroidAPKSizeLabel string
+	Flash               *Flash
+	User                *UserSummary
+	Errors              []string
+	Now                 time.Time
 }
 
 // AddError appends a form or validation error shown at the top of the page.
