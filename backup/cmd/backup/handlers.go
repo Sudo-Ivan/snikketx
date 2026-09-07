@@ -12,7 +12,7 @@ import (
 func (s *server) auth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		got := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
-		if subtle.ConstantTimeCompare([]byte(got), []byte(s.token)) != 1 {
+		if subtle.ConstantTimeCompare([]byte(got), s.tokenBytes) != 1 {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}

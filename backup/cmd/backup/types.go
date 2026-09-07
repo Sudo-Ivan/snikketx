@@ -77,6 +77,7 @@ type statusResponse struct {
 
 type server struct {
 	token        string
+	tokenBytes   []byte
 	composeDir   string
 	archiveDir   string
 	statePath    string

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -17,6 +18,9 @@ type Client struct {
 	Endpoint string
 	Token    string
 	HTTP     *http.Client
+
+	httpOnce    sync.Once
+	httpDefault *http.Client
 }
 
 // JobStep is one progress step inside an updater job.
@@ -129,7 +133,10 @@ func (c *Client) httpClient() *http.Client {
 	if c.HTTP != nil {
 		return c.HTTP
 	}
-	return &http.Client{Timeout: 45 * time.Second}
+	c.httpOnce.Do(func() {
+		c.httpDefault = &http.Client{Timeout: 45 * time.Second}
+	})
+	return c.httpDefault
 }
 
 func (c *Client) do(ctx context.Context, method, path string, body any, out any) (int, error) {

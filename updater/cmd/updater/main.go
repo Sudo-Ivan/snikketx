@@ -24,6 +24,7 @@ func main() {
 
 	s := &server{
 		token:            token,
+		tokenBytes:       []byte(token),
 		composeDir:       composeDir,
 		statePath:        filepath.Join(stateDir, "settings.json"),
 		pinsPath:         filepath.Join(stateDir, "pins.json"),

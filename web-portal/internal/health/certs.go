@@ -70,10 +70,9 @@ func ProbeCertHost(ctx context.Context, host, role string) CertHost {
 	}
 
 	dialer := probeDialer
-	conn, err := tls.DialWithDialer(dialer, "tcp", net.JoinHostPort(host, "443"), &tls.Config{
-		ServerName: host,
-		MinVersion: tls.VersionTLS12,
-	})
+	tlsCfg := probeTLSConfig.Clone()
+	tlsCfg.ServerName = host
+	conn, err := tls.DialWithDialer(dialer, "tcp", net.JoinHostPort(host, "443"), tlsCfg)
 	out.Latency = time.Since(start).Round(time.Millisecond).String()
 	if err != nil {
 		out.Detail = "TLS: " + err.Error()

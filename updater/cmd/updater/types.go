@@ -73,6 +73,7 @@ type imageInfo struct {
 
 type server struct {
 	token            string
+	tokenBytes       []byte
 	composeDir       string
 	statePath        string
 	pinsPath         string

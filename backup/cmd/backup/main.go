@@ -27,6 +27,7 @@ func main() {
 
 	s := &server{
 		token:        token,
+		tokenBytes:   []byte(token),
 		composeDir:   envOr("SNIKKET_BACKUP_COMPOSE_DIR", "/work"),
 		archiveDir:   archiveDir,
 		statePath:    filepath.Join(stateDir, "state.json"),

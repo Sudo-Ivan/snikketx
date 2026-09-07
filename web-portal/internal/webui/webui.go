@@ -293,6 +293,8 @@ func iconID(name string) string {
 	return b.String()
 }
 
+var byteUnits = []string{"B", "KiB", "MiB", "GiB", "TiB", "PiB"}
+
 // FormatBytes renders a byte count with a binary unit suffix.
 func FormatBytes(value any) string {
 	n, ok := toFloat(value)
@@ -304,9 +306,8 @@ func FormatBytes(value any) string {
 		n = -n
 	}
 
-	units := []string{"B", "KiB", "MiB", "GiB", "TiB", "PiB"}
 	index := 0
-	for n >= 1024 && index < len(units)-1 {
+	for n >= 1024 && index < len(byteUnits)-1 {
 		n /= 1024
 		index++
 	}
@@ -316,9 +317,9 @@ func FormatBytes(value any) string {
 		sign = "-"
 	}
 	if index == 0 {
-		return fmt.Sprintf("%s%.0f %s", sign, n, units[index])
+		return fmt.Sprintf("%s%.0f %s", sign, n, byteUnits[index])
 	}
-	return fmt.Sprintf("%s%.1f %s", sign, n, units[index])
+	return fmt.Sprintf("%s%.1f %s", sign, n, byteUnits[index])
 }
 
 // FormatPercent renders a ratio between zero and one as a percentage.

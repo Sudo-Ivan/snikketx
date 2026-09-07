@@ -29,12 +29,19 @@ var (
 		`>`, "&gt;",
 	)
 	probeDialer = &net.Dialer{Timeout: probeTimeout}
+	probeTLSConfig = &tls.Config{MinVersion: tls.VersionTLS12}
 	stunBufPool = sync.Pool{
 		New: func() any {
 			b := make([]byte, 148)
 			return &b
 		},
 	}
+	startTLSNS     = []byte("urn:ietf:params:xml:ns:xmpp-tls")
+	startTLSTag    = []byte("<starttls")
+	streamErrorTag = []byte("<stream:error")
+	errorTag       = []byte("<error")
+	proceedTag     = []byte("<proceed")
+	failureTag     = []byte("<failure")
 )
 
 // ProbeS2S dials TCP 5269 on the chat domain. Federation and mobile push both
@@ -237,19 +244,19 @@ type peerCert struct {
 
 func xmppStartTLSCert(ctx context.Context, dialHost, serverName string) (peerCert, error) {
 	var zero peerCert
-	d := &net.Dialer{Timeout: probeTimeout}
-	conn, err := d.DialContext(ctx, "tcp", net.JoinHostPort(dialHost, "5222"))
+	conn, err := probeDialer.DialContext(ctx, "tcp", net.JoinHostPort(dialHost, "5222"))
 	if err != nil {
 		return zero, fmt.Errorf("dial %s:5222: %w", dialHost, err)
 	}
 	defer conn.Close()
 	_ = conn.SetDeadline(time.Now().Add(probeTimeout))
 
-	open := fmt.Sprintf(
-		"<?xml version='1.0'?><stream:stream to='%s' xmlns='jabber:client' xmlns:stream='http://etherx.jabber.org/streams' version='1.0'>",
-		xmlEscapeAttr(serverName),
-	)
-	if _, err := io.WriteString(conn, open); err != nil {
+	var open strings.Builder
+	open.Grow(128 + len(serverName))
+	open.WriteString("<?xml version='1.0'?><stream:stream to='")
+	open.WriteString(xmlEscapeAttr(serverName))
+	open.WriteString("' xmlns='jabber:client' xmlns:stream='http://etherx.jabber.org/streams' version='1.0'>")
+	if _, err := io.WriteString(conn, open.String()); err != nil {
 		return zero, fmt.Errorf("stream open: %w", err)
 	}
 
@@ -261,12 +268,11 @@ func xmppStartTLSCert(ctx context.Context, dialHost, serverName string) (peerCer
 		n, err := conn.Read(tmp)
 		if n > 0 {
 			buf = append(buf, tmp[:n]...)
-			lower := strings.ToLower(string(buf))
-			if strings.Contains(lower, "urn:ietf:params:xml:ns:xmpp-tls") || strings.Contains(lower, "<starttls") {
+			if containsASCIIFold(buf, startTLSNS) || containsASCIIFold(buf, startTLSTag) {
 				sawTLS = true
 				break
 			}
-			if strings.Contains(lower, "<stream:error") || strings.Contains(lower, "<error") {
+			if containsASCIIFold(buf, streamErrorTag) || containsASCIIFold(buf, errorTag) {
 				return zero, fmt.Errorf("stream error from %s", dialHost)
 			}
 		}
@@ -295,12 +301,11 @@ func xmppStartTLSCert(ctx context.Context, dialHost, serverName string) (peerCer
 		n, err := conn.Read(tmp)
 		if n > 0 {
 			buf = append(buf, tmp[:n]...)
-			lower := strings.ToLower(string(buf))
-			if strings.Contains(lower, "<proceed") {
+			if containsASCIIFold(buf, proceedTag) {
 				proceed = true
 				break
 			}
-			if strings.Contains(lower, "<failure") {
+			if containsASCIIFold(buf, failureTag) {
 				return zero, fmt.Errorf("STARTTLS failure from %s", dialHost)
 			}
 		}
@@ -316,10 +321,9 @@ func xmppStartTLSCert(ctx context.Context, dialHost, serverName string) (peerCer
 	}
 
 	_ = conn.SetDeadline(time.Now().Add(probeTimeout))
-	tlsConn := tls.Client(conn, &tls.Config{
-		ServerName: serverName,
-		MinVersion: tls.VersionTLS12,
-	})
+	tlsCfg := probeTLSConfig.Clone()
+	tlsCfg.ServerName = serverName
+	tlsConn := tls.Client(conn, tlsCfg)
 	if err := tlsConn.HandshakeContext(ctx); err != nil {
 		return zero, fmt.Errorf("TLS handshake: %w", err)
 	}
@@ -336,6 +340,28 @@ func xmppStartTLSCert(ctx context.Context, dialHost, serverName string) (peerCer
 		Expires:    leaf.NotAfter.UTC().Format("2006-01-02"),
 		DaysLeft:   days,
 	}, nil
+}
+
+// containsASCIIFold reports whether haystack contains needle, ignoring ASCII case.
+func containsASCIIFold(haystack, needle []byte) bool {
+	n := len(needle)
+	if n == 0 {
+		return true
+	}
+outer:
+	for i := 0; i+n <= len(haystack); i++ {
+		for j := 0; j < n; j++ {
+			c := haystack[i+j]
+			if c >= 'A' && c <= 'Z' {
+				c += 'a' - 'A'
+			}
+			if c != needle[j] {
+				continue outer
+			}
+		}
+		return true
+	}
+	return false
 }
 
 func dialTCP(ctx context.Context, host, port string) error {

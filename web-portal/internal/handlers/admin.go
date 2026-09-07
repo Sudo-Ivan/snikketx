@@ -257,17 +257,18 @@ func (a *App) handleAdminHome(w http.ResponseWriter, r *http.Request) {
 		data.RecentErrors = len(a.Errors.Recent())
 	}
 
-	data.SLO = a.buildHealthSLO(r.Context())
+	slo, probes := a.buildHealthSLO(r.Context())
+	data.SLO = slo
 
 	hostStats := hostmetrics.Collect()
 	rows := []health.Component{
 		{Name: "web portal", OK: true, Detail: "running version " + a.Cfg.Version},
-		a.probeProsody(r.Context()),
-		health.ProbeTLS(r.Context(), a.Cfg.Domain),
-		health.ProbeXMPPTLS(r.Context(), a.Cfg.Domain, a.Cfg.ProsodyEndpoint),
-		health.ProbeS2S(r.Context(), a.Cfg.Domain, a.Cfg.ProsodyEndpoint),
-		health.ProbePush(r.Context(), a.Cfg.Domain),
-		health.ProbeTURN(r.Context(), a.Cfg.Domain, a.Cfg.ProsodyEndpoint),
+		probes.prosody,
+		probes.https,
+		probes.xmpp,
+		probes.s2s,
+		probes.push,
+		probes.turn,
 		health.ProbeMemory(hostStats),
 	}
 	data.Healthy = true
@@ -285,37 +286,41 @@ func (a *App) handleAdminHome(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, http.StatusOK, "admin_home.html", data)
 }
 
-// buildHealthSLO returns ticket-shaped red/green tiles for the home strip.
-func (a *App) buildHealthSLO(ctx context.Context) []sloItem {
+type homeProbes struct {
+	prosody health.Component
+	https   health.Component
+	xmpp    health.Component
+	s2s     health.Component
+	push    health.Component
+	turn    health.Component
+}
+
+// buildHealthSLO runs network probes once for the home SLO strip and summary rows.
+func (a *App) buildHealthSLO(ctx context.Context) ([]sloItem, homeProbes) {
 	var (
-		prosodyProbe health.Component
-		httpsProbe   health.Component
-		xmppProbe    health.Component
-		s2sProbe     health.Component
-		pushProbe    health.Component
-		turnProbe    health.Component
-		updaterItem  sloItem
+		probes      homeProbes
+		updaterItem sloItem
 	)
 	var wg sync.WaitGroup
-	wg.Go(func() { prosodyProbe = a.probeProsody(ctx) })
-	wg.Go(func() { httpsProbe = health.ProbeTLS(ctx, a.Cfg.Domain) })
-	wg.Go(func() { xmppProbe = health.ProbeXMPPTLS(ctx, a.Cfg.Domain, a.Cfg.ProsodyEndpoint) })
-	wg.Go(func() { s2sProbe = health.ProbeS2S(ctx, a.Cfg.Domain, a.Cfg.ProsodyEndpoint) })
-	wg.Go(func() { pushProbe = health.ProbePush(ctx, a.Cfg.Domain) })
-	wg.Go(func() { turnProbe = health.ProbeTURN(ctx, a.Cfg.Domain, a.Cfg.ProsodyEndpoint) })
+	wg.Go(func() { probes.prosody = a.probeProsody(ctx) })
+	wg.Go(func() { probes.https = health.ProbeTLS(ctx, a.Cfg.Domain) })
+	wg.Go(func() { probes.xmpp = health.ProbeXMPPTLS(ctx, a.Cfg.Domain, a.Cfg.ProsodyEndpoint) })
+	wg.Go(func() { probes.s2s = health.ProbeS2S(ctx, a.Cfg.Domain, a.Cfg.ProsodyEndpoint) })
+	wg.Go(func() { probes.push = health.ProbePush(ctx, a.Cfg.Domain) })
+	wg.Go(func() { probes.turn = health.ProbeTURN(ctx, a.Cfg.Domain, a.Cfg.ProsodyEndpoint) })
 	wg.Go(func() { updaterItem = a.updaterSLO(ctx) })
 	wg.Wait()
 
-	s2sPush := mergeProbeComponents("S2S / Push", s2sProbe, pushProbe)
+	s2sPush := mergeProbeComponents("S2S / Push", probes.s2s, probes.push)
 
 	return []sloItem{
-		componentSLO("Prosody", "/admin/health/", prosodyProbe, "Down"),
-		certSLO("HTTPS", "/admin/certs/", httpsProbe),
-		certSLO("XMPP TLS", "/admin/certs/", xmppProbe),
+		componentSLO("Prosody", "/admin/health/", probes.prosody, "Down"),
+		certSLO("HTTPS", "/admin/certs/", probes.https),
+		certSLO("XMPP TLS", "/admin/certs/", probes.xmpp),
 		componentSLO("S2S / Push", "/admin/health/", s2sPush, "Blocked"),
-		componentSLO("TURN", "/admin/health/", turnProbe, "Blocked"),
+		componentSLO("TURN", "/admin/health/", probes.turn, "Blocked"),
 		updaterItem,
-	}
+	}, probes
 }
 
 func componentSLO(name, href string, probe health.Component, badLabel string) sloItem {
@@ -1396,7 +1401,7 @@ func (a *App) handleAdminHealth(w http.ResponseWriter, r *http.Request) {
 		health.ProbePush(r.Context(), a.Cfg.Domain),
 		health.ProbeTURN(r.Context(), a.Cfg.Domain, a.Cfg.ProsodyEndpoint),
 		health.ProbeHTTPS(r.Context(), a.Cfg.Domain),
-		a.probeStorage(),
+		a.probeStorage(hostStats),
 		health.ProbeMemory(hostStats),
 		health.ProbeCPU(hostStats),
 		health.ProbePressure(hostStats),
@@ -1445,8 +1450,7 @@ func metricsDetail(enabled, tokenSet bool) string {
 }
 
 // probeStorage reports host disk fill for the root filesystem.
-func (a *App) probeStorage() health.Component {
-	stats := hostmetrics.Collect()
+func (a *App) probeStorage(stats hostmetrics.Stats) health.Component {
 	component := health.Component{Name: "storage"}
 	if stats.DiskTotal == nil || stats.DiskUsedRatio == nil {
 		component.Detail = "disk usage unavailable"

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"strings"
@@ -14,6 +15,13 @@ import (
 )
 
 const probeTimeout = 4 * time.Second
+
+var probeHTTPSClient = &http.Client{
+	Timeout: probeTimeout,
+	CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		return http.ErrUseLastResponse
+	},
+}
 
 // ProbeDomain resolves the configured domain name.
 func ProbeDomain(ctx context.Context, domain string) Component {
@@ -61,10 +69,9 @@ func ProbeTLS(ctx context.Context, domain string) Component {
 	}
 
 	dialer := probeDialer
-	conn, err := tls.DialWithDialer(dialer, "tcp", net.JoinHostPort(domain, "443"), &tls.Config{
-		ServerName: domain,
-		MinVersion: tls.VersionTLS12,
-	})
+	tlsCfg := probeTLSConfig.Clone()
+	tlsCfg.ServerName = domain
+	conn, err := tls.DialWithDialer(dialer, "tcp", net.JoinHostPort(domain, "443"), tlsCfg)
 	component.Latency = time.Since(start).Round(time.Millisecond).String()
 	if err != nil {
 		component.Detail = err.Error()
@@ -118,19 +125,14 @@ func ProbeHTTPS(ctx context.Context, domain string) Component {
 		component.Latency = time.Since(start).Round(time.Millisecond).String()
 		return component
 	}
-	client := &http.Client{
-		Timeout: probeTimeout,
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-	}
-	resp, err := client.Do(req)
+	resp, err := probeHTTPSClient.Do(req)
 	component.Latency = time.Since(start).Round(time.Millisecond).String()
 	if err != nil {
 		component.Detail = err.Error()
 		return component
 	}
 	defer resp.Body.Close()
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4<<10))
 	component.OK = resp.StatusCode > 0 && resp.StatusCode < 600
 	component.Detail = fmt.Sprintf("answered HTTP %d", resp.StatusCode)
 	return component
