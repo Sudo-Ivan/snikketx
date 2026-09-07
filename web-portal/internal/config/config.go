@@ -41,6 +41,15 @@ type Config struct {
 	Version         string
 	BuildCommit     string
 	BuildDate       string
+
+	// Android host defaults seed portal_data/android/settings.json on first boot.
+	AndroidHostEnabled       bool
+	AndroidAPKSource         string
+	AndroidPackageID         string
+	PlayStoreURL             string
+	FDroidURL                string
+	AndroidDownloadLimitHour int
+	AndroidRefreshHours      int
 }
 
 func Load(version, commit, buildDate string) (*Config, error) {
@@ -104,6 +113,42 @@ func Load(version, commit, buildDate string) (*Config, error) {
 		return nil, err
 	}
 
+	androidEnabled := false
+	if v := os.Getenv("SNIKKET_WEB_ANDROID_HOST_ENABLED"); v != "" {
+		androidEnabled, err = strconv.ParseBool(v)
+		if err != nil {
+			return nil, fmt.Errorf("SNIKKET_WEB_ANDROID_HOST_ENABLED: %w", err)
+		}
+	}
+	androidSource := strings.TrimSpace(os.Getenv("SNIKKET_WEB_ANDROID_APK_SOURCE"))
+	if androidSource != "" && !strings.HasPrefix(androidSource, "github:") {
+		if err := validateHTTPURL("SNIKKET_WEB_ANDROID_APK_SOURCE", androidSource); err != nil {
+			return nil, err
+		}
+	}
+	androidPackage := envOr("SNIKKET_WEB_ANDROID_PACKAGE", "org.snikket.android")
+	playURL := strings.TrimSpace(os.Getenv("SNIKKET_WEB_PLAY_STORE_URL"))
+	if playURL != "" {
+		if err := validateHTTPURL("SNIKKET_WEB_PLAY_STORE_URL", playURL); err != nil {
+			return nil, err
+		}
+	}
+	fdroidURL := strings.TrimSpace(os.Getenv("SNIKKET_WEB_FDROID_URL"))
+	androidLimit := 6
+	if v := os.Getenv("SNIKKET_WEB_ANDROID_DOWNLOAD_LIMIT"); v != "" {
+		androidLimit, err = strconv.Atoi(v)
+		if err != nil {
+			return nil, fmt.Errorf("SNIKKET_WEB_ANDROID_DOWNLOAD_LIMIT: %w", err)
+		}
+	}
+	androidRefresh := 12
+	if v := os.Getenv("SNIKKET_WEB_ANDROID_REFRESH_HOURS"); v != "" {
+		androidRefresh, err = strconv.Atoi(v)
+		if err != nil {
+			return nil, fmt.Errorf("SNIKKET_WEB_ANDROID_REFRESH_HOURS: %w", err)
+		}
+	}
+
 	tos := os.Getenv("SNIKKET_WEB_TOS_URI")
 	privacy := os.Getenv("SNIKKET_WEB_PRIVACY_URI")
 	if tos != "" {
@@ -147,6 +192,14 @@ func Load(version, commit, buildDate string) (*Config, error) {
 		Version:         version,
 		BuildCommit:     commit,
 		BuildDate:       buildDate,
+
+		AndroidHostEnabled:       androidEnabled,
+		AndroidAPKSource:         androidSource,
+		AndroidPackageID:         androidPackage,
+		PlayStoreURL:             playURL,
+		FDroidURL:                fdroidURL,
+		AndroidDownloadLimitHour: androidLimit,
+		AndroidRefreshHours:      androidRefresh,
 	}, nil
 }
 

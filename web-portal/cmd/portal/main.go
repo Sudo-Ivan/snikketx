@@ -9,10 +9,12 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
 
+	"github.com/sudo-ivan/snikketx/web-portal/internal/appcache"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/audit"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/authlimit"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/config"
@@ -42,7 +44,8 @@ const (
 	// readHeaderTimeout bounds how long a client may take to send headers.
 	readHeaderTimeout = 15 * time.Second
 	// writeTimeout bounds how long a response may take to be written.
-	writeTimeout = 60 * time.Second
+	// APK downloads need headroom beyond typical HTML pages.
+	writeTimeout = 10 * time.Minute
 	// idleTimeout bounds how long a keep alive connection stays open.
 	idleTimeout = 120 * time.Second
 )
@@ -118,6 +121,20 @@ func run() error {
 		slog.Warn("oauth credentials not loaded", slog.String("error", err.Error()))
 	}
 
+	apkCache, err := appcache.Open(filepath.Join(stateDir, "android"), appcache.Defaults{
+		Enabled:              cfg.AndroidHostEnabled,
+		SourceURL:            cfg.AndroidAPKSource,
+		PackageID:            cfg.AndroidPackageID,
+		PlayStoreURL:         cfg.PlayStoreURL,
+		FDroidURL:            cfg.FDroidURL,
+		DownloadLimitPerHour: cfg.AndroidDownloadLimitHour,
+		RefreshIntervalHours: cfg.AndroidRefreshHours,
+	})
+	if err != nil {
+		slog.Warn("android apk cache unavailable", slog.String("error", err.Error()))
+		apkCache = nil
+	}
+
 	app := &handlers.App{
 		Cfg:       cfg,
 		Prosody:   prosodyClient,
@@ -131,8 +148,10 @@ func run() error {
 			Endpoint: cfg.UpdaterEndpoint,
 			Token:    cfg.UpdaterToken,
 		},
-		Started: time.Now(),
-		Static:  staticHandler(staticFS),
+		AppCache: apkCache,
+		APKGate:  appcache.NewDownloadLimiter(cfg.AndroidDownloadLimitHour),
+		Started:  time.Now(),
+		Static:   staticHandler(staticFS),
 	}
 
 	server := &http.Server{
@@ -145,6 +164,10 @@ func run() error {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	if apkCache != nil {
+		apkCache.StartLoop(ctx)
+	}
 
 	errc := make(chan error, 1)
 	go func() {
