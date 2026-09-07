@@ -57,6 +57,20 @@
 		</tbody>
 	</table>
 </div>
+
+<nav class="pager" aria-label="Audit log pages">
+	{{if .HasPrev}}
+	<a class="btn btn-ghost" href="{{.PrevURL}}">{{template "icon" "arrow-left"}}<span>Previous</span></a>
+	{{else}}
+	<span class="btn btn-ghost" aria-disabled="true">{{template "icon" "arrow-left"}}<span>Previous</span></span>
+	{{end}}
+	<p class="pager-status muted">Page {{.Page}} of {{.TotalPages}} &middot; {{.Total}} events</p>
+	{{if .HasNext}}
+	<a class="btn btn-ghost" href="{{.NextURL}}"><span>Next</span>{{template "icon" "chevron-right"}}</a>
+	{{else}}
+	<span class="btn btn-ghost" aria-disabled="true"><span>Next</span>{{template "icon" "chevron-right"}}</span>
+	{{end}}
+</nav>
 {{else}}
 {{template "empty_state" "No audit events match this search yet."}}
 {{end}}

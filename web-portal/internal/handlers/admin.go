@@ -1329,10 +1329,21 @@ type auditEventView struct {
 // adminAuditPage is the data behind the audit log.
 type adminAuditPage struct {
 	webui.PageData
-	Query  string
-	Events []auditEventView
-	Note   string
+	Query      string
+	Events     []auditEventView
+	Note       string
+	Page       int
+	PageSize   int
+	Total      int
+	TotalPages int
+	HasPrev    bool
+	HasNext    bool
+	PrevURL    string
+	NextURL    string
 }
+
+const auditPageSize = 50
+const auditFetchLimit = 500
 
 // handleAuditLog shows searchable portal and Prosody audit events.
 func (a *App) handleAuditLog(w http.ResponseWriter, r *http.Request) {
@@ -1342,10 +1353,17 @@ func (a *App) handleAuditLog(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query := strings.TrimSpace(r.URL.Query().Get("q"))
+	pageNum := 1
+	if raw := strings.TrimSpace(r.URL.Query().Get("page")); raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil && n > 0 {
+			pageNum = n
+		}
+	}
+
 	events := make([]auditEventView, 0, 128)
 
 	if a.Audit != nil {
-		for _, ev := range a.Audit.Recent(200, query) {
+		for _, ev := range a.Audit.Recent(auditFetchLimit, query) {
 			events = append(events, auditEventView{
 				When:      ev.When,
 				Source:    ev.Source,
@@ -1361,7 +1379,7 @@ func (a *App) handleAuditLog(w http.ResponseWriter, r *http.Request) {
 	}
 
 	note := ""
-	if prosodyEvents, err := a.Prosody.ListAuditEvents(r.Context(), sess.Token(), 200, query); err != nil {
+	if prosodyEvents, err := a.Prosody.ListAuditEvents(r.Context(), sess.Token(), auditFetchLimit, query); err != nil {
 		note = "Chat server audit feed unavailable: " + apiErrorMessage(err)
 	} else {
 		for _, ev := range prosodyEvents {
@@ -1381,17 +1399,59 @@ func (a *App) handleAuditLog(w http.ResponseWriter, r *http.Request) {
 	slices.SortFunc(events, func(x, y auditEventView) int {
 		return y.When.Compare(x.When)
 	})
-	if len(events) > 300 {
-		events = events[:300]
+
+	total := len(events)
+	totalPages := total / auditPageSize
+	if total%auditPageSize != 0 {
+		totalPages++
 	}
+	if totalPages < 1 {
+		totalPages = 1
+	}
+	if pageNum > totalPages {
+		pageNum = totalPages
+	}
+
+	start := (pageNum - 1) * auditPageSize
+	end := start + auditPageSize
+	if start > total {
+		start = total
+	}
+	if end > total {
+		end = total
+	}
+	pageEvents := events[start:end]
 
 	page := a.newPage(w, r, sess, "Audit log", "audit", webui.ShellAdmin)
 	a.render(w, r, http.StatusOK, "admin_audit.html", adminAuditPage{
-		PageData: page,
-		Query:    query,
-		Events:   events,
-		Note:     note,
+		PageData:   page,
+		Query:      query,
+		Events:     pageEvents,
+		Note:       note,
+		Page:       pageNum,
+		PageSize:   auditPageSize,
+		Total:      total,
+		TotalPages: totalPages,
+		HasPrev:    pageNum > 1,
+		HasNext:    pageNum < totalPages,
+		PrevURL:    auditPageURL(query, pageNum-1),
+		NextURL:    auditPageURL(query, pageNum+1),
 	})
+}
+
+func auditPageURL(query string, page int) string {
+	values := url.Values{}
+	if query != "" {
+		values.Set("q", query)
+	}
+	if page > 1 {
+		values.Set("page", strconv.Itoa(page))
+	}
+	encoded := values.Encode()
+	if encoded == "" {
+		return "/admin/audit/"
+	}
+	return "/admin/audit/?" + encoded
 }
 
 func stringOr(value, fallback string) string {

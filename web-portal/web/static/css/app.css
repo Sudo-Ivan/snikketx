@@ -755,6 +755,28 @@ a:hover {
 	align-items: center;
 }
 
+.section-head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: var(--space-3) var(--space-4);
+	margin: 0 0 var(--space-3);
+}
+
+.section-head > div {
+	flex: 1 1 12rem;
+	min-width: 0;
+}
+
+.section-head h2 {
+	margin: 0 0 var(--space-1);
+}
+
+.section-head p {
+	margin: 0;
+}
+
 .saved-filters {
 	display: flex;
 	flex-wrap: wrap;
@@ -1375,6 +1397,26 @@ input[readonly] {
 	flex-wrap: wrap;
 	gap: 0.4rem;
 	align-items: center;
+}
+
+.pager {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-3);
+	padding: var(--space-2) 0;
+}
+
+.pager-status {
+	margin: 0;
+	flex: 1 1 auto;
+	text-align: center;
+}
+
+.pager .btn[aria-disabled="true"] {
+	opacity: 0.45;
+	pointer-events: none;
 }
 
 .search-panel {
