@@ -66,7 +66,7 @@ secret = "rg-dev-local-secret!!"
 path_prefix = "/_rg"
 
 [ui]
-brand = "Snikket Dev"
+brand = "SnikketX Dev"
 status_text = "Local snikketx edge"
 test_mode = true
 

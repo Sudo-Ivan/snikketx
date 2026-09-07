@@ -1,6 +1,6 @@
 {
-    "name": "Snikket",
-    "short_name": "Snikket",
+    "name": "SnikketX",
+    "short_name": "SnikketX",
     "icons": [
         {
             "src": "/android-chrome-192x192.png",
@@ -13,6 +13,6 @@
             "type": "image/png"
         }
     ],
-    "theme_color": "#fbfdff",
+    "theme_color": "#0d7377",
     "background_color": "#fbfdff"
 }

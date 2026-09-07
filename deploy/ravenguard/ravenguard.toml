@@ -78,12 +78,12 @@ secret = "rg-change-me-please!!"
 path_prefix = "/_rg"
 
 [ui]
-brand = "Snikket"
+brand = "SnikketX"
 status_text = "Checking your browser before accessing this site."
 test_mode = false
 
 [site]
-description = "Snikket"
+description = "SnikketX"
 theme_color = "#050505"
 robots = "noindex, nofollow"
 lang = "en"

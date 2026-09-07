@@ -1,7 +1,6 @@
-Snikket Server
+SnikketX Server
 Copyright 2020 Matthew Wild.
+Copyright 2024-2026 SnikketX contributors.
 
-Snikket and the parrot logo are trademarks
-of Snikket Community Interest Company. For
-more information about our trademark policy
-see https://snikket.org/about/trademarks/
+This project is a fork of the Snikket server stack.
+Upstream trademarks (including the parrot logo) are not used here.

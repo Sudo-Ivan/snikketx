@@ -49,7 +49,7 @@ ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["/bin/sh", "/entrypoint.sh"]
 
 LABEL org.opencontainers.image.title="snikketx-web-proxy" \
-      org.opencontainers.image.description="Legacy Snikket nginx proxy" \
+      org.opencontainers.image.description="Legacy SnikketX nginx proxy" \
       org.opencontainers.image.source="https://github.com/Sudo-Ivan/snikketx" \
       org.opencontainers.image.url="https://github.com/Sudo-Ivan/snikketx" \
       org.opencontainers.image.documentation="https://github.com/Sudo-Ivan/snikketx#readme" \

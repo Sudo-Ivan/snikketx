@@ -29,22 +29,22 @@ jobs:
           - component: server
             context: ./server
             title: snikketx-server
-            description: Snikket Prosody server image
+            description: SnikketX Prosody server image
             licenses: Apache-2.0
           - component: web-portal
             context: ./web-portal
             title: snikketx-web-portal
-            description: Snikket web portal
+            description: SnikketX web portal
             licenses: AGPL-3.0-or-later
           - component: web-proxy
             context: ./web-proxy
             title: snikketx-web-proxy
-            description: Legacy Snikket nginx proxy
+            description: Legacy SnikketX nginx proxy
             licenses: Apache-2.0
           - component: cert-manager
             context: ./cert-manager
             title: snikketx-cert-manager
-            description: Snikket Let's Encrypt helper
+            description: SnikketX Let's Encrypt helper
             licenses: Apache-2.0
     steps:
       - name: Harden runner

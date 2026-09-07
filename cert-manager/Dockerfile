@@ -44,7 +44,7 @@ ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["/bin/bash", "/entrypoint.sh"]
 
 LABEL org.opencontainers.image.title="snikketx-cert-manager" \
-      org.opencontainers.image.description="Snikket Let's Encrypt helper" \
+      org.opencontainers.image.description="SnikketX Let's Encrypt helper" \
       org.opencontainers.image.source="https://github.com/Sudo-Ivan/snikketx" \
       org.opencontainers.image.url="https://github.com/Sudo-Ivan/snikketx" \
       org.opencontainers.image.documentation="https://github.com/Sudo-Ivan/snikketx#readme" \
