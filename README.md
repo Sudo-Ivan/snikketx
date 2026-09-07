@@ -1,29 +1,35 @@
 # snikketx
 
 My Sloppulus fork of the Snikket stack as SnikketX in one repo: Prosody server image, web
-portal, cert manager, plus Traefik and RavenGuard on the HTTP edge.
+portal, cert manager, plus RavenGuard on the HTTP edge.
 
 Upstream lives at [snikket-im](https://github.com/snikket-im). This fork
 publishes SnikketX images to GHCR under `ghcr.io/sudo-ivan/snikketx/`.
 
+![SnikketX admin dashboard in dark mode](docs/images/portal-dashboard-dark.png)
+
 ## Major changes from upstream
 
 - One monorepo instead of separate Snikket packages (server, portal, cert-manager, proxy).
-- HTTP edge is Traefik plus RavenGuard. The nginx web-proxy image is kept but not used by default compose.
+- HTTP edge is RavenGuard alone (TLS via ACME in prod). Traefik and the nginx web-proxy image are unused by default compose.
 - Server, cert-manager, and web-proxy images build on Alpine 3.24. Prosody comes from apk (13.x), not Debian nightlies.
-- Web portal is a stdlib Go single binary on distroless, not the upstream Python/Quart app.
+- Web portal is a stdlib Go single binary on distroless, not the upstream Python/Quart app, with a refreshed dark-mode admin panel (footer shows build metadata, uptime, and Healthy / Degraded / Down).
 - Invite helpers use `prosodyctl shell invite` (create_account / create_reset). The old `mod_invites generate` path is gone.
 - Publish pipeline signs images keyless with Cosign, attaches Syft SPDX SBOMs, runs Trivy and container smoke tests.
 
 HTTP path:
 
 ```
-Client -> Traefik -> RavenGuard -> web-portal
-                 \-> Prosody HTTP (upload, BOSH, websocket)
+Client -> RavenGuard (ACME TLS) -> web-portal
+                                \-> Prosody HTTP (upload, BOSH, websocket)
 XMPP/STUN/TURN -> snikket_server (direct ports)
 ```
 
-RavenGuard runs behind Traefik with `trust.mode = behind_proxy`. See the
+RavenGuard runs as the first hop with `trust.mode = edge` and Let's Encrypt
+(`tls.mode = acme`, TLS-ALPN-01). Path routes for Prosody and the certbot
+HTTP-01 webroot are seeded into the RavenGuard admin store by
+`scripts/seed-ravenguard-routes.sh`. The JS challenge stays off so XMPP
+WebSocket clients are not blocked. See the
 [intro](https://ravenguard.quad4.io/docs/intro) and
 [configuration](https://ravenguard.quad4.io/docs/configuration) docs.
 
@@ -33,10 +39,10 @@ RavenGuard runs behind Traefik with `trust.mode = behind_proxy`. See the
 - `web-portal/` - account and admin web UI
 - `web-proxy/` - legacy nginx front door (not used by default compose)
 - `cert-manager/` - Let's Encrypt for XMPP TLS (prod)
-- `deploy/traefik/` - Traefik static and generated dynamic config
 - `deploy/ravenguard/` - RavenGuard TOML and blocklists
+- `deploy/traefik/` - leftover Traefik samples (unused)
 - `scripts/` - install and ops helpers
-- `docker-compose.yml` - production stack (pull GHCR + Traefik + RavenGuard)
+- `docker-compose.yml` - production stack (pull GHCR + RavenGuard edge)
 - `docker-compose.dev.yml` - local builds, no proxy/certs package
 
 ## Production
