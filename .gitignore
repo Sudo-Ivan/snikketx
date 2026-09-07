@@ -7,3 +7,5 @@ __pycache__/
 venv/
 .direnv/
 web-portal/.env
+backups/
+deploy/migrate/docker-compose.migrate.yml

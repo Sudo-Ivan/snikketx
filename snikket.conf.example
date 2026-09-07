@@ -11,5 +11,6 @@ SNIKKET_ADMIN_EMAIL=admin@example.com
 # If you agree to the terms, change N to Y
 SNIKKET_LETSENCRYPT_TOS_AGREE=N
 
-# Written to .env by ./scripts/init.sh for Compose + RavenGuard.
-# RG_CHALLENGE_SECRET must be at least 16 characters.
+# Compose secrets (RavenGuard, updater) live in .env
+# (see .env.example). ./scripts/init.sh writes both files.
+# Local quick path: ./scripts/init.sh --dev

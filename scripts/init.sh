@@ -2,19 +2,61 @@
 
 set -eo pipefail
 
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
+
 ## Platform detection ##
-OS=$(awk '/DISTRIB_ID=/' /etc/*-release | sed 's/DISTRIB_ID=//' | tr '[:upper:]' '[:lower:]')
+OS=$(awk '/DISTRIB_ID=/' /etc/*-release 2>/dev/null | sed 's/DISTRIB_ID=//' | tr '[:upper:]' '[:lower:]' || true)
 if [ -z "$OS" ]; then
-    OS=$(awk '{print $1}' /etc/*-release | tr '[:upper:]' '[:lower:]')
+	OS=$(awk '{print $1}' /etc/*-release 2>/dev/null | tr '[:upper:]' '[:lower:]' || true)
 fi
 
-if [ -z "$VERSION" ]; then
-    VERSION=$(awk '{print $3}' /etc/*-release)
-fi
-########################
+DEV_MODE=0
+FORCE=0
+DOMAIN_ARG=""
+EMAIL_ARG=""
 
+while [[ $# -gt 0 ]]; do
+	case "$1" in
+	--dev)
+		DEV_MODE=1
+		shift
+		;;
+	--force|-f)
+		FORCE=1
+		shift
+		;;
+	--domain)
+		DOMAIN_ARG="$2"
+		shift 2
+		;;
+	--email)
+		EMAIL_ARG="$2"
+		shift 2
+		;;
+	--noninteractive)
+		# Alias used with --domain/--email or --dev
+		shift
+		;;
+	-h|--help)
+		cat <<'EOF'
+Usage: ./scripts/init.sh [--dev] [--force] [--domain NAME] [--email ADDR]
 
-if ! which docker >/dev/null; then
+  --dev     Noninteractive local defaults (chat.localhost)
+  --force   Overwrite existing snikket.conf / .env
+  --domain  Set domain noninteractively (implies noninteractive with --email)
+  --email   Admin email for noninteractive prod init
+EOF
+		exit 0
+		;;
+	*)
+		echo "Unknown option: $1" >&2
+		exit 1
+		;;
+	esac
+done
+
+if ! command -v docker >/dev/null; then
 	echo "Docker is required but not installed."
 	case "$OS" in
 	ubuntu|debian|fedora|centos)
@@ -22,18 +64,79 @@ if ! which docker >/dev/null; then
 	*)
 		echo "Please follow the installation guide at https://docs.docker.com/engine/install/" ;;
 	esac
-	exit 1;
+	exit 1
 fi
 
-if ! docker help compose >/dev/null; then
+if ! docker help compose >/dev/null 2>&1; then
 	echo "Docker Compose extension is required, but not installed."
 	echo "Please follow the installation guide at https://docs.docker.com/compose/install/linux/#install-using-the-repository"
-	exit 1;
+	exit 1
 fi
 
 if [ ! -f docker-compose.yml ]; then
 	echo "docker-compose.yml is missing from this checkout."
 	exit 1
+fi
+
+write_config() {
+	local domain="$1"
+	local email="$2"
+	local tos="$3"
+	local rg_secret rg_admin
+	rg_secret=$(head -c 32 /dev/urandom | base64 | tr -d '\n=/+' | head -c 32)
+	if [ "${#rg_secret}" -lt 16 ]; then
+		rg_secret="rg-replace-this-secret!!"
+	fi
+	rg_admin=$(head -c 24 /dev/urandom | base64 | tr -d '\n=/+' | head -c 24)
+
+	if [[ "$DEV_MODE" -eq 1 ]]; then
+		rg_secret="rg-dev-local-secret!!"
+		rg_admin="rg-dev-admin-password!!"
+	fi
+
+	sed \
+		-e 's/^\(SNIKKET_DOMAIN\)=.*$/\1='"$domain"'/;' \
+		-e 's/^\(SNIKKET_ADMIN_EMAIL\)=.*$/\1='"$email"'/;' \
+		-e 's/^\(SNIKKET_LETSENCRYPT_TOS_AGREE\)=.*$/\1='"$tos"'/;' \
+		snikket.conf.example > snikket.conf
+
+	cat > .env <<EOF
+SNIKKET_DOMAIN=${domain}
+SNIKKET_ADMIN_EMAIL=${email}
+RG_CHALLENGE_SECRET=${rg_secret}
+RG_ADMIN_BOOTSTRAP_PASSWORD=${rg_admin}
+SNIKKET_UPDATER_TOKEN=snikket-updater-local
+EOF
+}
+
+if [[ "$DEV_MODE" -eq 1 ]]; then
+	if [[ -f snikket.conf && "$FORCE" -ne 1 ]]; then
+		echo "snikket.conf already exists. Re-run with --force to overwrite, or use make up-dev."
+		exit 0
+	fi
+	write_config "chat.localhost" "admin@chat.localhost" "Y"
+	echo ""
+	echo "Dev config written to snikket.conf and .env (domain chat.localhost)."
+	echo "Next:"
+	echo "  make up-dev"
+	echo "  open http://chat.localhost:8080/login  (admin@chat.localhost / admin after start)"
+	echo "Add chat.localhost to /etc/hosts pointing at 127.0.0.1 if needed."
+	exit 0
+fi
+
+if [[ -n "$DOMAIN_ARG" ]]; then
+	if [[ -z "$EMAIL_ARG" ]]; then
+		echo "--domain requires --email" >&2
+		exit 1
+	fi
+	if [[ -f snikket.conf && "$FORCE" -ne 1 ]]; then
+		echo "snikket.conf already exists. Re-run with --force to overwrite."
+		exit 1
+	fi
+	write_config "$DOMAIN_ARG" "$EMAIL_ARG" "Y"
+	echo "Config written for $DOMAIN_ARG."
+	echo "Run ./scripts/preflight.sh then make up"
+	exit 0
 fi
 
 if [ -f snikket.conf ]; then
@@ -50,19 +153,18 @@ if [ -f snikket.conf ]; then
 	echo ""
 fi
 
-echo "## Snikket setup ##"
+echo "## SnikketX setup ##"
 echo ""
-echo "Welcome to Snikket. We're nearly ready to start your"
-echo "new Snikket service. First we need some configuration"
-echo "details."
+echo "Welcome to SnikketX. We're nearly ready to start your"
+echo "new service. First we need some configuration details."
 
 echo ""
 echo ""
-echo "Snikket domain. This is the domain name your Snikket"
-echo "service will use. For example, 'example.com' or 'chat.example.com'."
+echo "SnikketX domain. This is the domain name your service will use."
+echo "For example, 'example.com' or 'chat.example.com'."
 echo "It must be a domain you own, with DNS records for this"
 echo "server's IP address. The domain/subdomain you enter will be"
-echo "dedicated to Snikket, and cannot be shared with e.g. a website."
+echo "dedicated to SnikketX, and cannot be shared with e.g. a website."
 echo ""
 read -r -p "Enter domain: " SNIKKET_DOMAIN
 
@@ -70,8 +172,7 @@ echo ""
 echo ""
 echo "Admin email address. This is communicated to your users"
 echo "of the $SNIKKET_DOMAIN service in case they require assistance."
-echo "It is also provided to Let's Encrypt, an organization that issues"
-echo "SSL/TLS certificates required for Snikket to encrypt connections."
+echo "It is also provided to Let's Encrypt for SSL/TLS certificates."
 echo ""
 read -r -p "Enter admin email address: " SNIKKET_ADMIN_EMAIL
 
@@ -87,38 +188,20 @@ echo ""
 case "$SNIKKET_LETSENCRYPT_TOS_AGREE" in
 Y|y) ;;
 *)
-	echo "Snikket requires certificates from Let's Encrypt to set up"
+	echo "SnikketX requires certificates from Let's Encrypt to set up"
 	echo "the server. Since you do not accept the terms of service"
 	echo "(you answered: $SNIKKET_LETSENCRYPT_TOS_AGREE), the installation"
 	echo "cannot continue."
-	echo "If you change your mind, you may re-run this script at any time."
-	exit 1;
-;;
+	exit 1
+	;;
 esac
 
-RG_CHALLENGE_SECRET=$(head -c 32 /dev/urandom | base64 | tr -d '\n=/+' | head -c 32)
-if [ "${#RG_CHALLENGE_SECRET}" -lt 16 ]; then
-	RG_CHALLENGE_SECRET="rg-replace-this-secret!!"
-fi
-RG_ADMIN_BOOTSTRAP_PASSWORD=$(head -c 24 /dev/urandom | base64 | tr -d '\n=/+' | head -c 24)
+write_config "$SNIKKET_DOMAIN" "$SNIKKET_ADMIN_EMAIL" "$SNIKKET_LETSENCRYPT_TOS_AGREE"
 
 echo ""
-sed \
-  -e 's/^\(SNIKKET_DOMAIN\)=.*$/\1='"$SNIKKET_DOMAIN"'/;' \
-  -e 's/^\(SNIKKET_ADMIN_EMAIL\)=.*$/\1='"$SNIKKET_ADMIN_EMAIL"'/;' \
-  -e 's/^\(SNIKKET_LETSENCRYPT_TOS_AGREE\)=.*$/\1='"$SNIKKET_LETSENCRYPT_TOS_AGREE"'/;' \
-  snikket.conf.example > snikket.conf
+echo "Success! Configuration saved to snikket.conf and .env."
+echo "Check DNS and ports:  ./scripts/preflight.sh"
+echo "Start production:     make up"
+echo "Start local builds:   make up-dev   or  ./scripts/init.sh --dev && make up-dev"
 
-cat > .env <<EOF
-SNIKKET_DOMAIN=${SNIKKET_DOMAIN}
-SNIKKET_ADMIN_EMAIL=${SNIKKET_ADMIN_EMAIL}
-RG_CHALLENGE_SECRET=${RG_CHALLENGE_SECRET}
-RG_ADMIN_BOOTSTRAP_PASSWORD=${RG_ADMIN_BOOTSTRAP_PASSWORD}
-EOF
-
-echo ""
-echo 'Success! Configuration saved to snikket.conf and .env.'
-echo 'Start with ./scripts/start.sh'
-echo 'For local builds: ./scripts/start.sh --dev'
-
-exit 0;
+exit 0
