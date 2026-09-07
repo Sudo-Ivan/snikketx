@@ -1,0 +1,35 @@
+{{define "content"}}
+<section class="card card-narrow">
+	<h1>Your profile</h1>
+	<p class="muted">Your display name and your avatar are what your contacts see. Choose below how far they reach.</p>
+	<form method="post" action="/user/profile" class="form" enctype="multipart/form-data">
+		{{csrf .CSRF}}
+		<div class="field field-avatar">
+			{{with .User}}{{template "avatar" dict "Address" .Address "Hash" .AvatarHash "Name" .DisplayName "Seed" .Address}}{{end}}
+			<div>
+				<label for="avatar">Avatar</label>
+				<input type="file" id="avatar" name="avatar" accept="image/png,image/jpeg,image/gif,image/webp">
+				<p class="hint">Up to {{formatBytes .MaxAvatarSize}}. Use the Snikket app to upload a larger picture.</p>
+			</div>
+		</div>
+		<div class="field">
+			<label for="nickname">Display name</label>
+			<input type="text" id="nickname" name="nickname" value="{{.Nickname}}" autocomplete="nickname" maxlength="120">
+		</div>
+		<fieldset class="field">
+			<legend>Profile visibility</legend>
+			{{$current := .AccessModel}}
+			{{range .AccessModels}}
+			<label class="choice">
+				<input type="radio" name="profile_access_model" value="{{.Value}}"{{if eq .Value $current}} checked{{end}}>
+				<span><strong>{{.Label}}</strong><span class="hint">{{.Hint}}</span></span>
+			</label>
+			{{end}}
+		</fieldset>
+		<div class="actions">
+			<button type="submit" class="btn btn-primary">{{template "icon" "check"}}<span>Update profile</span></button>
+			<a class="btn btn-ghost" href="/user/">Cancel</a>
+		</div>
+	</form>
+</section>
+{{end}}

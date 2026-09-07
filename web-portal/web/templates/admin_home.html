@@ -1,0 +1,67 @@
+{{define "content"}}
+<p class="muted">{{t "admin.ops_summary"}} for <strong>{{.Domain}}</strong>. The portal has been running for {{.Uptime}}.</p>
+
+<div class="stats stats-lead">
+	<a class="stat stat-link" href="/admin/users">
+		<span class="stat-label">{{template "icon" "users"}}<span>Accounts</span></span>
+		<span class="stat-value">{{.Users}}</span>
+		<span class="stat-note">{{.Admins}} administrators, {{.Disabled}} locked</span>
+	</a>
+	<a class="stat stat-link" href="/admin/invitations">
+		<span class="stat-label">{{template "icon" "link"}}<span>Invitations</span></span>
+		<span class="stat-value">{{.Invitations}}</span>
+		<span class="stat-note">outstanding links</span>
+	</a>
+	<a class="stat stat-link" href="/admin/circles">
+		<span class="stat-label">{{template "icon" "users-round"}}<span>Circles</span></span>
+		<span class="stat-value">{{.Circles}}</span>
+		<span class="stat-note">groups of contacts</span>
+	</a>
+	{{if and .ShowMetrics .Metrics.Devices}}
+	<a class="stat stat-link" href="/admin/system/">
+		<span class="stat-label">{{template "icon" "smartphone"}}<span>Connected devices</span></span>
+		<span class="stat-value">{{.Metrics.Devices}}</span>
+		<span class="stat-note">right now</span>
+	</a>
+	{{end}}
+</div>
+
+{{range .Degraded}}
+<div class="alert alert-alert" role="alert">{{template "icon" "alert-triangle"}}<p>{{.}}</p></div>
+{{end}}
+
+<div class="grid grid-cards">
+	<a class="card card-action" href="/admin/invitation/-/new">
+		<span class="card-action-icon">{{template "icon" "user-plus"}}</span>
+		<h2>Invite someone</h2>
+		<p class="muted">Create a link that lets a new person join {{.SiteName}}.</p>
+	</a>
+	<a class="card card-action" href="/admin/circle/-/new">
+		<span class="card-action-icon">{{template "icon" "users-round"}}</span>
+		<h2>New circle</h2>
+		<p class="muted">Group people who should see each other automatically.</p>
+	</a>
+	<a class="card card-action" href="/admin/system/">
+		<span class="card-action-icon">{{template "icon" "megaphone"}}</span>
+		<h2>Announcement</h2>
+		<p class="muted">Send a message to everyone on this service.</p>
+	</a>
+	<a class="card card-action" href="/admin/health/">
+		<span class="card-action-icon">{{template "icon" "heart-pulse"}}</span>
+		<h2>Health</h2>
+		<p class="muted">{{if .RecentErrors}}{{.RecentErrors}} recent errors recorded.{{else}}No errors recorded.{{end}}</p>
+	</a>
+</div>
+
+{{if and .ShowMetrics .Metrics.Available}}
+<section class="card">
+	<h2>Activity</h2>
+	<div class="stats">
+		{{with .Metrics.Active1d}}<div class="stat"><span class="stat-label">Active today</span><span class="stat-value">{{.}}</span></div>{{end}}
+		{{with .Metrics.Active7d}}<div class="stat"><span class="stat-label">Active this week</span><span class="stat-value">{{.}}</span></div>{{end}}
+		{{with .Metrics.Active30d}}<div class="stat"><span class="stat-label">Active this month</span><span class="stat-value">{{.}}</span></div>{{end}}
+		{{with .Metrics.Uploads}}<div class="stat"><span class="stat-label">Shared files</span><span class="stat-value">{{formatBytes .}}</span></div>{{end}}
+	</div>
+</section>
+{{end}}
+{{end}}

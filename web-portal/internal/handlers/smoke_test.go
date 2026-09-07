@@ -1,0 +1,263 @@
+package handlers
+
+import (
+	"io/fs"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/sudo-ivan/snikketx/web-portal/internal/config"
+	"github.com/sudo-ivan/snikketx/web-portal/internal/health"
+	"github.com/sudo-ivan/snikketx/web-portal/internal/metrics"
+	"github.com/sudo-ivan/snikketx/web-portal/internal/prosody"
+	"github.com/sudo-ivan/snikketx/web-portal/internal/session"
+	"github.com/sudo-ivan/snikketx/web-portal/internal/webui"
+	"github.com/sudo-ivan/snikketx/web-portal/web"
+)
+
+func stubProsody(t *testing.T) *httptest.Server {
+	t.Helper()
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/oauth2/register", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"client_id":"cid","client_secret":"secret"}`))
+	})
+	mux.HandleFunc("/oauth2/token", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"access_token":"tok","token_type":"bearer","scope":"prosody:registered prosody:admin"}`))
+	})
+	mux.HandleFunc("/admin_api/users", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`[{"username":"alice","display_name":"Alice","role":"prosody:admin","enabled":true,"last_active":1700000000,"avatar_info":[{"hash":"aabbccddeeff00112233445566778899aabbccdd","bytes":100,"type":"image/png"}]},{"username":"bob","enabled":false,"role":"prosody:registered"}]`))
+	})
+	mux.HandleFunc("/admin_api/users/", func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/debug") {
+			_, _ = w.Write([]byte(`{"sessions":[],"roster":2}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"username":"alice","display_name":"Alice","role":"prosody:admin","enabled":true,"deletion_request":{"deleted_at":1700000000,"pending_until":1800000000}}`))
+	})
+	mux.HandleFunc("/admin_api/invites", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`[{"id":"inv1","type":"register","token":"inv1","created_at":1700000000,"expires":4000000000,"groups":["g1"],"roles":["prosody:registered"],"note":"For Carol"}]`))
+	})
+	mux.HandleFunc("/admin_api/invites/", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"id":"inv1","type":"register","jid":"alice@example.test","created_at":1700000000,"expires":4000000000,"groups":["g1"],"roles":["prosody:registered"],"note":"For Carol","xmpp_uri":"xmpp:example.test?register;preauth=inv1"}`))
+	})
+	mux.HandleFunc("/admin_api/groups", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`[{"id":"g1","name":"Family","members":["alice","bob"],"chats":[{"id":"c1","jid":"family@groups.example.test","name":"Family chat"}]}]`))
+	})
+	mux.HandleFunc("/admin_api/groups/", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"id":"g1","name":"Family","members":["alice","bob"],"chats":[{"id":"c1","jid":"family@groups.example.test","name":"Family chat"}]}`))
+	})
+	mux.HandleFunc("/admin_api/server/metrics", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"memory":123456789,"c2s":7,"uploads":98765432,"cpu":{"value":12.5,"since":1700000000},"users":{"active_1d":3,"active_7d":5,"active_30d":9}}`))
+	})
+	mux.HandleFunc("/register_api/invite/", func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "reset") {
+			_, _ = w.Write([]byte(`{"uri":"xmpp:example.test?roster","reset":"alice","domain":"example.test"}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"inviter":"Alice","uri":"xmpp:example.test?register;preauth=inv1","domain":"example.test"}`))
+	})
+	mux.HandleFunc("/xep227/export", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/xml")
+		_, _ = w.Write([]byte(`<server-data xmlns="urn:xmpp:pie:0"></server-data>`))
+	})
+	mux.HandleFunc("/xep227/import", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+	mux.HandleFunc("/rest", func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.Header.Get("Content-Type"), "xml") {
+			w.Header().Set("Content-Type", "application/xmpp+xml")
+			_, _ = w.Write([]byte(`<iq type="result" id="1"><pubsub xmlns="http://jabber.org/protocol/pubsub"><items node="http://jabber.org/protocol/nick"><item><nick xmlns="http://jabber.org/protocol/nick">Alice</nick></item></items></pubsub></iq>`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"kind":"iq","type":"result","version":{"version":"prosody 13.0.1"}}`))
+	})
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.NotFound(w, r)
+	})
+
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+	return server
+}
+
+func newTestApp(t *testing.T, endpoint string) *App {
+	t.Helper()
+
+	templateFS, err := fs.Sub(web.FS, "templates")
+	if err != nil {
+		t.Fatal(err)
+	}
+	staticFS, err := fs.Sub(web.FS, "static")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sprite, err := fs.ReadFile(staticFS, "img/icons.svg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	renderer, err := webui.New(templateFS, webui.Options{Sprite: sprite})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &config.Config{
+		SecretKey:       []byte("test-secret"),
+		ProsodyEndpoint: endpoint,
+		Domain:          "example.test",
+		SiteName:        "Example Chat",
+		AvatarCacheTTL:  time.Minute,
+		AppleStoreURL:   "https://apps.apple.com/app/id1",
+		MaxAvatarSize:   1 << 20,
+		ShowMetrics:     true,
+		TOSURI:          "https://example.test/tos",
+		PrivacyURI:      "https://example.test/privacy",
+		AbuseEmail:      "abuse@example.test",
+		SecurityEmail:   "security@example.test",
+		Version:         "test",
+	}
+
+	return &App{
+		Cfg:       cfg,
+		Prosody:   prosody.New(endpoint, "example.test", "test"),
+		Sessions:  session.New(cfg.SecretKey, false),
+		Templates: renderer,
+		Errors:    health.NewRing(8),
+		Metrics:   metrics.New(),
+		Started:   time.Now().Add(-time.Hour),
+		Static:    http.StripPrefix("/static/", http.FileServerFS(staticFS)),
+	}
+}
+
+func adminCookie(t *testing.T, app *App) *http.Cookie {
+	t.Helper()
+	recorder := httptest.NewRecorder()
+	data := session.Data{}
+	data.SetAuth("tok", "prosody:registered prosody:admin", "alice@example.test")
+	data["_csrf"] = "csrftoken"
+	if err := app.Sessions.Save(recorder, data); err != nil {
+		t.Fatal(err)
+	}
+	for _, cookie := range recorder.Result().Cookies() {
+		if cookie.Name == session.CookieName {
+			return cookie
+		}
+	}
+	t.Fatal("no session cookie issued")
+	return nil
+}
+
+func TestGetRoutesRender(t *testing.T) {
+	backend := stubProsody(t)
+	app := newTestApp(t, backend.URL)
+	handler := app.Routes()
+	cookie := adminCookie(t, app)
+
+	paths := []string{
+		"/", "/login", "/meta/about.html", "/policies/", "/terms", "/privacy",
+		"/.well-known/security.txt", "/site.webmanifest", "/_health", "/_health/ready",
+		"/metrics", "/static/css/app.css",
+		"/user/", "/user/passwd", "/user/profile", "/user/manage_data", "/user/logout",
+		"/admin/", "/admin/users", "/admin/user/alice/", "/admin/user/alice/delete",
+		"/admin/user/alice/debug", "/admin/users/password-reset/inv1",
+		"/admin/invitations", "/admin/invitation/-/new", "/admin/invitation/inv1",
+		"/admin/circles", "/admin/circle/-/new", "/admin/circle/g1",
+		"/admin/circle/g1/delete", "/admin/circle/g1/add_chat",
+		"/admin/system/", "/admin/health/",
+		"/invite/inv1/", "/invite/inv1/register", "/invite/reset-inv/reset",
+		"/invite/reset-inv/", "/invite/success", "/invite/success/reset",
+		"/invite/missing-x/",
+	}
+
+	for _, path := range paths {
+		t.Run(path, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			req.AddCookie(cookie)
+			recorder := httptest.NewRecorder()
+			handler.ServeHTTP(recorder, req)
+
+			if recorder.Code >= 500 {
+				t.Fatalf("status %d\n%s", recorder.Code, recorder.Body.String())
+			}
+			body := recorder.Body.String()
+			if strings.Contains(body, "ZgotmplZ") {
+				t.Errorf("template escaped a URL to ZgotmplZ")
+			}
+			if strings.Contains(body, "&lt;svg") {
+				t.Errorf("sprite was escaped instead of inlined")
+			}
+			t.Logf("%d %s (%d bytes)", recorder.Code, path, len(body))
+		})
+	}
+
+	for _, entry := range app.Errors.Recent() {
+		t.Errorf("recorded error: %s", entry.Message)
+	}
+}
+
+func TestPostRoutesRender(t *testing.T) {
+	backend := stubProsody(t)
+	app := newTestApp(t, backend.URL)
+	handler := app.Routes()
+	cookie := adminCookie(t, app)
+
+	posts := []struct {
+		path string
+		form string
+	}{
+		{"/login", "address=alice&password=secretsecret"},
+		{"/user/passwd", "current_password=old&new_password=short"},
+		{"/user/profile", "nickname=Alice&profile_access_model=presence"},
+		{"/user/manage_data", ""},
+		{"/admin/user/alice/", "action=save&display_name=Alice&role=prosody:admin"},
+		{"/admin/invitations", "revoke=inv1"},
+		{"/admin/invitation/-/new", "circles=g1&role=prosody:registered&lifetime=604800&type=account"},
+		{"/admin/circle/-/new", "name=Friends"},
+		{"/admin/circle/g1", "action=save&name=Family"},
+		{"/admin/circle/g1/add_chat", "name=Chat"},
+		{"/admin/system/", "action=preview&text=hello"},
+		{"/invite/inv1/register", "localpart=carol&password=short&password_confirm=short"},
+		{"/invite/reset-inv/reset", "password=verylongpassword&password_confirm=verylongpassword"},
+	}
+
+	for _, post := range posts {
+		t.Run(post.path, func(t *testing.T) {
+			body := post.form
+			if body != "" {
+				body += "&"
+			}
+			body += "csrf_token=csrftoken"
+
+			req := httptest.NewRequest(http.MethodPost, post.path, strings.NewReader(body))
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			req.AddCookie(cookie)
+			recorder := httptest.NewRecorder()
+			handler.ServeHTTP(recorder, req)
+
+			if recorder.Code >= 500 {
+				t.Fatalf("status %d\n%s", recorder.Code, recorder.Body.String())
+			}
+			t.Logf("%d %s", recorder.Code, post.path)
+		})
+	}
+}
+
+func TestCSRFRejectsMissingToken(t *testing.T) {
+	backend := stubProsody(t)
+	app := newTestApp(t, backend.URL)
+	handler := app.Routes()
+	cookie := adminCookie(t, app)
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/circle/-/new", strings.NewReader("name=Nope"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.AddCookie(cookie)
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d", recorder.Code)
+	}
+}

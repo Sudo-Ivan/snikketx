@@ -1,0 +1,32 @@
+{{define "content"}}
+{{$invite := .Invite.Invite}}
+<p><a class="btn btn-ghost btn-small" href="/admin/invitations">{{template "icon" "arrow-left"}}<span>All invitations</span></a></p>
+
+<section class="card card-narrow">
+	<h1>{{orDefault $invite.Note "Invitation"}}</h1>
+	{{if .Invite.Expired}}
+	<div class="alert alert-alert" role="alert">{{template "icon" "alert-triangle"}}<p>This invitation expired on {{formatTime $invite.Expires}} and can no longer be used.</p></div>
+	{{end}}
+
+	<p class="muted">Share this link with the person you are inviting. Opening it walks them through installing the app and joining {{.SiteName}}.</p>
+	{{template "copy_field" dict "ID" "invite-link" "Label" "Invitation link" "Value" .Invite.URL}}
+
+	<dl class="details">
+		<dt>Type</dt><dd>{{if eq $invite.Type "roster"}}Group invitation{{else}}New account{{end}}</dd>
+		<dt>Circles</dt><dd>{{if .Invite.Circles}}{{join .Invite.Circles ", "}}{{else}}<span class="muted">none</span>{{end}}</dd>
+		<dt>Access level</dt><dd>{{if $invite.RoleNames}}{{roleLabel (index $invite.RoleNames 0)}}{{else}}{{roleLabel ""}}{{end}}</dd>
+		<dt>Created</dt><dd>{{formatTime $invite.CreatedAt}}</dd>
+		<dt>Expires</dt><dd>{{formatTime $invite.Expires}} <span class="muted">({{formatLeft $invite.Expires}})</span></dd>
+		<dt>Reusable</dt><dd>{{if $invite.Reusable}}Yes, more than one person can use it{{else}}No, single use{{end}}</dd>
+		{{if $invite.XMPPURI}}<dt>App link</dt><dd class="mono break">{{$invite.XMPPURI}}</dd>{{end}}
+	</dl>
+
+	<form method="post" action="/admin/invitation/{{$invite.ID}}" class="form">
+		{{csrf .CSRF}}
+		<div class="actions">
+			<button type="submit" name="action" value="revoke" class="btn btn-danger">{{template "icon" "x-circle"}}<span>Revoke invitation</span></button>
+			<a class="btn btn-ghost" href="/admin/invitations">Done</a>
+		</div>
+	</form>
+</section>
+{{end}}

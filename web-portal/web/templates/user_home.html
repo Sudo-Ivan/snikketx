@@ -1,0 +1,56 @@
+{{define "content"}}
+<section class="hero">
+	{{with .User}}{{template "avatar" dict "Address" .Address "Hash" .AvatarHash "Name" .DisplayName "Seed" .Address}}{{end}}
+	<div>
+		<h1>{{with .User}}{{.DisplayName}}{{end}}</h1>
+		<p class="muted mono">{{with .User}}{{.Address}}{{end}}</p>
+	</div>
+</section>
+
+<div class="grid grid-cards">
+	<a class="card card-action" href="/user/profile">
+		<span class="card-action-icon">{{template "icon" "circle-user"}}</span>
+		<h2>Profile</h2>
+		<p class="muted">Change your display name, your avatar and who is allowed to see them.</p>
+	</a>
+	<a class="card card-action" href="/user/passwd">
+		<span class="card-action-icon">{{template "icon" "key"}}</span>
+		<h2>Password</h2>
+		<p class="muted">Choose a new password for your account.</p>
+	</a>
+	<a class="card card-action" href="/user/manage_data">
+		<span class="card-action-icon">{{template "icon" "database"}}</span>
+		<h2>Account data</h2>
+		<p class="muted">Download a copy of your contacts and your profile data.</p>
+	</a>
+	{{if .IsAdmin}}
+	<a class="card card-action" href="/admin/">
+		<span class="card-action-icon">{{template "icon" "shield"}}</span>
+		<h2>Administration</h2>
+		<p class="muted">Manage accounts, circles and invitations for this service.</p>
+	</a>
+	{{end}}
+</div>
+
+{{if and .ShowMetrics .Metrics.Available}}
+<section class="card">
+	<h2>Service activity</h2>
+	<div class="stats">
+		{{with .Metrics.Devices}}<div class="stat"><span class="stat-label">Connected devices</span><span class="stat-value">{{.}}</span></div>{{end}}
+		{{with .Metrics.Active1d}}<div class="stat"><span class="stat-label">Active today</span><span class="stat-value">{{.}}</span></div>{{end}}
+		{{with .Metrics.Active7d}}<div class="stat"><span class="stat-label">Active this week</span><span class="stat-value">{{.}}</span></div>{{end}}
+		{{with .Metrics.Active30d}}<div class="stat"><span class="stat-label">Active this month</span><span class="stat-value">{{.}}</span></div>{{end}}
+	</div>
+</section>
+{{end}}
+
+<section class="card">
+	<h2>Get the app</h2>
+	<p class="muted">Snikket works best with the Snikket app on your phone. The portal is only here for account settings.</p>
+	<p class="store-links">
+		<a href="https://play.google.com/store/apps/details?id=org.snikket.android" rel="noopener noreferrer" target="_blank"><img src="/static/img/google/en_badge_web_generic.png" alt="Get it on Google Play" height="56"></a>
+		{{if .AppleStoreURL}}<a href="{{.AppleStoreURL}}" rel="noopener noreferrer" target="_blank"><img src="/static/img/apple/en.svg" alt="Download on the App Store" height="40"></a>{{end}}
+		<a href="https://f-droid.org/packages/org.snikket.android/" rel="noopener noreferrer" target="_blank"><img src="/static/img/f-droid-badge.png" alt="Get it on F-Droid" height="56"></a>
+	</p>
+</section>
+{{end}}

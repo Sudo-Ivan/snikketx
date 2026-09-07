@@ -1,6 +1,7 @@
 /.direnv
 /.local
-__pycache__
-/snikket_web/static/css/*.css
-/snikket_web/translations/*/LC_MESSAGES/*.mo
 /.env
+/bin/
+*.test
+*.out
+coverage.*

@@ -1,0 +1,42 @@
+{{define "admin_shell"}}
+<div class="admin">
+	<aside class="sidebar" id="sidebar">
+		<a class="brand" href="/admin/">
+			<img src="/static/img/snikket-logo.svg" alt="" width="34" height="34">
+			<span>{{.SiteName}}</span>
+		</a>
+		<nav class="sidenav" aria-label="Administration">
+			<a href="/admin/" class="sidenav-link{{if eq .Nav "home"}} is-active{{end}}">{{template "icon" "gauge"}}<span>{{t "nav.home"}}</span></a>
+			<a href="/admin/users" class="sidenav-link{{if eq .Nav "users"}} is-active{{end}}">{{template "icon" "users"}}<span>{{t "nav.users"}}</span></a>
+			<a href="/admin/circles" class="sidenav-link{{if eq .Nav "circles"}} is-active{{end}}">{{template "icon" "users-round"}}<span>{{t "nav.circles"}}</span></a>
+			<a href="/admin/invitations" class="sidenav-link{{if eq .Nav "invites"}} is-active{{end}}">{{template "icon" "link"}}<span>{{t "nav.invites"}}</span></a>
+			<a href="/admin/system/" class="sidenav-link{{if eq .Nav "system"}} is-active{{end}}">{{template "icon" "server"}}<span>{{t "nav.system"}}</span></a>
+			<a href="/admin/health/" class="sidenav-link{{if eq .Nav "health"}} is-active{{end}}">{{template "icon" "heart-pulse"}}<span>{{t "nav.health"}}</span></a>
+		</nav>
+		<nav class="sidenav sidenav-secondary" aria-label="Account">
+			<a href="/user/" class="sidenav-link">{{template "icon" "log-in"}}<span>{{t "nav.exit_admin"}}</span></a>
+			<a href="/user/logout" class="sidenav-link">{{template "icon" "log-out"}}<span>{{t "nav.logout"}}</span></a>
+		</nav>
+	</aside>
+	<div class="admin-main">
+		<header class="admin-bar">
+			<a class="btn btn-ghost btn-icon admin-menu" href="#sidebar" aria-label="Open the navigation">{{template "icon" "menu"}}</a>
+			<h1 class="admin-title">{{orDefault .Title (t "admin.welcome")}}</h1>
+			<div class="topbar-actions">
+				{{template "theme_toggle" .}}
+				{{with .User}}
+				<a class="identity" href="/user/profile" title="{{.Address}}">
+					{{template "avatar" dict "Address" .Address "Hash" .AvatarHash "Name" .DisplayName "Seed" .Address}}
+					<span class="identity-name">{{.DisplayName}}</span>
+				</a>
+				{{end}}
+			</div>
+		</header>
+		<main id="main" class="admin-content">
+			{{template "messages" .}}
+			{{template "content" .}}
+		</main>
+		{{template "footer" .}}
+	</div>
+</div>
+{{end}}

@@ -1,0 +1,19 @@
+{{define "content"}}
+<p><a class="btn btn-ghost btn-small" href="/admin/circle/{{.Circle.ID}}">{{template "icon" "arrow-left"}}<span>Back to {{.Circle.Name}}</span></a></p>
+
+<section class="card card-narrow">
+	<h1>New group chat</h1>
+	<p class="muted">The chat is created inside <strong>{{.Circle.Name}}</strong>, and every member of the circle joins it automatically.</p>
+	<form method="post" action="/admin/circle/{{.Circle.ID}}/add_chat" class="form">
+		{{csrf .CSRF}}
+		<div class="field">
+			<label for="name">Group chat name</label>
+			<input type="text" id="name" name="name" maxlength="120" required autofocus>
+		</div>
+		<div class="actions">
+			<button type="submit" class="btn btn-primary">{{template "icon" "message-square"}}<span>Create group chat</span></button>
+			<a class="btn btn-ghost" href="/admin/circle/{{.Circle.ID}}">Cancel</a>
+		</div>
+	</form>
+</section>
+{{end}}

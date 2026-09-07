@@ -1,0 +1,74 @@
+{{define "icon"}}<svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-{{.}}"></use></svg>{{end}}
+
+{{define "avatar"}}
+{{- $url := avatarURL .Address .Hash -}}
+{{- if $url -}}
+<img class="avatar" src="{{$url}}" alt="" loading="lazy">
+{{- else -}}
+<span class="avatar avatar-fallback" style="background-color: {{colour .Seed}}" aria-hidden="true">{{initials .Name}}</span>
+{{- end -}}
+{{end}}
+
+{{define "role_badge"}}<span class="badge badge-role role-{{lower (orDefault . "prosody:registered")}}">{{roleLabel .}}</span>{{end}}
+
+{{define "empty_state"}}
+<div class="empty">
+	<img src="/static/img/illus-empty.svg" alt="" width="120" height="120">
+	<p>{{.}}</p>
+</div>
+{{end}}
+
+{{define "invite_form"}}
+<form method="post" action="/admin/invitation/-/new" class="form">
+	{{csrf .CSRF}}
+	<fieldset class="field">
+		<legend>Invitation type</legend>
+		<label class="choice">
+			<input type="radio" name="type" value="account" checked>
+			<span><strong>Individual</strong><span class="hint">Creates a new account on {{.SiteName}}.</span></span>
+		</label>
+		<label class="choice">
+			<input type="radio" name="type" value="group">
+			<span><strong>Group</strong><span class="hint">Adds an existing contact to the selected circles.</span></span>
+		</label>
+	</fieldset>
+	<div class="field">
+		<label for="invite-circles">Invite to circle</label>
+		<select id="invite-circles" name="circles" required>
+			{{$selected := .Circle}}
+			{{range .Circles}}<option value="{{.ID}}"{{if eq .ID $selected}} selected{{end}}>{{.Name}}</option>{{end}}
+		</select>
+		{{if not .Circles}}<p class="hint">Create a circle first, every invitation needs one.</p>{{end}}
+	</div>
+	<fieldset class="field">
+		<legend>Access level</legend>
+		{{range .Roles}}
+		<label class="choice">
+			<input type="radio" name="role" value="{{.Value}}"{{if eq .Value "prosody:registered"}} checked{{end}}>
+			<span><strong>{{.Label}}</strong><span class="hint">{{.Hint}}</span></span>
+		</label>
+		{{end}}
+	</fieldset>
+	<div class="field">
+		<label for="invite-lifetime">Valid for</label>
+		<select id="invite-lifetime" name="lifetime">
+			{{range .Lifetimes}}<option value="{{.Seconds}}"{{if eq .Seconds 604800}} selected{{end}}>{{.Label}}</option>{{end}}
+		</select>
+	</div>
+	<div class="field">
+		<label for="invite-note">Comment (optional)</label>
+		<input type="text" id="invite-note" name="note" maxlength="200" placeholder="Who is this invitation for?">
+	</div>
+	<div class="actions">
+		<button type="submit" class="btn btn-primary"{{if not .Circles}} disabled{{end}}>{{template "icon" "link"}}<span>Create invitation link</span></button>
+	</div>
+</form>
+{{end}}
+
+{{define "copy_field"}}
+<div class="copy-field">
+	<label class="sr-only" for="{{.ID}}">{{.Label}}</label>
+	<input type="text" id="{{.ID}}" value="{{.Value}}" readonly spellcheck="false" data-copy-source>
+	<button type="button" class="btn btn-secondary btn-icon" data-copy-for="{{.ID}}" aria-label="Copy to clipboard" title="Copy to clipboard">{{template "icon" "copy"}}</button>
+</div>
+{{end}}

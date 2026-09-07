@@ -1,0 +1,23 @@
+{{define "content"}}
+<section class="card card-narrow">
+	<h1>Set a new password</h1>
+	<p class="lede">Choose a new password for <strong class="mono">{{.AccountJID}}</strong>.</p>
+
+	<form method="post" action="/invite/{{.InviteID}}/reset" class="form">
+		{{csrf .CSRF}}
+		<div class="field">
+			<label for="password">New password</label>
+			<input type="password" id="password" name="password" autocomplete="new-password" minlength="10" required autofocus>
+			<p class="hint">At least 10 characters.</p>
+		</div>
+		<div class="field">
+			<label for="password_confirm">Confirm new password</label>
+			<input type="password" id="password_confirm" name="password_confirm" autocomplete="new-password" minlength="10" required>
+		</div>
+		<div class="actions">
+			<button type="submit" class="btn btn-primary">{{template "icon" "key"}}<span>Change password</span></button>
+			<a class="btn btn-ghost" href="/invite/{{.InviteID}}/">Cancel</a>
+		</div>
+	</form>
+</section>
+{{end}}

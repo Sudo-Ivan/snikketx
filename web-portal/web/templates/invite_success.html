@@ -1,0 +1,35 @@
+{{define "content"}}
+<section class="card card-narrow">
+	<h1>Welcome to {{.SiteName}}</h1>
+	<p class="lede">Your account is ready.</p>
+	{{if .JID}}<p>Your chat address is <strong class="mono">{{.JID}}</strong>. Sign in with it in the Snikket app.</p>{{end}}
+
+	{{if .MigrationDone}}
+	<div class="alert alert-success" role="status">{{template "icon" "check-circle"}}<p>Your account data was imported. Your contacts should appear in the app shortly.</p></div>
+	{{end}}
+
+	<h2>Install the app</h2>
+	<p class="store-links">
+		<a href="https://play.google.com/store/apps/details?id=org.snikket.android" rel="noopener noreferrer" target="_blank"><img src="{{.PlayBadge}}" alt="Get it on Google Play" height="56"></a>
+		{{if .AppleStoreURL}}<a href="{{.AppleStoreURL}}" rel="noopener noreferrer" target="_blank"><img src="{{.AppleBadge}}" alt="Download on the App Store" height="40"></a>{{end}}
+		<a href="{{safeURL .FDroidURL}}"><img src="/static/img/f-droid-badge.png" alt="Get it on F-Droid" height="56"></a>
+	</p>
+
+	{{if .CanImport}}
+	<details class="disclosure">
+		<summary>{{template "icon" "file-up"}}<span>Moving from another server?</span></summary>
+		<p class="muted">If you exported your account data from another XMPP service, upload the XEP-0227 document here and your contacts and profile will be restored. Files up to {{formatBytes .MaxImportSize}} are accepted.</p>
+		<form method="post" action="/invite/success" class="form" enctype="multipart/form-data">
+			{{csrf .CSRF}}
+			<div class="field">
+				<label for="account_data_file">Account data file</label>
+				<input type="file" id="account_data_file" name="account_data_file" accept=".xml,application/xml,text/xml" required>
+			</div>
+			<button type="submit" class="btn btn-secondary">{{template "icon" "upload"}}<span>Import data</span></button>
+		</form>
+	</details>
+	{{end}}
+
+	<p><a class="btn btn-ghost" href="/user/">{{template "icon" "home"}}<span>Go to your account</span></a></p>
+</section>
+{{end}}

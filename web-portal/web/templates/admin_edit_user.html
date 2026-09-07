@@ -1,0 +1,84 @@
+{{define "content"}}
+{{$localpart := .Target.Localpart}}
+<p><a class="btn btn-ghost btn-small" href="/admin/users">{{template "icon" "arrow-left"}}<span>All accounts</span></a></p>
+
+{{if .Target.DeletionRequest}}
+<div class="alert alert-alert" role="alert">
+	{{template "icon" "alert-triangle"}}
+	<p>This account is scheduled for deletion. It was requested on {{formatTime .Target.DeletionRequest.DeletedAt}} and will be removed on {{formatTime .Target.DeletionRequest.PendingUntil}}.</p>
+</div>
+{{end}}
+
+<div class="grid grid-split">
+	<section class="card">
+		<h2>Account details</h2>
+		<form method="post" action="/admin/user/{{$localpart}}/" class="form">
+			{{csrf .CSRF}}
+			<div class="field">
+				<label for="localpart">Login name</label>
+				<input type="text" id="localpart" value="{{$localpart}}" readonly>
+				<p class="hint mono">{{$localpart}}@{{.Domain}}</p>
+			</div>
+			<div class="field">
+				<label for="display_name">Display name</label>
+				<input type="text" id="display_name" name="display_name" value="{{.DisplayName}}" maxlength="120">
+			</div>
+			<fieldset class="field">
+				<legend>Access level</legend>
+				{{$current := .Role}}
+				{{range .Roles}}
+				<label class="choice">
+					<input type="radio" name="role" value="{{.Value}}"{{if eq .Value $current}} checked{{end}}>
+					<span><strong>{{.Label}}</strong><span class="hint">{{.Hint}}</span></span>
+				</label>
+				{{end}}
+			</fieldset>
+			<div class="actions">
+				<button type="submit" name="action" value="save" class="btn btn-primary">{{template "icon" "check"}}<span>Update user</span></button>
+			</div>
+		</form>
+	</section>
+
+	<div class="stack">
+		<section class="card">
+			<h2>Password</h2>
+			<p class="muted">A reset link lets the account holder choose a new password without you ever seeing it. The link is valid for one day.</p>
+			<form method="post" action="/admin/user/{{$localpart}}/" class="form">
+				{{csrf .CSRF}}
+				<button type="submit" name="action" value="create_reset" class="btn btn-secondary">{{template "icon" "key"}}<span>Create password reset link</span></button>
+			</form>
+		</section>
+
+		<section class="card">
+			<h2>Account access</h2>
+			{{if .Target.Enabled}}
+			<p class="muted">The account can sign in. Locking it keeps all data but blocks every login.</p>
+			<form method="post" action="/admin/user/{{$localpart}}/" class="form">
+				{{csrf .CSRF}}
+				<button type="submit" name="action" value="disable" class="btn btn-secondary">{{template "icon" "lock"}}<span>Lock account</span></button>
+			</form>
+			{{else}}
+			<p class="muted">The account is locked and cannot sign in.</p>
+			<form method="post" action="/admin/user/{{$localpart}}/" class="form">
+				{{csrf .CSRF}}
+				<button type="submit" name="action" value="enable" class="btn btn-primary">{{template "icon" "unlock"}}<span>Unlock account</span></button>
+			</form>
+			{{end}}
+			{{if .Target.DeletionRequest}}
+			<form method="post" action="/admin/user/{{$localpart}}/" class="form">
+				{{csrf .CSRF}}
+				<button type="submit" name="action" value="restore" class="btn btn-secondary">{{template "icon" "restore"}}<span>Restore account</span></button>
+			</form>
+			{{end}}
+		</section>
+
+		<section class="card">
+			<h2>Other actions</h2>
+			<div class="actions">
+				<a class="btn btn-ghost" href="/admin/user/{{$localpart}}/debug">{{template "icon" "bug"}}<span>Diagnostics</span></a>
+				<a class="btn btn-danger" href="/admin/user/{{$localpart}}/delete">{{template "icon" "trash"}}<span>Delete user</span></a>
+			</div>
+		</section>
+	</div>
+</div>
+{{end}}

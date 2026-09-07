@@ -1,0 +1,20 @@
+{{define "content"}}
+<div class="page-head">
+	<p class="muted">Circles put people in touch automatically. Everyone in a circle sees everyone else in it.</p>
+	<a class="btn btn-primary" href="/admin/circle/-/new">{{template "icon" "plus"}}<span>New circle</span></a>
+</div>
+
+{{if .Circles}}
+<div class="grid grid-cards">
+	{{range .Circles}}
+	<a class="card card-action" href="/admin/circle/{{.ID}}">
+		<span class="card-action-icon" style="background-color: {{colour .Name}}">{{template "icon" "users-round"}}</span>
+		<h2>{{.Name}}</h2>
+		<p class="muted">{{len .Members}} members, {{len .Chats}} group chats</p>
+	</a>
+	{{end}}
+</div>
+{{else}}
+{{template "empty_state" "No circles exist yet. Create one so the people you invite find each other."}}
+{{end}}
+{{end}}

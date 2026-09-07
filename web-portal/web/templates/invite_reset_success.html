@@ -1,0 +1,9 @@
+{{define "content"}}
+<section class="card card-narrow">
+	<h1>Your password was changed</h1>
+	<p class="lede">You can now sign in again with your new password.</p>
+	{{if .JID}}<p>Your chat address is unchanged: <strong class="mono">{{.JID}}</strong>.</p>{{end}}
+	<p class="muted">Every device was signed out, so open the Snikket app on each of them and enter the new password.</p>
+	<p><a class="btn btn-primary" href="/login">{{template "icon" "log-in"}}<span>Sign in to the portal</span></a></p>
+</section>
+{{end}}

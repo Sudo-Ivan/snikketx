@@ -1,0 +1,113 @@
+{{define "layout"}}<!DOCTYPE html>
+<html lang="{{orDefault .Lang "en"}}" data-theme="{{orDefault .Theme "light"}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{if .Title}}{{.Title}} &middot; {{end}}{{.SiteName}}</title>
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#1d4ed8">
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="/static/css/app.css">
+<link rel="icon" type="image/png" sizes="32x32" href="/static/img/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/static/img/favicon-16x16.png">
+<link rel="apple-touch-icon" href="/static/img/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<script src="/static/js/theme.js" defer></script>
+{{block "head" .}}{{end}}
+</head>
+<body class="shell-{{orDefault .Shell "app"}}">
+{{sprite}}
+<a class="skip-link" href="#main">Skip to content</a>
+{{if eq .Shell "admin"}}{{template "admin_shell" .}}{{else if eq .Shell "bare"}}{{template "bare_shell" .}}{{else}}{{template "app_shell" .}}{{end}}
+</body>
+</html>{{end}}
+
+{{define "app_shell"}}
+{{template "topbar" .}}
+<main id="main" class="container">
+	{{template "messages" .}}
+	{{template "content" .}}
+</main>
+{{template "footer" .}}
+{{end}}
+
+{{define "bare_shell"}}
+<div class="bare">
+	<header class="bare-head">
+		<a class="brand" href="/">
+			<img src="/static/img/snikket-logo.svg" alt="" width="34" height="34">
+			<span>{{.SiteName}}</span>
+		</a>
+		{{template "theme_toggle" .}}
+	</header>
+	<main id="main" class="bare-main">
+		{{template "messages" .}}
+		{{template "content" .}}
+	</main>
+	{{template "footer" .}}
+</div>
+{{end}}
+
+{{define "topbar"}}
+<header class="topbar">
+	<div class="topbar-inner">
+		<a class="brand" href="/">
+			<img src="/static/img/snikket-logo.svg" alt="" width="34" height="34">
+			<span>{{.SiteName}}</span>
+		</a>
+		<nav class="topnav" aria-label="Account">
+			<a href="/user/" class="topnav-link{{if eq .Nav "home"}} is-active{{end}}">{{template "icon" "home"}}<span>{{t "nav.home"}}</span></a>
+			<a href="/user/profile" class="topnav-link{{if eq .Nav "profile"}} is-active{{end}}">{{template "icon" "circle-user"}}<span>{{t "nav.profile"}}</span></a>
+			<a href="/user/passwd" class="topnav-link{{if eq .Nav "password"}} is-active{{end}}">{{template "icon" "key"}}<span>{{t "nav.password"}}</span></a>
+			<a href="/user/manage_data" class="topnav-link{{if eq .Nav "data"}} is-active{{end}}">{{template "icon" "database"}}<span>{{t "nav.data"}}</span></a>
+			{{if .IsAdmin}}<a href="/admin/" class="topnav-link">{{template "icon" "shield"}}<span>{{t "nav.admin"}}</span></a>{{end}}
+			<a href="/user/logout" class="topnav-link{{if eq .Nav "logout"}} is-active{{end}}">{{template "icon" "log-out"}}<span>{{t "nav.logout"}}</span></a>
+		</nav>
+		<div class="topbar-actions">
+			{{template "theme_toggle" .}}
+			{{with .User}}
+			<a class="identity" href="/user/profile" title="{{.Address}}">
+				{{template "avatar" dict "Address" .Address "Hash" .AvatarHash "Name" .DisplayName "Seed" .Address}}
+				<span class="identity-name">{{.DisplayName}}</span>
+			</a>
+			{{end}}
+		</div>
+	</div>
+</header>
+{{end}}
+
+{{define "footer"}}
+<footer class="footer">
+	<nav aria-label="Service information">
+		<a href="/meta/about.html">About</a>
+		<a href="/policies/">Policies</a>
+		{{if .TOSURI}}<a href="/terms">Terms of service</a>{{end}}
+		{{if .PrivacyURI}}<a href="/privacy">Privacy policy</a>{{end}}
+	</nav>
+	<p class="footer-note">
+		Powered by <a href="https://snikket.org" rel="noopener noreferrer" target="_blank">Snikket</a>{{if and .IsAdmin .Version}} &middot; portal {{.Version}}{{end}}
+	</p>
+</footer>
+{{end}}
+
+{{define "theme_toggle"}}
+<button type="button" class="theme-toggle" data-theme-toggle aria-label="{{t "theme.toggle"}}" title="{{t "theme.toggle"}}">
+	<span class="only-light">{{template "icon" "sun"}}</span>
+	<span class="only-dark">{{template "icon" "moon"}}</span>
+</button>
+{{end}}
+
+{{define "messages"}}
+{{with .Flash}}
+<div class="alert alert-{{orDefault .Category "info"}}" role="status">
+	{{if eq .Category "success"}}{{template "icon" "check-circle"}}{{else if eq .Category "alert"}}{{template "icon" "alert-triangle"}}{{else}}{{template "icon" "info"}}{{end}}
+	<p>{{.Message}}</p>
+</div>
+{{end}}
+{{if .Errors}}
+<div class="alert alert-alert" role="alert">
+	{{template "icon" "alert-triangle"}}
+	<ul>{{range .Errors}}<li>{{.}}</li>{{end}}</ul>
+</div>
+{{end}}
+{{end}}

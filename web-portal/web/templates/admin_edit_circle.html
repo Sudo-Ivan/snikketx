@@ -1,0 +1,108 @@
+{{define "content"}}
+{{$id := .Circle.ID}}
+<p><a class="btn btn-ghost btn-small" href="/admin/circles">{{template "icon" "arrow-left"}}<span>All circles</span></a></p>
+
+<div class="grid grid-split">
+	<div class="stack">
+		<section class="card">
+			<h2>Members</h2>
+			{{if .Members}}
+			<ul class="member-list">
+				{{range .Members}}
+				{{$address := printf "%s@%s" .Localpart $.Domain}}
+				{{$hash := ""}}{{if .User}}{{if .User.AvatarInfo}}{{$hash = (index .User.AvatarInfo 0).Hash}}{{end}}{{end}}
+				<li>
+					<span class="identity">
+						{{template "avatar" dict "Address" $address "Hash" $hash "Name" .Localpart "Seed" $address}}
+						<span>
+							<strong>{{if .User}}{{orDefault .User.DisplayName .Localpart}}{{else}}{{.Localpart}}{{end}}</strong>
+							<span class="mono muted">{{$address}}</span>
+						</span>
+					</span>
+					<form method="post" action="/admin/circle/{{$id}}" class="inline-form">
+						{{csrf $.CSRF}}
+						<input type="hidden" name="user" value="{{.Localpart}}">
+						<button type="submit" name="action" value="remove_user" class="btn btn-ghost btn-icon btn-danger-ghost" aria-label="Remove {{.Localpart}}" title="Remove from circle">{{template "icon" "user-minus"}}</button>
+					</form>
+				</li>
+				{{end}}
+			</ul>
+			{{else}}
+			<p class="muted">This circle has no members yet.</p>
+			{{end}}
+
+			{{if .Candidates}}
+			<form method="post" action="/admin/circle/{{$id}}" class="form form-inline">
+				{{csrf .CSRF}}
+				<div class="field">
+					<label for="user_to_add">Add a member</label>
+					<select id="user_to_add" name="user_to_add">
+						{{range .Candidates}}<option value="{{.}}">{{.}}</option>{{end}}
+					</select>
+				</div>
+				<button type="submit" name="action" value="add_user" class="btn btn-secondary">{{template "icon" "user-plus"}}<span>Add user</span></button>
+			</form>
+			{{else}}
+			<p class="hint">Every account is already a member of this circle.</p>
+			{{end}}
+		</section>
+
+		<section class="card">
+			<div class="page-head">
+				<h2>Group chats</h2>
+				<a class="btn btn-secondary btn-small" href="/admin/circle/{{$id}}/add_chat">{{template "icon" "plus"}}<span>New group chat</span></a>
+			</div>
+			{{if .Circle.Chats}}
+			<ul class="member-list">
+				{{range .Circle.Chats}}
+				<li>
+					<span class="identity">
+						<span class="avatar avatar-fallback" style="background-color: {{colour .JID}}" aria-hidden="true">{{template "icon" "message-square"}}</span>
+						<span>
+							<strong>{{orDefault .Name .ID}}</strong>
+							<span class="mono muted">{{.JID}}</span>
+						</span>
+					</span>
+					<form method="post" action="/admin/circle/{{$id}}" class="inline-form">
+						{{csrf $.CSRF}}
+						<input type="hidden" name="chat" value="{{.ID}}">
+						<button type="submit" name="action" value="remove_chat" class="btn btn-ghost btn-icon btn-danger-ghost" aria-label="Remove {{orDefault .Name .ID}}" title="Remove chat">{{template "icon" "trash"}}</button>
+					</form>
+				</li>
+				{{end}}
+			</ul>
+			{{else}}
+			<p class="muted">This circle has no group chats.</p>
+			{{end}}
+		</section>
+	</div>
+
+	<div class="stack">
+		<section class="card">
+			<h2>Circle details</h2>
+			<form method="post" action="/admin/circle/{{$id}}" class="form">
+				{{csrf .CSRF}}
+				<div class="field">
+					<label for="name">Name</label>
+					<input type="text" id="name" name="name" value="{{.Circle.Name}}" maxlength="120" required>
+				</div>
+				<div class="actions">
+					<button type="submit" name="action" value="save" class="btn btn-primary">{{template "icon" "check"}}<span>Update circle</span></button>
+				</div>
+			</form>
+		</section>
+
+		<section class="card">
+			<h2>Invite to this circle</h2>
+			<p class="muted">Create a link that adds the new member to <strong>{{.Circle.Name}}</strong> straight away.</p>
+			<a class="btn btn-secondary" href="/admin/invitation/-/new?circle={{.Circle.ID}}">{{template "icon" "link"}}<span>New invitation</span></a>
+		</section>
+
+		<section class="card">
+			<h2>Delete</h2>
+			<p class="muted">Deleting a circle does not delete any account, but members stop seeing each other automatically.</p>
+			<a class="btn btn-danger" href="/admin/circle/{{$id}}/delete">{{template "icon" "trash"}}<span>Delete circle</span></a>
+		</section>
+	</div>
+</div>
+{{end}}

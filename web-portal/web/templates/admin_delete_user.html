@@ -1,0 +1,15 @@
+{{define "content"}}
+{{$localpart := .Target.Localpart}}
+<section class="card card-narrow card-danger">
+	<h1>Delete {{orDefault .Target.DisplayName $localpart}}</h1>
+	<p>You are about to permanently delete <strong class="mono">{{$localpart}}@{{.Domain}}</strong>.</p>
+	<p class="muted">Every message archive, contact list and shared file belonging to this account is removed from the server. The account holder is signed out of all their devices. This cannot be undone.</p>
+	<form method="post" action="/admin/user/{{$localpart}}/delete" class="form">
+		{{csrf .CSRF}}
+		<div class="actions">
+			<button type="submit" name="action" value="delete" class="btn btn-danger">{{template "icon" "trash"}}<span>Delete user permanently</span></button>
+			<a class="btn btn-ghost" href="/admin/user/{{$localpart}}/">Cancel</a>
+		</div>
+	</form>
+</section>
+{{end}}

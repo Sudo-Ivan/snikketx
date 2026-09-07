@@ -1,0 +1,30 @@
+{{define "content"}}
+<section class="card">
+	<h1>Policies</h1>
+	<p class="lede">These are the policies that apply to your use of {{.SiteName}}.</p>
+
+	{{if or .TOSURI .PrivacyURI}}
+	<p class="muted">Use of this service is subject to the following documents:</p>
+	<ul class="link-list">
+		{{if .TOSURI}}<li><a href="{{.TOSURI}}">{{template "icon" "external-link"}}<span>Terms of service</span></a></li>{{end}}
+		{{if .PrivacyURI}}<li><a href="{{.PrivacyURI}}">{{template "icon" "external-link"}}<span>Privacy policy</span></a></li>{{end}}
+	</ul>
+	{{else}}
+	<p class="muted">The operator of this service has not published its own policy documents. Contact them directly if you have questions about how {{.SiteName}} is run.</p>
+	{{end}}
+
+	<p class="muted">Use of the Snikket apps themselves is subject to the <a href="https://snikket.org/app/privacy/" rel="noopener noreferrer" target="_blank">Snikket apps privacy policy</a>.</p>
+
+	{{if .AbuseEmail}}
+	<h2>Reporting abuse</h2>
+	<p class="muted">To report policy violations or other abuse coming from this service, email <a href="mailto:{{.AbuseEmail}}">{{.AbuseEmail}}</a>. Name the domain of this instance (<span class="mono">{{.Domain}}</span>) and include details of what happened and when.</p>
+	{{end}}
+
+	{{if .SecurityEmail}}
+	<h2>Reporting security issues</h2>
+	<p class="muted">Security issues in this deployment should go to <a href="mailto:{{.SecurityEmail}}">{{.SecurityEmail}}</a>. Defects in the Snikket software itself belong at <a href="https://snikket.org/security/" rel="noopener noreferrer" target="_blank">snikket.org/security</a>.</p>
+	{{end}}
+
+	<p><a class="btn btn-ghost" href="/">{{template "icon" "arrow-left"}}<span>Back to {{.SiteName}}</span></a></p>
+</section>
+{{end}}

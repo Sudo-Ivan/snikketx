@@ -1,73 +1,53 @@
 # syntax=docker/dockerfile:1.7
 
+FROM golang:1.27-bookworm@sha256:648f440f42a0958804efb24df176f806f9d353b41f1c0627f666428e40310f6b AS build
 
-FROM debian:bookworm-slim@sha256:88200866dfff7ea7f5cbcb6ec7c8a701889efe6fe859fe64d6990e4b07ea4171 AS build
+ARG BUILD_SERIES=dev
+ARG BUILD_ID=0
 
-ENV DEBIAN_FRONTEND=noninteractive
+ENV CGO_ENABLED=0 \
+    GOTOOLCHAIN=local
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        python3 python3-mypy python3-dotenv python3-toml python3-babel \
-        python3-distutils sassc make \
-    && rm -rf /var/lib/apt/lists/*
+WORKDIR /src
 
-COPY Makefile /opt/snikket-web-portal/Makefile
-COPY snikket_web/ /opt/snikket-web-portal/snikket_web/
-COPY babel.cfg /opt/snikket-web-portal/babel.cfg
+COPY go.mod ./
+RUN go mod download
 
-WORKDIR /opt/snikket-web-portal
-RUN make
+COPY cmd/ cmd/
+COPY internal/ internal/
+COPY web/ web/
 
-FROM debian:bookworm-slim@sha256:88200866dfff7ea7f5cbcb6ec7c8a701889efe6fe859fe64d6990e4b07ea4171
+RUN go build -trimpath \
+        -ldflags "-s -w -X main.version=${BUILD_SERIES}.${BUILD_ID}" \
+        -o /out/portal ./cmd/portal
+
+# The state directory is created here so a fresh named volume inherits the
+# ownership of the unprivileged account the container runs as.
+RUN install -d -m 0750 /out/state
+
+FROM gcr.io/distroless/static-debian12:latest@sha256:d75cdd72874d4790092fcb1b058493ecf6bb5bf2b2b897045b00ff01d91843f2
 
 ARG BUILD_SERIES=dev
 ARG BUILD_ID=0
 ARG VCS_REF=unknown
 ARG BUILD_DATE=unknown
 
-ENV DEBIAN_FRONTEND=noninteractive \
-    LANG=C.UTF-8 \
-    SNIKKET_WEB_PYENV=/etc/snikket-web-portal/env.py \
-    SNIKKET_WEB_PROSODY_ENDPOINT=http://127.0.0.1:5280/ \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+ENV SNIKKET_WEB_PROSODY_ENDPOINT=http://snikket_server:5280 \
+    SNIKKET_TWEAK_PORTAL_INTERNAL_HTTP_INTERFACE=0.0.0.0 \
+    SNIKKET_TWEAK_PORTAL_INTERNAL_HTTP_PORT=5765
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-      python3 \
-      python3-aiohttp python3-email-validator python3-flask-babel \
-      python3-flaskext.wtf python3-hsluv python3-hypercorn \
-      python3-quart python3-typing-extensions python3-wtforms \
-      python3-pip \
-    && pip3 install --no-cache-dir --break-system-packages environ-config \
-    && apt-get remove -y --purge python3-pip \
-    && apt-get autoremove -y \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /root/.cache /tmp/* \
-    && groupadd --system --gid 10001 snikket \
-    && useradd --system --uid 10001 --gid snikket --home-dir /var/lib/snikket-web-portal \
-        --shell /usr/sbin/nologin snikket \
-    && install -d -o snikket -g snikket -m 0750 /var/lib/snikket-web-portal \
-    && install -d -o snikket -g snikket -m 0755 /opt/snikket-web-portal \
-    && install -d -o root -g snikket -m 0755 /etc/snikket-web-portal
-
-COPY docker/env.py /etc/snikket-web-portal/env.py
-COPY --from=build --chown=snikket:snikket /opt/snikket-web-portal/snikket_web/ /opt/snikket-web-portal/snikket_web/
-COPY --chown=snikket:snikket babel.cfg /opt/snikket-web-portal/babel.cfg
-COPY --chown=root:snikket --chmod=0555 docker/entrypoint.sh /entrypoint.sh
-
-RUN echo "$BUILD_SERIES $BUILD_ID" > /opt/snikket-web-portal/.app_version \
-    && chown snikket:snikket /opt/snikket-web-portal/.app_version
-
-WORKDIR /opt/snikket-web-portal
+COPY --from=build /out/portal /portal
+COPY --from=build --chown=10001:10001 /out/state /var/lib/snikket-web-portal
 
 USER 10001:10001
+
+WORKDIR /var/lib/snikket-web-portal
 
 EXPOSE 5765
 
 STOPSIGNAL SIGTERM
 
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["/portal"]
 
 LABEL org.opencontainers.image.title="snikketx-web-portal" \
       org.opencontainers.image.description="Snikket web portal" \

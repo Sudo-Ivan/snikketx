@@ -1,0 +1,13 @@
+{{define "content"}}
+<section class="card card-narrow card-status">
+	<p class="status-code">503</p>
+	<h1>{{.SiteName}} is temporarily unavailable</h1>
+	<p class="muted">The portal is running but cannot reach the chat server behind it. Chats may keep working while this page does not, and the problem usually clears on its own within a few minutes.</p>
+	<p class="muted">If it does not, the operator of this service should check that the Snikket server container is running and healthy.</p>
+	<div class="actions">
+		<a class="btn btn-primary" href="/">{{template "icon" "refresh"}}<span>Try again</span></a>
+		<a class="btn btn-ghost" href="/policies/">Contact the operator</a>
+	</div>
+	{{if .ErrorID}}<p class="hint mono">Incident {{.ErrorID}}{{if .RequestID}} &middot; request {{.RequestID}}{{end}}</p>{{end}}
+</section>
+{{end}}

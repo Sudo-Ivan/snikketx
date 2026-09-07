@@ -1,0 +1,21 @@
+{{define "content"}}
+<section class="card card-narrow">
+	<h1>{{t "login.title"}}</h1>
+	<p class="muted">Sign in with your {{.SiteName}} account to manage your profile, your password and your account data.</p>
+	<form method="post" action="/login" class="form">
+		{{csrf .CSRF}}
+		<div class="field">
+			<label for="address">{{t "login.address"}}</label>
+			<div class="input-suffix">
+				<input type="text" id="address" name="address" value="{{.Address}}" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus>
+				<span class="suffix">@{{.Domain}}</span>
+			</div>
+		</div>
+		<div class="field">
+			<label for="password">{{t "login.password"}}</label>
+			<input type="password" id="password" name="password" autocomplete="current-password" required>
+		</div>
+		<button type="submit" class="btn btn-primary btn-block">{{template "icon" "log-in"}}<span>{{t "login.submit"}}</span></button>
+	</form>
+</section>
+{{end}}

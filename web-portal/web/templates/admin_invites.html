@@ -1,0 +1,54 @@
+{{define "content"}}
+<div class="page-head">
+	<p class="muted">{{len .Invites}} outstanding invitation links.</p>
+	<a class="btn btn-primary" href="/admin/invitation/-/new">{{template "icon" "plus"}}<span>New invitation</span></a>
+</div>
+
+<div class="grid grid-split">
+	<div class="stack">
+		{{if .Invites}}
+		<div class="card card-flush">
+			<table class="table">
+				<thead>
+					<tr>
+						<th scope="col">Invitation</th>
+						<th scope="col">Circles</th>
+						<th scope="col">Expires</th>
+						<th scope="col"><span class="sr-only">Actions</span></th>
+					</tr>
+				</thead>
+				<tbody>
+					{{range .Invites}}
+					<tr>
+						<th scope="row">
+							<a href="/admin/invitation/{{.Invite.ID}}">
+								<strong>{{orDefault .Invite.Note "Untitled invitation"}}</strong>
+							</a>
+							<span class="muted">{{if eq .Invite.Type "roster"}}Group invitation{{else}}New account{{end}} &middot; created {{formatAgo .Invite.CreatedAt}}</span>
+						</th>
+						<td>{{if .Circles}}{{join .Circles ", "}}{{else}}<span class="muted">none</span>{{end}}</td>
+						<td>{{if .Expired}}<span class="badge badge-warn">Expired</span>{{else}}<span class="muted">{{formatLeft .Invite.Expires}}</span>{{end}}</td>
+						<td class="row-actions">
+							<a class="btn btn-ghost btn-icon" href="/admin/invitation/{{.Invite.ID}}" aria-label="Open invitation" title="Open">{{template "icon" "link"}}</a>
+							<form method="post" action="/admin/invitations" class="inline-form">
+								{{csrf $.CSRF}}
+								<input type="hidden" name="revoke" value="{{.Invite.ID}}">
+								<button type="submit" class="btn btn-ghost btn-icon btn-danger-ghost" aria-label="Revoke invitation" title="Revoke">{{template "icon" "trash"}}</button>
+							</form>
+						</td>
+					</tr>
+					{{end}}
+				</tbody>
+			</table>
+		</div>
+		{{else}}
+		{{template "empty_state" "No invitations are outstanding. Create one to let somebody join."}}
+		{{end}}
+	</div>
+
+	<section class="card">
+		<h2>Create an invitation</h2>
+		{{template "invite_form" .}}
+	</section>
+</div>
+{{end}}

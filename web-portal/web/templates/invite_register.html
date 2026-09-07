@@ -1,0 +1,32 @@
+{{define "content"}}
+<section class="card card-narrow">
+	<h1>Create your account</h1>
+	<p class="lede">Pick a username and a password for your new {{.SiteName}} account.</p>
+	<p class="hint">Setting up through the Snikket app is easier. Use this form only if the app cannot open your invitation, or if you want to use a different XMPP app.</p>
+
+	<form method="post" action="/invite/{{.InviteID}}/register" class="form">
+		{{csrf .CSRF}}
+		<div class="field">
+			<label for="localpart">Username</label>
+			<div class="input-suffix">
+				<input type="text" id="localpart" name="localpart" value="{{.Localpart}}" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus>
+				<span class="suffix">@{{.Domain}}</span>
+			</div>
+			<p class="hint">This becomes your chat address, so pick something you are happy to share.</p>
+		</div>
+		<div class="field">
+			<label for="password">Password</label>
+			<input type="password" id="password" name="password" autocomplete="new-password" minlength="10" required>
+			<p class="hint">At least 10 characters.</p>
+		</div>
+		<div class="field">
+			<label for="password_confirm">Confirm password</label>
+			<input type="password" id="password_confirm" name="password_confirm" autocomplete="new-password" minlength="10" required>
+		</div>
+		<div class="actions">
+			<button type="submit" class="btn btn-primary">{{template "icon" "user-plus"}}<span>Create account</span></button>
+			<a class="btn btn-ghost" href="/invite/{{.InviteID}}/">Back</a>
+		</div>
+	</form>
+</section>
+{{end}}

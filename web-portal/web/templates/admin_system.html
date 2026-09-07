@@ -1,0 +1,64 @@
+{{define "content"}}
+<section class="card">
+	<h2>{{template "icon" "megaphone"}}<span>Announcement</span></h2>
+	<p class="muted">An announcement is delivered as a chat message from the server. Send a preview to yourself first to see exactly what everyone will receive.</p>
+	<form method="post" action="/admin/system/" class="form">
+		{{csrf .CSRF}}
+		<div class="field">
+			<label for="text">Message contents</label>
+			<textarea id="text" name="text" rows="5" required>{{.Announcement}}</textarea>
+		</div>
+		<label class="choice">
+			<input type="checkbox" name="online_only" value="1">
+			<span><strong>Only send to online users</strong><span class="hint">People who are offline will not receive the message later.</span></span>
+		</label>
+		<div class="actions">
+			<button type="submit" name="action" value="preview" class="btn btn-secondary">{{template "icon" "eye"}}<span>Send preview to yourself</span></button>
+			<button type="submit" name="action" value="post_all" class="btn btn-primary">{{template "icon" "send"}}<span>Post to all users</span></button>
+		</div>
+	</form>
+</section>
+
+<section class="card">
+	<h2>{{template "icon" "server"}}<span>This deployment</span></h2>
+	<dl class="details">
+		<dt>Domain</dt><dd class="mono">{{.Domain}}</dd>
+		<dt>Web portal</dt><dd class="mono">{{orDefault .Version "unknown"}}</dd>
+		<dt>Chat server</dt><dd class="mono">{{orDefault .ProsodyVersion "hidden while metrics are disabled"}}</dd>
+		<dt>Portal uptime</dt><dd>{{.Uptime}}</dd>
+		<dt>Goroutines</dt><dd>{{.Host.Goroutines}}</dd>
+	</dl>
+</section>
+
+{{if .ShowMetrics}}
+<section class="card">
+	<h2>{{template "icon" "gauge"}}<span>Resource use</span></h2>
+	<div class="stats">
+		{{with .Host.PortalRSS}}<div class="stat"><span class="stat-label">Portal memory</span><span class="stat-value">{{formatBytes .}}</span></div>{{end}}
+		{{with .Host.PortalCPU}}<div class="stat"><span class="stat-label">Portal CPU</span><span class="stat-value">{{formatPercent .}}</span></div>{{end}}
+		{{with .Metrics.Memory}}<div class="stat"><span class="stat-label">Chat server memory</span><span class="stat-value">{{formatBytes .}}</span></div>{{end}}
+		{{with .Metrics.CPU}}<div class="stat"><span class="stat-label">Chat server CPU</span><span class="stat-value">{{formatPercent .}}</span></div>{{end}}
+		{{with .Host.Load5}}<div class="stat"><span class="stat-label">Load average, 5 min</span><span class="stat-value">{{printf "%.2f" .}}</span></div>{{end}}
+		{{with .Host.MemTotal}}<div class="stat"><span class="stat-label">Host memory</span><span class="stat-value">{{formatBytes .}}</span></div>{{end}}
+		{{with .Host.MemAvailable}}<div class="stat"><span class="stat-label">Host memory free</span><span class="stat-value">{{formatBytes .}}</span></div>{{end}}
+		{{with .Metrics.Uploads}}<div class="stat"><span class="stat-label">Shared files</span><span class="stat-value">{{formatBytes .}}</span></div>{{end}}
+	</div>
+	{{if not .Metrics.Available}}<p class="hint">The chat server did not report any counters. The metrics module may be disabled.</p>{{end}}
+</section>
+
+<section class="card">
+	<h2>{{template "icon" "activity"}}<span>Usage</span></h2>
+	<div class="stats">
+		{{with .Metrics.Devices}}<div class="stat"><span class="stat-label">Connected devices</span><span class="stat-value">{{.}}</span></div>{{end}}
+		{{with .Metrics.Active1d}}<div class="stat"><span class="stat-label">Active today</span><span class="stat-value">{{.}}</span></div>{{end}}
+		{{with .Metrics.Active7d}}<div class="stat"><span class="stat-label">Active this week</span><span class="stat-value">{{.}}</span></div>{{end}}
+		{{with .Metrics.Active30d}}<div class="stat"><span class="stat-label">Active this month</span><span class="stat-value">{{.}}</span></div>{{end}}
+	</div>
+</section>
+{{else}}
+<section class="card">
+	<h2>{{template "icon" "gauge"}}<span>Metrics</span></h2>
+	<p class="muted">{{t "metrics.unavailable"}}. Set SNIKKET_WEB_SHOW_METRICS to enable the counters and the Prometheus endpoint.</p>
+</section>
+{{end}}
+{{end}}

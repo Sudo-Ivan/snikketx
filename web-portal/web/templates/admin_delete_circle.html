@@ -1,0 +1,14 @@
+{{define "content"}}
+<section class="card card-narrow card-danger">
+	<h1>Delete {{.Circle.Name}}</h1>
+	<p>You are about to delete the circle <strong>{{.Circle.Name}}</strong> with its {{len .Circle.Members}} members and {{len .Circle.Chats}} group chats.</p>
+	<p class="muted">No account is deleted, but the members stop being introduced to each other and the group chats of this circle are removed.</p>
+	<form method="post" action="/admin/circle/{{.Circle.ID}}/delete" class="form">
+		{{csrf .CSRF}}
+		<div class="actions">
+			<button type="submit" name="action" value="delete" class="btn btn-danger">{{template "icon" "trash"}}<span>Delete circle permanently</span></button>
+			<a class="btn btn-ghost" href="/admin/circle/{{.Circle.ID}}">Cancel</a>
+		</div>
+	</form>
+</section>
+{{end}}

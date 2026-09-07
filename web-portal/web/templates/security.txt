@@ -1,0 +1,16 @@
+# {{.Domain}} is running open source software
+# from the Snikket project: https://snikket.org/
+{{if .SecurityEmail}}
+# Security issues in this deployment should be addressed to the
+# following security contact:
+Contact: mailto:{{.SecurityEmail}}
+{{else}}
+# This service does not publish a security contact. You may find more
+# information about how the service is run at the following link:
+Contact: https://{{.Domain}}/policies/
+{{end}}
+# Please report software defects to the project developers, per the
+# instructions at the following link:
+Contact: https://snikket.org/security/
+
+Preferred-Languages: en

@@ -1,0 +1,8 @@
+{{define "content"}}
+<section class="card card-narrow">
+	<h1>Reset your password</h1>
+	<p class="lede">You can set a new password for <strong class="mono">{{.AccountJID}}</strong>.</p>
+	<p class="muted">Choosing a new password signs you out of every device, so you will need to sign in again with the new password afterwards.</p>
+	<p><a class="btn btn-primary" href="/invite/{{.InviteID}}/reset">{{template "icon" "key"}}<span>Set a new password</span></a></p>
+</section>
+{{end}}

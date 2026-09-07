@@ -1,0 +1,50 @@
+{{define "head"}}
+<link rel="alternate" href="{{safeURL .XMPPURI}}">
+<script src="/static/js/qrcode.min.js" defer></script>
+<script src="/static/js/invite.js" defer></script>
+{{end}}
+
+{{define "content"}}
+<section class="card card-invite">
+	<h1>You are invited to {{.SiteName}}</h1>
+	{{if .Inviter}}
+	<p class="lede">{{.Inviter}} invited you to chat on {{.SiteName}} using Snikket, a secure and privacy friendly chat app.</p>
+	{{else}}
+	<p class="lede">You have been invited to chat on {{.SiteName}} using Snikket, a secure and privacy friendly chat app.</p>
+	{{end}}
+
+	{{if and .TOSURI .PrivacyURI}}
+	<p class="hint">By continuing you agree to the <a href="{{.TOSURI}}">terms of service</a> and the <a href="{{.PrivacyURI}}">privacy policy</a>.</p>
+	{{end}}
+
+	<h2>Get started</h2>
+	<ol class="steps">
+		<li>
+			<h3>Install the Snikket app</h3>
+			<p class="store-links">
+				<a href="{{.PlayStoreURL}}" rel="noopener noreferrer" target="_blank"><img src="{{.PlayBadge}}" alt="Get it on Google Play" height="56"></a>
+				{{if .AppleStoreURL}}<a href="{{.AppleStoreURL}}" rel="noopener noreferrer" target="_blank"><img src="{{.AppleBadge}}" alt="Download on the App Store" height="40"></a>{{end}}
+				<a href="{{safeURL .FDroidURL}}"><img src="/static/img/f-droid-badge.png" alt="Get it on F-Droid" height="56"></a>
+			</p>
+		</li>
+		<li>
+			<h3>Open this invitation in the app</h3>
+			<p class="muted">After installing, come back to this page and tap the button below. The app takes over from there and creates your account.</p>
+			<p><a class="btn btn-primary btn-block" href="{{safeURL .XMPPURI}}">{{template "icon" "smartphone"}}<span>Open the app</span></a></p>
+			<p class="hint">This only works once the app is installed.</p>
+		</li>
+	</ol>
+
+	<details class="disclosure">
+		<summary>{{template "icon" "qr-code"}}<span>Send this invitation to a phone</span></summary>
+		<p class="muted">Scan this code with the camera of the device you want to set up.</p>
+		<div class="qr" data-qrdata="{{.InvitePageURL}}"></div>
+		{{template "copy_field" dict "ID" "invite-page-link" "Label" "Invitation link" "Value" .InvitePageURL}}
+	</details>
+
+	<details class="disclosure">
+		<summary>{{template "icon" "settings"}}<span>Use another XMPP app</span></summary>
+		<p class="muted">Snikket is built on XMPP, so any XMPP app can connect to {{.SiteName}}. If the button above does not work with your app, you can <a href="/invite/{{.InviteID}}/register">register an account manually</a> and sign in with the address and password you choose.</p>
+	</details>
+</section>
+{{end}}

@@ -1,0 +1,9 @@
+{{define "content"}}
+<p><a class="btn btn-ghost btn-small" href="/admin/invitations">{{template "icon" "arrow-left"}}<span>All invitations</span></a></p>
+
+<section class="card card-narrow">
+	<h1>New invitation</h1>
+	<p class="muted">An individual invitation creates a brand new account. A group invitation adds somebody who already has an account to the circles you pick.</p>
+	{{template "invite_form" .}}
+</section>
+{{end}}

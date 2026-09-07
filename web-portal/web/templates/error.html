@@ -1,0 +1,12 @@
+{{define "content"}}
+<section class="card card-narrow card-status">
+	<p class="status-code">{{.Status}}</p>
+	<h1>{{orDefault .Title "Something went wrong"}}</h1>
+	{{if .Detail}}<p class="muted">{{.Detail}}</p>{{end}}
+	<div class="actions">
+		<a class="btn btn-primary" href="/">{{template "icon" "home"}}<span>Back to {{.SiteName}}</span></a>
+		{{if .HasSession}}<a class="btn btn-ghost" href="/user/">Your account</a>{{end}}
+	</div>
+	{{if .RequestID}}<p class="hint mono">Request {{.RequestID}}</p>{{end}}
+</section>
+{{end}}

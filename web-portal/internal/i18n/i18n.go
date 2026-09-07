@@ -1,0 +1,44 @@
+package i18n
+
+var en = map[string]string{
+	"app.name":               "Snikket",
+	"nav.home":               "Home",
+	"nav.users":              "Users",
+	"nav.circles":            "Circles",
+	"nav.invites":            "Invitations",
+	"nav.system":             "System",
+	"nav.health":             "Health",
+	"nav.profile":            "Profile",
+	"nav.password":           "Password",
+	"nav.data":               "Account data",
+	"nav.logout":             "Log out",
+	"nav.admin":              "Admin",
+	"nav.exit_admin":         "Exit admin",
+	"theme.toggle":           "Toggle light or dark mode",
+	"login.title":            "Sign in",
+	"login.address":          "Username",
+	"login.password":         "Password",
+	"login.submit":           "Sign in",
+	"login.error":            "Invalid username or password.",
+	"flash.login_ok":         "Login successful!",
+	"flash.password_changed": "Password changed",
+	"flash.profile_updated":  "Profile updated",
+	"flash.user_updated":     "User information updated.",
+	"flash.user_deleted":     "User deleted",
+	"flash.invite_created":   "Invitation created",
+	"flash.invite_revoked":   "Invitation revoked",
+	"flash.circle_created":   "Circle created",
+	"flash.announcement":     "Announcement sent!",
+	"admin.welcome":          "Admin panel",
+	"admin.ops_summary":      "Instance overview",
+	"health.title":           "Health",
+	"system.title":           "System",
+	"metrics.unavailable":    "Metrics unavailable",
+}
+
+func T(key string) string {
+	if v, ok := en[key]; ok {
+		return v
+	}
+	return key
+}

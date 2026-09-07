@@ -1,0 +1,10 @@
+{{define "content"}}
+{{$localpart := .Target.Localpart}}
+<p><a class="btn btn-ghost btn-small" href="/admin/user/{{$localpart}}/">{{template "icon" "arrow-left"}}<span>Back to {{$localpart}}</span></a></p>
+
+<section class="card">
+	<h1>Diagnostics for {{$localpart}}</h1>
+	<p class="muted">This is the raw diagnostic document the chat server reports for <span class="mono">{{$localpart}}@{{.Domain}}</span>. Include it when you report a problem.</p>
+	<pre class="dump"><code>{{.Dump}}</code></pre>
+</section>
+{{end}}

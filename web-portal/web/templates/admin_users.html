@@ -1,0 +1,53 @@
+{{define "content"}}
+<div class="page-head">
+	<p class="muted">{{len .Users}} accounts on {{.Domain}}.</p>
+	<a class="btn btn-primary" href="/admin/invitation/-/new">{{template "icon" "user-plus"}}<span>Invite someone</span></a>
+</div>
+
+{{if .Users}}
+<div class="card card-flush">
+	<table class="table">
+		<thead>
+			<tr>
+				<th scope="col">Account</th>
+				<th scope="col">Access level</th>
+				<th scope="col">Status</th>
+				<th scope="col">Last active</th>
+				<th scope="col"><span class="sr-only">Actions</span></th>
+			</tr>
+		</thead>
+		<tbody>
+			{{range .Users}}
+			{{$hash := ""}}{{if .AvatarInfo}}{{$hash = (index .AvatarInfo 0).Hash}}{{end}}
+			{{$address := printf "%s@%s" .Localpart $.Domain}}
+			<tr>
+				<th scope="row">
+					<a class="identity" href="/admin/user/{{.Localpart}}/">
+						{{template "avatar" dict "Address" $address "Hash" $hash "Name" (orDefault .DisplayName .Localpart) "Seed" $address}}
+						<span>
+							<strong>{{orDefault .DisplayName .Localpart}}</strong>
+							<span class="mono muted">{{$address}}</span>
+						</span>
+					</a>
+				</th>
+				<td>{{if .Roles}}{{template "role_badge" (index .Roles 0)}}{{else}}{{template "role_badge" ""}}{{end}}</td>
+				<td>
+					{{if .DeletionRequest}}<span class="badge badge-danger">Deletion pending</span>
+					{{else if .Enabled}}<span class="badge badge-ok">Active</span>
+					{{else}}<span class="badge badge-warn">Locked</span>{{end}}
+				</td>
+				<td class="muted">{{formatUnix .LastActive}}</td>
+				<td class="row-actions">
+					<a class="btn btn-ghost btn-icon" href="/admin/user/{{.Localpart}}/" aria-label="Edit {{.Localpart}}" title="Edit">{{template "icon" "edit"}}</a>
+					<a class="btn btn-ghost btn-icon" href="/admin/user/{{.Localpart}}/debug" aria-label="Diagnostics for {{.Localpart}}" title="Diagnostics">{{template "icon" "bug"}}</a>
+					<a class="btn btn-ghost btn-icon btn-danger-ghost" href="/admin/user/{{.Localpart}}/delete" aria-label="Delete {{.Localpart}}" title="Delete">{{template "icon" "trash"}}</a>
+				</td>
+			</tr>
+			{{end}}
+		</tbody>
+	</table>
+</div>
+{{else}}
+{{template "empty_state" "No accounts exist yet. Create an invitation to add the first one."}}
+{{end}}
+{{end}}

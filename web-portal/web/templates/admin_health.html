@@ -1,0 +1,62 @@
+{{define "content"}}
+<div class="page-head">
+	<p class="muted">
+		{{if .Healthy}}<span class="badge badge-ok">All components healthy</span>{{else}}<span class="badge badge-warn">Some components are degraded</span>{{end}}
+		The portal has been running for {{.Uptime}}.
+	</p>
+	<a class="btn btn-secondary" href="/admin/health/">{{template "icon" "refresh"}}<span>Refresh</span></a>
+</div>
+
+<section class="card card-flush">
+	<table class="table">
+		<thead>
+			<tr>
+				<th scope="col">Component</th>
+				<th scope="col">State</th>
+				<th scope="col">Detail</th>
+				<th scope="col">Latency</th>
+			</tr>
+		</thead>
+		<tbody>
+			{{range .Components}}
+			<tr>
+				<th scope="row">{{.Name}}</th>
+				<td>{{if .OK}}<span class="badge badge-ok">{{template "icon" "check-circle"}}<span>OK</span></span>{{else}}<span class="badge badge-warn">{{template "icon" "alert-triangle"}}<span>Degraded</span></span>{{end}}</td>
+				<td class="muted">{{.Detail}}</td>
+				<td class="muted mono">{{orDefault .Latency "-"}}</td>
+			</tr>
+			{{end}}
+		</tbody>
+	</table>
+</section>
+
+<section class="card">
+	<h2>Recent errors</h2>
+	{{if .RecentErrors}}
+	<p class="muted">The {{len .RecentErrors}} most recent errors recorded by this portal process, newest first. They are kept in memory only and are lost on restart.</p>
+	<ul class="error-list">
+		{{range .RecentErrors}}
+		<li>
+			<div class="error-meta">
+				<span class="mono">{{.ID}}</span>
+				<span class="muted">{{formatTime .When}} &middot; {{formatAgo .When}}</span>
+				{{if .RequestID}}<span class="muted mono">request {{.RequestID}}</span>{{end}}
+			</div>
+			<p class="error-message">{{.Message}}</p>
+		</li>
+		{{end}}
+	</ul>
+	{{else}}
+	<p class="muted">No errors have been recorded since the portal started.</p>
+	{{end}}
+</section>
+
+<section class="card">
+	<h2>Probes</h2>
+	<dl class="details">
+		<dt class="mono">/_health</dt><dd>Liveness. Always answers as long as the process serves requests.</dd>
+		<dt class="mono">/_health/ready</dt><dd>Readiness. Answers 503 while the chat server cannot be reached.</dd>
+		<dt class="mono">/metrics</dt><dd>{{if .ShowMetrics}}Prometheus exposition, enabled.{{else}}Prometheus exposition, disabled by configuration.{{end}}</dd>
+	</dl>
+</section>
+{{end}}
