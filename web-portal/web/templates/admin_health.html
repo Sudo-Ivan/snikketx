@@ -22,7 +22,7 @@
 			<tr>
 				<th scope="row">{{.Name}}</th>
 				<td>{{if .OK}}<span class="badge badge-ok">{{template "icon" "check-circle"}}<span>OK</span></span>{{else}}<span class="badge badge-warn">{{template "icon" "alert-triangle"}}<span>Degraded</span></span>{{end}}</td>
-				<td class="muted">{{.Detail}}</td>
+				<td class="muted">{{.Detail}}{{if and (not .OK) .Hint}}. {{.Hint}}{{end}}</td>
 				<td class="muted mono">{{orDefault .Latency "-"}}</td>
 			</tr>
 			{{end}}

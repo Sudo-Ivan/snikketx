@@ -416,9 +416,10 @@ func (a *App) handleCerts(w http.ResponseWriter, r *http.Request) {
 	}
 	domain := a.Cfg.Domain
 	hosts := []health.CertHost{
-		health.ProbeCertHost(r.Context(), domain, "chat domain"),
-		health.ProbeCertHost(r.Context(), "groups."+domain, "group chats"),
-		health.ProbeCertHost(r.Context(), "share."+domain, "file sharing"),
+		health.ProbeCertHost(r.Context(), domain, "HTTPS edge (RavenGuard :443)"),
+		health.ProbeXMPPCertHost(r.Context(), domain, a.Cfg.ProsodyEndpoint),
+		health.ProbeCertHost(r.Context(), "groups."+domain, "group chats HTTPS"),
+		health.ProbeCertHost(r.Context(), "share."+domain, "file sharing HTTPS"),
 	}
 	page := a.newPage(w, r, sess, "Certificates and DNS", "certs", webui.ShellAdmin)
 	a.render(w, r, http.StatusOK, "admin_certs.html", certsPage{

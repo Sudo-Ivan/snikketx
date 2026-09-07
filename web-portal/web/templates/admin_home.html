@@ -57,7 +57,7 @@
 				<tr>
 					<th scope="row">{{.Name}}</th>
 					<td>{{if .OK}}<span class="badge badge-ok">OK</span>{{else}}<span class="badge badge-warn">Check</span>{{end}}</td>
-					<td class="muted">{{.Detail}}</td>
+					<td class="muted">{{.Detail}}{{if and (not .OK) .Hint}}. {{.Hint}}{{end}}</td>
 				</tr>
 				{{end}}
 			</tbody>

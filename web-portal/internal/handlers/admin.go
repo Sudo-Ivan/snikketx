@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/csv"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/url"
 	"slices"
@@ -264,6 +263,10 @@ func (a *App) handleAdminHome(w http.ResponseWriter, r *http.Request) {
 		{Name: "web portal", OK: true, Detail: "running version " + a.Cfg.Version},
 		a.probeProsody(r.Context()),
 		health.ProbeTLS(r.Context(), a.Cfg.Domain),
+		health.ProbeXMPPTLS(r.Context(), a.Cfg.Domain, a.Cfg.ProsodyEndpoint),
+		health.ProbeS2S(r.Context(), a.Cfg.Domain, a.Cfg.ProsodyEndpoint),
+		health.ProbePush(r.Context(), a.Cfg.Domain),
+		health.ProbeTURN(r.Context(), a.Cfg.Domain, a.Cfg.ProsodyEndpoint),
 		health.ProbeMemory(hostStats),
 	}
 	data.Healthy = true
@@ -281,35 +284,93 @@ func (a *App) handleAdminHome(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, http.StatusOK, "admin_home.html", data)
 }
 
-// buildHealthSLO returns Prosody, portal, updater and cert tiles for the home strip.
+// buildHealthSLO returns ticket-shaped red/green tiles for the home strip.
 func (a *App) buildHealthSLO(ctx context.Context) []sloItem {
-	portal := sloItem{
-		Name:   "Portal",
-		Level:  "ok",
-		Label:  "OK",
-		Detail: "uptime " + time.Since(a.Started).Round(time.Second).String(),
-		Href:   "/admin/health/",
-	}
-	if a.Errors != nil && len(a.Errors.Recent()) > 0 {
-		portal.Level = "warn"
-		portal.Label = "Warn"
-		portal.Detail = fmt.Sprintf("%d recent errors", len(a.Errors.Recent()))
-	}
-
 	prosodyProbe := a.probeProsody(ctx)
-	prosody := sloItem{
-		Name:   "Prosody",
-		Href:   "/admin/health/",
-		Detail: prosodyProbe.Detail,
-	}
-	if prosodyProbe.OK {
-		prosody.Level = "ok"
-		prosody.Label = "OK"
-	} else {
-		prosody.Level = "bad"
-		prosody.Label = "Down"
-	}
+	httpsProbe := health.ProbeTLS(ctx, a.Cfg.Domain)
+	xmppProbe := health.ProbeXMPPTLS(ctx, a.Cfg.Domain, a.Cfg.ProsodyEndpoint)
+	s2sProbe := health.ProbeS2S(ctx, a.Cfg.Domain, a.Cfg.ProsodyEndpoint)
+	pushProbe := health.ProbePush(ctx, a.Cfg.Domain)
+	turnProbe := health.ProbeTURN(ctx, a.Cfg.Domain, a.Cfg.ProsodyEndpoint)
 
+	s2sPush := mergeProbeComponents("S2S / Push", s2sProbe, pushProbe)
+
+	return []sloItem{
+		componentSLO("Prosody", "/admin/health/", prosodyProbe, "Down"),
+		certSLO("HTTPS", "/admin/certs/", httpsProbe),
+		certSLO("XMPP TLS", "/admin/certs/", xmppProbe),
+		componentSLO("S2S / Push", "/admin/health/", s2sPush, "Blocked"),
+		componentSLO("TURN", "/admin/health/", turnProbe, "Blocked"),
+		a.updaterSLO(ctx),
+	}
+}
+
+func componentSLO(name, href string, probe health.Component, badLabel string) sloItem {
+	item := sloItem{
+		Name:   name,
+		Href:   href,
+		Detail: health.FormatComponentDetail(probe),
+	}
+	if probe.OK {
+		item.Level = "ok"
+		item.Label = "OK"
+		return item
+	}
+	item.Level = "bad"
+	item.Label = badLabel
+	return item
+}
+
+func certSLO(name, href string, probe health.Component) sloItem {
+	item := sloItem{
+		Name:   name,
+		Href:   href,
+		Detail: health.FormatComponentDetail(probe),
+	}
+	switch {
+	case !probe.OK:
+		item.Level = "bad"
+		item.Label = "Bad"
+	case strings.Contains(probe.Detail, "renew soon"):
+		item.Level = "warn"
+		item.Label = "Renew"
+	default:
+		item.Level = "ok"
+		item.Label = "OK"
+	}
+	return item
+}
+
+func mergeProbeComponents(name string, parts ...health.Component) health.Component {
+	out := health.Component{Name: name, OK: true}
+	var details []string
+	var hints []string
+	var maxLatency time.Duration
+	for _, part := range parts {
+		if !part.OK {
+			out.OK = false
+		}
+		if d := strings.TrimSpace(part.Detail); d != "" {
+			details = append(details, part.Name+": "+d)
+		}
+		if h := strings.TrimSpace(part.Hint); h != "" && !part.OK {
+			hints = append(hints, h)
+		}
+		if part.Latency != "" {
+			if lat, err := time.ParseDuration(part.Latency); err == nil && lat > maxLatency {
+				maxLatency = lat
+			}
+		}
+	}
+	out.Detail = strings.Join(details, " | ")
+	out.Hint = strings.Join(hints, " ")
+	if maxLatency > 0 {
+		out.Latency = maxLatency.Round(time.Millisecond).String()
+	}
+	return out
+}
+
+func (a *App) updaterSLO(ctx context.Context) sloItem {
 	updater := sloItem{Name: "Updater", Href: "/admin/updates"}
 	switch {
 	case a.Updater == nil || !a.Updater.Enabled():
@@ -339,26 +400,7 @@ func (a *App) buildHealthSLO(ctx context.Context) []sloItem {
 			updater.Detail = "reachable"
 		}
 	}
-
-	certProbe := health.ProbeTLS(ctx, a.Cfg.Domain)
-	certs := sloItem{
-		Name:   "Certs",
-		Href:   "/admin/certs/",
-		Detail: certProbe.Detail,
-	}
-	switch {
-	case !certProbe.OK:
-		certs.Level = "bad"
-		certs.Label = "Bad"
-	case strings.Contains(certProbe.Detail, "renew soon"):
-		certs.Level = "warn"
-		certs.Label = "Renew"
-	default:
-		certs.Level = "ok"
-		certs.Label = "OK"
-	}
-
-	return []sloItem{prosody, portal, updater, certs}
+	return updater
 }
 
 // adminUsersPage is the data behind the account list.
@@ -1336,6 +1378,10 @@ func (a *App) handleAdminHealth(w http.ResponseWriter, r *http.Request) {
 		},
 		health.ProbeDomain(r.Context(), a.Cfg.Domain),
 		health.ProbeTLS(r.Context(), a.Cfg.Domain),
+		health.ProbeXMPPTLS(r.Context(), a.Cfg.Domain, a.Cfg.ProsodyEndpoint),
+		health.ProbeS2S(r.Context(), a.Cfg.Domain, a.Cfg.ProsodyEndpoint),
+		health.ProbePush(r.Context(), a.Cfg.Domain),
+		health.ProbeTURN(r.Context(), a.Cfg.Domain, a.Cfg.ProsodyEndpoint),
 		health.ProbeHTTPS(r.Context(), a.Cfg.Domain),
 		a.probeStorage(),
 		health.ProbeMemory(hostStats),

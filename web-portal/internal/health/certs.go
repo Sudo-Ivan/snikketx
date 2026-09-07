@@ -102,6 +102,29 @@ func ProbeCertHost(ctx context.Context, host, role string) CertHost {
 	return out
 }
 
+// ProbeXMPPCertHost wraps ProbeXMPPTLS for the certificates page.
+func ProbeXMPPCertHost(ctx context.Context, domain, prosodyEndpoint string) CertHost {
+	start := time.Now()
+	c := ProbeXMPPTLS(ctx, domain, prosodyEndpoint)
+	out := CertHost{
+		Host:    strings.TrimSpace(domain) + ":5222",
+		Role:    "XMPP Prosody STARTTLS",
+		OK:      c.OK,
+		Detail:  FormatComponentDetail(c),
+		Latency: c.Latency,
+	}
+	if out.Latency == "" {
+		out.Latency = time.Since(start).Round(time.Millisecond).String()
+	}
+	if i := strings.LastIndex(c.Detail, "("); i >= 0 {
+		var days int
+		if _, err := fmt.Sscanf(c.Detail[i:], "(%d days)", &days); err == nil {
+			out.DaysLeft = days
+		}
+	}
+	return out
+}
+
 func probeCAA(ctx context.Context, host string) []string {
 	r := &net.Resolver{}
 	txts, err := r.LookupTXT(ctx, host)

@@ -41,13 +41,15 @@ func ProbeDomain(ctx context.Context, domain string) Component {
 	return component
 }
 
-// ProbeTLS dials the domain on port 443 and reports certificate validity.
+// ProbeTLS dials the domain on port 443 (RavenGuard / edge HTTPS) and reports
+// certificate validity. Use ProbeXMPPTLS for the Prosody STARTTLS leaf.
 func ProbeTLS(ctx context.Context, domain string) Component {
 	start := time.Now()
-	component := Component{Name: "TLS certificate"}
+	component := Component{Name: "HTTPS TLS (edge :443)"}
 	domain = strings.TrimSpace(domain)
 	if domain == "" {
 		component.Detail = "domain not configured"
+		component.Hint = "Set SNIKKET_DOMAIN"
 		component.Latency = time.Since(start).Round(time.Millisecond).String()
 		return component
 	}
@@ -66,6 +68,7 @@ func ProbeTLS(ctx context.Context, domain string) Component {
 	component.Latency = time.Since(start).Round(time.Millisecond).String()
 	if err != nil {
 		component.Detail = err.Error()
+		component.Hint = "Fix DNS for " + domain + " and open TCP 443 to RavenGuard"
 		return component
 	}
 	defer conn.Close()
@@ -73,6 +76,7 @@ func ProbeTLS(ctx context.Context, domain string) Component {
 	state := conn.ConnectionState()
 	if len(state.PeerCertificates) == 0 {
 		component.Detail = "no peer certificate"
+		component.Hint = "Check RavenGuard TLS termination on :443"
 		return component
 	}
 	cert := state.PeerCertificates[0]
@@ -81,10 +85,12 @@ func ProbeTLS(ctx context.Context, domain string) Component {
 	component.Detail = fmt.Sprintf("%s, expires %s (%d days)", cert.Subject.CommonName, cert.NotAfter.UTC().Format("2006-01-02"), days)
 	if days <= 14 && days > 0 {
 		component.Detail += ", renew soon"
+		component.Hint = "Renew the edge HTTPS certificate on :443"
 	}
 	if days <= 0 {
 		component.OK = false
 		component.Detail += ", expired"
+		component.Hint = "Renew the edge HTTPS certificate on :443 (distinct from Prosody XMPP certs)"
 	}
 	return component
 }
