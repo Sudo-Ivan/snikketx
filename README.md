@@ -1,10 +1,19 @@
 # snikketx
 
-Fork of the Snikket service stack as one repo: Prosody server image, web
+My Sloppulus fork of the Snikket stack as SnikketX in one repo: Prosody server image, web
 portal, cert manager, plus Traefik and RavenGuard on the HTTP edge.
 
 Upstream lives at [snikket-im](https://github.com/snikket-im). This fork
-publishes Snikket images to GHCR under `ghcr.io/sudo-ivan/snikketx/`.
+publishes SnikketX images to GHCR under `ghcr.io/sudo-ivan/snikketx/`.
+
+## Major changes from upstream
+
+- One monorepo instead of separate Snikket packages (server, portal, cert-manager, proxy).
+- HTTP edge is Traefik plus RavenGuard. The nginx web-proxy image is kept but not used by default compose.
+- Server, cert-manager, and web-proxy images build on Alpine 3.24. Prosody comes from apk (13.x), not Debian nightlies.
+- Web portal is a stdlib Go single binary on distroless, not the upstream Python/Quart app.
+- Invite helpers use `prosodyctl shell invite` (create_account / create_reset). The old `mod_invites generate` path is gone.
+- Publish pipeline signs images keyless with Cosign, attaches Syft SPDX SBOMs, runs Trivy and container smoke tests.
 
 HTTP path:
 
@@ -20,7 +29,7 @@ RavenGuard runs behind Traefik with `trust.mode = behind_proxy`. See the
 
 ## Layout
 
-- `server/` - Prosody-based Snikket server image
+- `server/` - Prosody-based SnikketX server image
 - `web-portal/` - account and admin web UI
 - `web-proxy/` - legacy nginx front door (not used by default compose)
 - `cert-manager/` - Let's Encrypt for XMPP TLS (prod)
@@ -32,7 +41,7 @@ RavenGuard runs behind Traefik with `trust.mode = behind_proxy`. See the
 
 ## Production
 
-1. Point DNS at this host (A/AAAA for the Snikket domain, plus share/groups).
+1. Point DNS at this host (A/AAAA for the SnikketX domain, plus share/groups).
 2. Install Docker with the Compose plugin.
 3. Configure and start:
 
