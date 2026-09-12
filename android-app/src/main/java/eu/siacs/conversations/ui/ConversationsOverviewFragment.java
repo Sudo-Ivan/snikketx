@@ -37,6 +37,7 @@ import android.content.Intent;
 import android.graphics.Canvas;
 import android.net.Uri;
 import android.os.Bundle;
+import android.text.InputType;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -44,6 +45,8 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.Toast;
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
@@ -56,6 +59,8 @@ import androidx.lifecycle.Lifecycle;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import com.google.android.material.chip.Chip;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.search.SearchView;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.common.base.Strings;
@@ -92,11 +97,16 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.TreeSet;
 
 public class ConversationsOverviewFragment extends XmppFragment {
 
     private static final String STATE_SCROLL_POSITION =
             ConversationsOverviewFragment.class.getName() + ".scroll_state";
+    private static final String STATE_SELECTED_FOLDER =
+            ConversationsOverviewFragment.class.getName() + ".selected_folder";
 
     private final List<Conversation> conversations = new ArrayList<>();
     private final PendingItem<Conversation> swipedConversation = new PendingItem<>();
@@ -105,6 +115,7 @@ public class ConversationsOverviewFragment extends XmppFragment {
     private ConversationAdapter conversationsAdapter;
     private SearchSuggestionAdapter searchSuggestionAdapter;
     private final PendingActionHelper pendingActionHelper = new PendingActionHelper();
+    @Nullable private String selectedFolder;
 
     private final ItemTouchHelper.SimpleCallback callback =
             new ItemTouchHelper.SimpleCallback(0, LEFT | RIGHT) {
@@ -379,6 +390,7 @@ public class ConversationsOverviewFragment extends XmppFragment {
             return;
         }
         pendingScrollState.push(savedInstanceState.getParcelable(STATE_SCROLL_POSITION));
+        this.selectedFolder = savedInstanceState.getString(STATE_SELECTED_FOLDER);
     }
 
     @Override
@@ -452,6 +464,11 @@ public class ConversationsOverviewFragment extends XmppFragment {
                                 ConversationsOverviewFragment.class.getCanonicalName(),
                                 "Activity does not implement OnConversationSelected");
                     }
+                });
+        this.conversationsAdapter.setConversationLongClickListener(
+                (view, conversation) -> {
+                    showMoveToFolderDialog(conversation);
+                    return true;
                 });
         this.searchSuggestionAdapter = new SearchSuggestionAdapter();
         this.binding.list.setAdapter(this.conversationsAdapter);
@@ -605,6 +622,7 @@ public class ConversationsOverviewFragment extends XmppFragment {
         if (scrollState != null) {
             bundle.putParcelable(STATE_SCROLL_POSITION, scrollState);
         }
+        bundle.putString(STATE_SELECTED_FOLDER, this.selectedFolder);
     }
 
     private ScrollState getScrollState() {
@@ -661,6 +679,8 @@ public class ConversationsOverviewFragment extends XmppFragment {
                 pendingActionHelper.execute();
             }
         }
+        refreshFolderChips();
+        applyFolderFilter();
         if (this.conversations.isEmpty()) {
             this.binding.list.setVisibility(View.GONE);
             this.binding.emptyChatHint.setVisibility(View.VISIBLE);
@@ -696,5 +716,158 @@ public class ConversationsOverviewFragment extends XmppFragment {
             }
             binding.fab.clearAnimation();
         }
+    }
+
+    private void refreshFolderChips() {
+        // Folder names and their unread counts are computed on the full, unfiltered
+        // conversation list so that chips stay stable while a folder is selected.
+        final Map<String, Integer> unreadPerFolder = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        for (final var conversation : this.conversations) {
+            final var folder = conversation.getFolder();
+            if (!Strings.isNullOrEmpty(folder)) {
+                unreadPerFolder.merge(folder, conversation.unreadCount(), Integer::sum);
+            }
+        }
+        final var chipGroup = this.binding.folderChips;
+        if (unreadPerFolder.isEmpty()) {
+            this.selectedFolder = null;
+            this.binding.folderScroll.setVisibility(View.GONE);
+            chipGroup.setOnCheckedStateChangeListener(null);
+            chipGroup.removeAllViews();
+            return;
+        }
+        if (this.selectedFolder != null && !unreadPerFolder.containsKey(this.selectedFolder)) {
+            this.selectedFolder = null;
+        }
+        this.binding.folderScroll.setVisibility(View.VISIBLE);
+        chipGroup.setOnCheckedStateChangeListener(null);
+        chipGroup.removeAllViews();
+        final var allChip = new Chip(requireContext());
+        allChip.setId(View.generateViewId());
+        allChip.setText(R.string.folder_all);
+        allChip.setCheckable(true);
+        chipGroup.addView(allChip);
+        for (final var entry : unreadPerFolder.entrySet()) {
+            final var chip = new Chip(requireContext());
+            chip.setId(View.generateViewId());
+            final int unread = entry.getValue();
+            chip.setText(
+                    unread > 0
+                            ? getString(R.string.folder_chip_with_unread, entry.getKey(), unread)
+                            : entry.getKey());
+            chip.setCheckable(true);
+            chip.setTag(entry.getKey());
+            chipGroup.addView(chip);
+        }
+        var selectionRestored = false;
+        if (this.selectedFolder != null) {
+            for (int i = 0; i < chipGroup.getChildCount(); ++i) {
+                if (chipGroup.getChildAt(i) instanceof Chip chip
+                        && this.selectedFolder.equals(chip.getTag())) {
+                    chipGroup.check(chip.getId());
+                    selectionRestored = true;
+                    break;
+                }
+            }
+        }
+        if (!selectionRestored) {
+            chipGroup.check(allChip.getId());
+        }
+        chipGroup.setOnCheckedStateChangeListener(
+                (group, checkedIds) -> {
+                    if (checkedIds.isEmpty()) {
+                        return;
+                    }
+                    final var checked = group.findViewById(checkedIds.get(0));
+                    this.selectedFolder =
+                            checked instanceof Chip ? (String) checked.getTag() : null;
+                    refresh();
+                });
+    }
+
+    private void applyFolderFilter() {
+        if (this.selectedFolder == null) {
+            return;
+        }
+        this.conversations.removeIf(
+                c -> c.getFolder() == null || !c.getFolder().equalsIgnoreCase(this.selectedFolder));
+    }
+
+    private void showMoveToFolderDialog(final Conversation conversation) {
+        final var folderNames = new TreeSet<String>(String.CASE_INSENSITIVE_ORDER);
+        final var service = requireXmppActivity().xmppConnectionService;
+        if (service != null) {
+            for (final var c : service.getConversations()) {
+                final var folder = c.getFolder();
+                if (!Strings.isNullOrEmpty(folder)) {
+                    folderNames.add(folder);
+                }
+            }
+        }
+        final var items = new ArrayList<CharSequence>(folderNames);
+        items.add(getString(R.string.new_folder));
+        items.add(getString(R.string.no_folder));
+        final int newFolderIndex = folderNames.size();
+        final int noFolderIndex = folderNames.size() + 1;
+        final var current = conversation.getFolder();
+        int checkedItem = noFolderIndex;
+        if (current != null) {
+            for (int i = 0; i < folderNames.size(); ++i) {
+                if (current.equalsIgnoreCase(items.get(i).toString())) {
+                    checkedItem = i;
+                    break;
+                }
+            }
+        }
+        final var builder = new MaterialAlertDialogBuilder(requireContext());
+        builder.setTitle(R.string.move_to_folder);
+        builder.setSingleChoiceItems(
+                items.toArray(new CharSequence[0]),
+                checkedItem,
+                (dialog, which) -> {
+                    dialog.dismiss();
+                    if (which == newFolderIndex) {
+                        showNewFolderDialog(conversation);
+                    } else if (which == noFolderIndex) {
+                        assignFolder(conversation, null);
+                    } else {
+                        assignFolder(conversation, items.get(which).toString());
+                    }
+                });
+        builder.create().show();
+    }
+
+    private void showNewFolderDialog(final Conversation conversation) {
+        final var input = new EditText(requireContext());
+        input.setHint(R.string.folder_name);
+        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_WORDS);
+        final int margin = (int) (24 * getResources().getDisplayMetrics().density);
+        final var container = new FrameLayout(requireContext());
+        final var layoutParams =
+                new FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        layoutParams.leftMargin = margin;
+        layoutParams.rightMargin = margin;
+        input.setLayoutParams(layoutParams);
+        container.addView(input);
+        final var builder = new MaterialAlertDialogBuilder(requireContext());
+        builder.setTitle(R.string.new_folder);
+        builder.setView(container);
+        builder.setNegativeButton(R.string.cancel, null);
+        builder.setPositiveButton(
+                R.string.create,
+                (dialog, which) -> {
+                    final var name = input.getText().toString().trim();
+                    if (!name.isEmpty()) {
+                        assignFolder(conversation, name);
+                    }
+                });
+        builder.create().show();
+    }
+
+    private void assignFolder(final Conversation conversation, @Nullable final String folder) {
+        conversation.setFolder(folder);
+        requireXmppActivity().xmppConnectionService.updateConversation(conversation);
+        refresh();
     }
 }

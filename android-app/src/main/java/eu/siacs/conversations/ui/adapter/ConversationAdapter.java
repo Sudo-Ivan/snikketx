@@ -36,6 +36,7 @@ public class ConversationAdapter
     private final XmppActivity activity;
     private final List<Conversation> conversations;
     private OnConversationClickListener listener;
+    private OnConversationLongClickListener longClickListener;
 
     public ConversationAdapter(XmppActivity activity, List<Conversation> conversations) {
         this.activity = activity;
@@ -249,6 +250,10 @@ public class ConversationAdapter
                 viewHolder.binding.conversationImage,
                 R.dimen.avatar_on_conversation_overview);
         viewHolder.itemView.setOnClickListener(v -> listener.onConversationClick(v, conversation));
+        viewHolder.itemView.setOnLongClickListener(
+                v ->
+                        longClickListener != null
+                                && longClickListener.onConversationLongClick(v, conversation));
     }
 
     @Override
@@ -258,6 +263,10 @@ public class ConversationAdapter
 
     public void setConversationClickListener(OnConversationClickListener listener) {
         this.listener = listener;
+    }
+
+    public void setConversationLongClickListener(OnConversationLongClickListener listener) {
+        this.longClickListener = listener;
     }
 
     public void insert(Conversation c, int position) {
@@ -272,6 +281,10 @@ public class ConversationAdapter
 
     public interface OnConversationClickListener {
         void onConversationClick(View view, Conversation conversation);
+    }
+
+    public interface OnConversationLongClickListener {
+        boolean onConversationLongClick(View view, Conversation conversation);
     }
 
     public static class ConversationViewHolder extends RecyclerView.ViewHolder {

@@ -20,6 +20,26 @@
                 android:hint="@string/search_in_chats"
                 app:layout_scrollFlags="snap" />
 
+            <HorizontalScrollView
+                android:id="@+id/folder_scroll"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:scrollbars="none"
+                android:visibility="gone">
+
+                <com.google.android.material.chip.ChipGroup
+                    android:id="@+id/folder_chips"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingHorizontal="12dp"
+                    android:paddingBottom="8dp"
+                    app:chipSpacingHorizontal="8dp"
+                    app:selectionRequired="true"
+                    app:singleLine="true"
+                    app:singleSelection="true" />
+
+            </HorizontalScrollView>
+
         </com.google.android.material.appbar.AppBarLayout>
 
 

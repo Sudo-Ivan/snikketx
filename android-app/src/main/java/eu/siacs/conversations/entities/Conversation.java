@@ -980,6 +980,15 @@ public class Conversation extends AbstractEntity
         this.attributes.wallpaper = wallpaper;
     }
 
+    @Nullable
+    public String getFolder() {
+        return this.attributes.folder;
+    }
+
+    public void setFolder(@Nullable final String folder) {
+        this.attributes.folder = folder;
+    }
+
     public boolean alwaysNotify() {
         return mode == MODE_SINGLE
                 || Attributes.valueOrDefault(
@@ -1183,6 +1192,9 @@ public class Conversation extends AbstractEntity
 
         @SerializedName("pinned_messages")
         private List<PinnedMessage> pinnedMessages;
+
+        @SerializedName("folder")
+        private String folder;
 
         public static Attributes parse(final String json) {
             if (Strings.isNullOrEmpty(json)) {
