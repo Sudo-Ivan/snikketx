@@ -12,10 +12,17 @@ FROM golang:1.27-alpine@sha256:cf6fca6641884b8433441b2b0652976f975e1d0fdd26d177e
 # through go.sum) until a release ships grpc-go >=1.83.1, then switch back to
 # the sha256-verified release binary.
 ARG COSIGN_COMMIT=633e8f4303b7db64c369bdfa315374a8bd511ac6
+# The commit still pins x/crypto and x/mod below the versions fixing published
+# CVEs; lift them to the first fixed releases during the build.
+ARG COSIGN_XCRYPTO=v0.57.0
+ARG COSIGN_XMOD=v0.41.0
 RUN apk add --no-cache git ca-certificates \
-	&& CGO_ENABLED=0 go install -trimpath -ldflags="-s -w" \
-		github.com/sigstore/cosign/v3/cmd/cosign@${COSIGN_COMMIT} \
-	&& cp /go/bin/cosign /cosign
+	&& mkdir /src && cd /src \
+	&& git init && git remote add origin https://github.com/sigstore/cosign.git \
+	&& git fetch --depth 1 origin ${COSIGN_COMMIT} \
+	&& git checkout FETCH_HEAD \
+	&& go get golang.org/x/crypto@${COSIGN_XCRYPTO} golang.org/x/mod@${COSIGN_XMOD} \
+	&& CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /cosign ./cmd/cosign
 
 FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
 RUN apk upgrade --no-cache \
