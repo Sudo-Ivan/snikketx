@@ -219,6 +219,23 @@ public class SQLiteAxolotlStore implements SignalProtocolStore {
         return true;
     }
 
+    /**
+     * Return the saved public identity key for a remote client.
+     *
+     * <p>Identities are stored per name (not per device) in this store, so any known key for the
+     * address name is returned.
+     *
+     * @param address The address of the remote client.
+     * @return The stored identity key, or null if absent.
+     */
+    @Override
+    public IdentityKey getIdentity(SignalProtocolAddress address) {
+        Set<IdentityKey> keys =
+                mXmppConnectionService.databaseBackend.loadIdentityKeys(
+                        account, address.getName());
+        return keys.isEmpty() ? null : keys.iterator().next();
+    }
+
     public FingerprintStatus getFingerprintStatus(String fingerprint) {
         return (fingerprint == null) ? null : trustCache.get(fingerprint);
     }
