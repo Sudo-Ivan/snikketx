@@ -184,9 +184,9 @@ public class ConversationFragment extends XmppFragment
                 MessageAdapter.OnContactPictureLongClicked,
                 MessageAdapter.OnContactPictureClicked {
 
-    // Reactions are disabled in Snikket Android
-    // until we have support on other platforms.
-    private static boolean reactionsEnabled = false;
+    // SnikketX enables reactions; upstream Snikket kept them off pending
+    // support on other platforms.
+    private static boolean reactionsEnabled = true;
 
     public static final List<AttachmentChoice> ATTACHMENT_CHOICES =
             Arrays.asList(
@@ -1566,8 +1566,8 @@ public class ConversationFragment extends XmppFragment
                                 || (c.getMucOptions().occupantId()
                                         && c.getMucOptions().participating());
                 final var reactionBaseConditions =
-                        reactionsEnabled &&
-                        m.getStatus() != Message.STATUS_SEND_FAILED
+                        reactionsEnabled
+                                && m.getStatus() != Message.STATUS_SEND_FAILED
                                 && !m.isDeleted()
                                 && singleOrOccupantId;
                 if (m.getStatus() != Message.STATUS_SEND_FAILED
