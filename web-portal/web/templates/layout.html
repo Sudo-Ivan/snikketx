@@ -63,6 +63,7 @@
 			<a href="/user/" class="topnav-link{{if eq .Nav "home"}} is-active{{end}}">{{template "icon" "home"}}<span>{{t "nav.home"}}</span></a>
 			<a href="/user/profile" class="topnav-link{{if eq .Nav "profile"}} is-active{{end}}">{{template "icon" "circle-user"}}<span>{{t "nav.profile"}}</span></a>
 			<a href="/user/passwd" class="topnav-link{{if eq .Nav "password"}} is-active{{end}}">{{template "icon" "key"}}<span>{{t "nav.password"}}</span></a>
+			<a href="/user/security" class="topnav-link{{if eq .Nav "security"}} is-active{{end}}">{{template "icon" "shield"}}<span>{{t "nav.security"}}</span></a>
 			<a href="/user/manage_data" class="topnav-link{{if eq .Nav "data"}} is-active{{end}}">{{template "icon" "database"}}<span>{{t "nav.data"}}</span></a>
 			{{if .IsAdmin}}<a href="/admin/" class="topnav-link">{{template "icon" "shield"}}<span>{{t "nav.admin"}}</span></a>{{end}}
 			<a href="/user/logout" class="topnav-link{{if eq .Nav "logout"}} is-active{{end}}">{{template "icon" "log-out"}}<span>{{t "nav.logout"}}</span></a>

@@ -19,6 +19,7 @@ import (
 	"github.com/sudo-ivan/snikketx/web-portal/internal/authlimit"
 	backupclient "github.com/sudo-ivan/snikketx/web-portal/internal/backupclient"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/config"
+	"github.com/sudo-ivan/snikketx/web-portal/internal/credstore"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/csrf"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/health"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/metrics"
@@ -50,12 +51,15 @@ type App struct {
 	Audit     *audit.Store
 	Metrics   *metrics.Registry
 	LoginGate *authlimit.Limiter
-	Updater   *updater.Client
-	Backup    *backupclient.Client
-	AppCache  *appcache.Cache
-	APKGate   *appcache.DownloadLimiter
-	Started   time.Time
-	Static    http.Handler
+	// Credentials stores passkeys and TOTP secrets. Nil disables the
+	// second-factor features.
+	Credentials *credstore.Store
+	Updater     *updater.Client
+	Backup      *backupclient.Client
+	AppCache    *appcache.Cache
+	APKGate     *appcache.DownloadLimiter
+	Started     time.Time
+	Static      http.Handler
 
 	healthMu     sync.Mutex
 	healthAt     time.Time
@@ -81,6 +85,7 @@ func (a *App) Routes() http.Handler {
 	// header handling.
 	a.mountXMPPProxy(mux)
 	a.mountMain(mux)
+	a.mountSecurity(mux)
 	a.mountUser(mux)
 	a.mountAdmin(mux)
 	a.mountInvite(mux)

@@ -18,6 +18,7 @@ import (
 	"github.com/sudo-ivan/snikketx/web-portal/internal/authlimit"
 	backupclient "github.com/sudo-ivan/snikketx/web-portal/internal/backupclient"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/config"
+	"github.com/sudo-ivan/snikketx/web-portal/internal/credstore"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/handlers"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/health"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/metrics"
@@ -107,6 +108,13 @@ func run() error {
 		slog.Warn("oauth credentials not loaded", slog.String("error", err.Error()))
 	}
 
+	credStore, err := credstore.Open(stateDir, cfg.SecretKey)
+	if err != nil {
+		slog.Warn("credential store unavailable, second-factor features disabled",
+			slog.String("error", err.Error()))
+		credStore = nil
+	}
+
 	apkCache, err := appcache.Open(filepath.Join(stateDir, "android"), appcache.Defaults{
 		Enabled:              cfg.AndroidHostEnabled,
 		SourceURL:            cfg.AndroidAPKSource,
@@ -122,14 +130,15 @@ func run() error {
 	}
 
 	app := &handlers.App{
-		Cfg:       cfg,
-		Prosody:   prosodyClient,
-		Sessions:  sessStore,
-		Templates: renderer,
-		Errors:    health.NewRing(errorRingSize),
-		Audit:     auditStore,
-		Metrics:   metrics.New(),
-		LoginGate: authlimit.New(),
+		Cfg:         cfg,
+		Prosody:     prosodyClient,
+		Sessions:    sessStore,
+		Templates:   renderer,
+		Errors:      health.NewRing(errorRingSize),
+		Audit:       auditStore,
+		Metrics:     metrics.New(),
+		LoginGate:   authlimit.New(),
+		Credentials: credStore,
 		Updater: &updater.Client{
 			Endpoint: cfg.UpdaterEndpoint,
 			Token:    cfg.UpdaterToken,

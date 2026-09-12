@@ -67,6 +67,8 @@ func (a *App) handleLoginForm(w http.ResponseWriter, r *http.Request) {
 		}
 		sess.ClearAuth()
 	}
+	// A fresh password attempt abandons any half finished second-factor step.
+	sess.ClearPending()
 
 	page := a.newPage(w, r, sess, "Sign in", "", webui.ShellBare)
 	a.render(w, r, http.StatusOK, "login.html", loginPage{PageData: page})
@@ -142,6 +144,16 @@ func (a *App) handleLoginSubmit(w http.ResponseWriter, r *http.Request) {
 
 	gate.Success(ip, localpart)
 	sess.RotateAuthSurface()
+	if a.requiresSecondFactor(jid) {
+		// The token is real but stays unusable until the second factor
+		// passes: it sits under the pending keys and HasSession stays false.
+		sess.SetPendingAuth(tokenInfo.Token, strings.Join(tokenInfo.Scopes, " "), jid, time.Now())
+		_ = csrf.Rotate(sess)
+		a.padLogin(started, gate.MinLatency())
+		a.recordAudit(r, sess, "auth.login_pending", jid, "")
+		a.flashRedirect(w, r, sess, "Finish signing in with your second factor.", "info", pathLoginVerify)
+		return
+	}
 	sess.SetAuth(tokenInfo.Token, strings.Join(tokenInfo.Scopes, " "), jid)
 	_ = csrf.Rotate(sess)
 	a.padLogin(started, gate.MinLatency())

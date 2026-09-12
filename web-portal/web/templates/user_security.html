@@ -1,0 +1,110 @@
+{{define "head"}}
+<script src="/static/js/qrcode.min.js" defer></script>
+<script src="/static/js/security.js" defer></script>
+{{end}}
+
+{{define "content"}}
+<div class="page-head">
+	<h1>Security</h1>
+	<p class="muted">Protect your account with a passkey or an authenticator app. When either is set up, signing in asks for it after your password.</p>
+</div>
+
+<section class="card">
+	<div class="section-head">
+		<div>
+			<h2>Passkeys</h2>
+			<p class="muted">Passkeys are a phishing-resistant second factor stored on your device or password manager.</p>
+		</div>
+	</div>
+	{{if .Passkeys}}
+	<div class="table-wrap">
+		<table class="table">
+			<thead>
+				<tr>
+					<th scope="col">Name</th>
+					<th scope="col">Registered</th>
+					<th scope="col">Last used</th>
+					<th scope="col"><span class="sr-only">Actions</span></th>
+				</tr>
+			</thead>
+			<tbody>
+				{{range .Passkeys}}
+				<tr>
+					<td>{{with .Name}}{{.}}{{else}}<span class="muted">Unnamed passkey</span>{{end}}</td>
+					<td class="muted">{{formatTime .CreatedAt}}</td>
+					<td class="muted">{{formatTime .LastUsed}}</td>
+					<td>
+						<form method="post" action="/user/security/passkey/delete" class="inline-form">
+							{{csrf $.CSRF}}
+							<input type="hidden" name="credential_id" value="{{.ID}}">
+							<button type="submit" class="btn btn-ghost btn-icon btn-danger-ghost" title="Remove passkey" onclick="return confirm('Remove this passkey?');">{{template "icon" "trash"}}</button>
+						</form>
+					</td>
+				</tr>
+				{{end}}
+			</tbody>
+		</table>
+	</div>
+	{{else}}
+	<p class="muted">No passkeys registered yet.</p>
+	{{end}}
+	<div class="field">
+		<label for="passkey-name">Passkey name</label>
+		<input type="text" id="passkey-name" maxlength="60" placeholder="For example: work laptop" data-passkey-name>
+	</div>
+	<button type="button" class="btn btn-primary" data-passkey-register data-csrf="{{.CSRF}}">{{template "icon" "key"}}<span>Register a passkey</span></button>
+	<p class="hint" data-passkey-status></p>
+</section>
+
+<section class="card">
+	<div class="section-head">
+		<div>
+			<h2>Authenticator app</h2>
+			<p class="muted">A one-time code from an app such as Aegis, 1Password or Google Authenticator.</p>
+		</div>
+		{{if .TOTPEnabled}}<span class="badge badge-ok">enabled</span>{{end}}
+	</div>
+
+	{{if .TOTPSetup}}
+	<p class="muted">Scan this code with your authenticator app, then enter the code it shows.</p>
+	<div class="qr" data-qrdata="{{.TOTPURI}}"></div>
+	<p class="hint">Cannot scan? Enter this secret manually: <code class="mono">{{.TOTPSecret}}</code></p>
+	<form method="post" action="/user/security/totp/confirm" class="form">
+		{{csrf .CSRF}}
+		<div class="field">
+			<label for="totp-code">Code from your app</label>
+			<input type="text" id="totp-code" name="code" inputmode="numeric" autocomplete="one-time-code" required autofocus>
+		</div>
+		<div class="actions">
+			<button type="submit" class="btn btn-primary">{{template "icon" "check"}}<span>Enable</span></button>
+		</div>
+	</form>
+	<form method="post" action="/user/security/totp/cancel" class="inline-form">
+		{{csrf .CSRF}}
+		<button type="submit" class="btn btn-ghost"><span>Cancel setup</span></button>
+	</form>
+	{{else if .TOTPEnabled}}
+	<p class="muted">Enabled{{if not .TOTPCreatedAt.IsZero}} since {{formatTime .TOTPCreatedAt}}{{end}}. Signing in requires a code after your password.</p>
+	<div class="actions">
+		<form method="post" action="/user/security/totp/setup" class="inline-form">
+			{{csrf .CSRF}}
+			<button type="submit" class="btn btn-secondary">{{template "icon" "refresh"}}<span>Regenerate secret</span></button>
+		</form>
+	</div>
+	<form method="post" action="/user/security/totp/disable" class="form">
+		{{csrf .CSRF}}
+		<div class="field">
+			<label for="totp-disable-password">Current password</label>
+			<input type="password" id="totp-disable-password" name="password" autocomplete="current-password" required>
+		</div>
+		<button type="submit" class="btn btn-danger" onclick="return confirm('Disable the authenticator app for this account?');">{{template "icon" "ban"}}<span>Disable authenticator</span></button>
+	</form>
+	{{else}}
+	<p class="muted">Authenticator codes are not enabled for this account.</p>
+	<form method="post" action="/user/security/totp/setup" class="inline-form">
+		{{csrf .CSRF}}
+		<button type="submit" class="btn btn-primary">{{template "icon" "smartphone"}}<span>Set up an authenticator</span></button>
+	</form>
+	{{end}}
+</section>
+{{end}}

@@ -13,6 +13,7 @@ import (
 	"github.com/sudo-ivan/snikketx/web-portal/internal/audit"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/authlimit"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/config"
+	"github.com/sudo-ivan/snikketx/web-portal/internal/credstore"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/health"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/metrics"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/prosody"
@@ -192,6 +193,10 @@ func newTestApp(t *testing.T, endpoint string) *App {
 	if err != nil {
 		t.Fatal(err)
 	}
+	credStore, err := credstore.Open(stateDir, cfg.SecretKey)
+	if err != nil {
+		t.Fatal(err)
+	}
 	apkCache, err := appcache.Open(filepath.Join(stateDir, "android"), appcache.Defaults{
 		PackageID:            "org.snikket.android",
 		DownloadLimitPerHour: 4,
@@ -202,18 +207,19 @@ func newTestApp(t *testing.T, endpoint string) *App {
 	}
 
 	return &App{
-		Cfg:       cfg,
-		Prosody:   prosody.New(endpoint, "example.test", "test"),
-		Sessions:  store,
-		Templates: renderer,
-		Errors:    health.NewRing(8),
-		Audit:     auditStore,
-		Metrics:   metrics.New(),
-		LoginGate: authlimit.NewFast(),
-		AppCache:  apkCache,
-		APKGate:   appcache.NewDownloadLimiter(4),
-		Started:   time.Now().Add(-time.Hour),
-		Static:    http.StripPrefix("/static/", http.FileServerFS(staticFS)),
+		Cfg:         cfg,
+		Prosody:     prosody.New(endpoint, "example.test", "test"),
+		Sessions:    store,
+		Templates:   renderer,
+		Errors:      health.NewRing(8),
+		Audit:       auditStore,
+		Metrics:     metrics.New(),
+		LoginGate:   authlimit.NewFast(),
+		Credentials: credStore,
+		AppCache:    apkCache,
+		APKGate:     appcache.NewDownloadLimiter(4),
+		Started:     time.Now().Add(-time.Hour),
+		Static:      http.StripPrefix("/static/", http.FileServerFS(staticFS)),
 	}
 }
 
@@ -246,6 +252,7 @@ func TestGetRoutesRender(t *testing.T) {
 		"/.well-known/security.txt", "/site.webmanifest", "/_health", "/_health/ready",
 		"/metrics", "/static/css/app.css", "/static/css/app.css?v=abc1234",
 		"/user/", "/user/passwd", "/user/profile", "/user/manage_data", "/user/logout",
+		"/user/security", "/login/verify",
 		"/admin/", "/admin/users", "/admin/user/alice/", "/admin/user/alice/delete",
 		"/admin/user/alice/debug", "/admin/users/password-reset/inv1",
 		"/admin/invitations", "/admin/invitation/-/new", "/admin/invitation/inv1",

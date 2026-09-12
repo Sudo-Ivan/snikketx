@@ -11,6 +11,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -30,6 +31,20 @@ const (
 	KeyFlashM = "_flash_m"
 	KeyFlashC = "_flash_c"
 	KeyCSRF   = "_csrf"
+	// #nosec G101 -- session map keys, not credential values
+	// The pending keys hold a password grant token while the account still
+	// owes a second factor. A session carrying only pending keys does not
+	// count as signed in: HasSession only sees KeyToken.
+	KeyPendingToken = "pending_token"
+	KeyPendingScope = "pending_scope"
+	KeyPendingJID   = "pending_jid"
+	KeyPendingAt    = "pending_at"
+	// KeyWebAuthn carries the JSON encoded ceremony session between a
+	// WebAuthn begin and finish call.
+	KeyWebAuthn = "_webauthn"
+	// KeyTOTPSetup carries the base32 TOTP secret while enrollment waits for
+	// the first valid code.
+	KeyTOTPSetup = "_totp_setup"
 
 	cookieMaxAge  = 12 * time.Hour
 	cookieVersion = 1
@@ -162,11 +177,62 @@ func (d Data) ClearAuth() {
 	delete(d, KeyJID)
 }
 
+// SetPendingAuth stores a freshly issued token under the pending keys while
+// the account still has to prove a second factor.
+func (d Data) SetPendingAuth(token, scope, jid string, at time.Time) {
+	d[KeyPendingToken] = token
+	d[KeyPendingScope] = scope
+	d[KeyPendingJID] = jid
+	d[KeyPendingAt] = strconv.FormatInt(at.Unix(), 10)
+}
+
+// PendingJID returns the account address waiting on a second factor.
+func (d Data) PendingJID() string { return d[KeyPendingJID] }
+
+// HasPending reports whether a second-factor step is outstanding.
+func (d Data) HasPending() bool { return d[KeyPendingToken] != "" }
+
+// PendingAge returns how long ago the pending token was issued. A missing or
+// corrupt timestamp reports a negative duration.
+func (d Data) PendingAge() time.Duration {
+	stamp, err := strconv.ParseInt(d[KeyPendingAt], 10, 64)
+	if err != nil || stamp <= 0 {
+		return -1
+	}
+	return time.Since(time.Unix(stamp, 0))
+}
+
+// PromotePending moves the pending token into the auth keys. It reports
+// whether a pending token existed.
+func (d Data) PromotePending() bool {
+	token, ok := d[KeyPendingToken]
+	if !ok || token == "" {
+		return false
+	}
+	d.SetAuth(token, d[KeyPendingScope], d[KeyPendingJID])
+	d.ClearPending()
+	return true
+}
+
+// ClearPending drops the pending token and its bookkeeping.
+func (d Data) ClearPending() {
+	delete(d, KeyPendingToken)
+	delete(d, KeyPendingScope)
+	delete(d, KeyPendingJID)
+	delete(d, KeyPendingAt)
+}
+
+// RotateAuthSurface drops everything derived from the previous auth state:
+// CSRF token, invite state, flashes, pending second-factor state and any
+// in-flight WebAuthn ceremony. Callers set fresh values afterwards.
 func (d Data) RotateAuthSurface() {
 	delete(d, KeyCSRF)
 	delete(d, KeyInvite)
 	delete(d, KeyFlashM)
 	delete(d, KeyFlashC)
+	delete(d, KeyWebAuthn)
+	delete(d, KeyTOTPSetup)
+	d.ClearPending()
 }
 
 func (d Data) PushFlash(msg, category string) {
