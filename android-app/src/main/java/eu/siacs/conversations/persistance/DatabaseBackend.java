@@ -1294,6 +1294,11 @@ public class DatabaseBackend extends SQLiteOpenHelper {
 
     public void saveResolverResult(String domain, Resolver.Result result) {
         SQLiteDatabase db = this.getWritableDatabase();
+        // keep only the most recent result per domain. previously rows were
+        // appended without bound and findResolverResult returned the oldest
+        final String where = Resolver.Result.DOMAIN + "=?";
+        final String[] whereArgs = {domain};
+        db.delete(RESOLVER_RESULTS_TABLENAME, where, whereArgs);
         ContentValues contentValues = result.toContentValues();
         contentValues.put(Resolver.Result.DOMAIN, domain);
         db.insert(RESOLVER_RESULTS_TABLENAME, null, contentValues);

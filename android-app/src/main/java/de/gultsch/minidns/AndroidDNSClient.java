@@ -229,6 +229,13 @@ public class AndroidDNSClient extends AbstractDnsClient {
         return dnsServerBuilder.build();
     }
 
+    public static void clearCache() {
+        synchronized (QUERY_CACHE) {
+            QUERY_CACHE.evictAll();
+        }
+        NetworkDataSource.clearCache();
+    }
+
     private DnsMessage queryCache(final QuestionServerTuple key) {
         final DnsMessage cachedResponse;
         synchronized (QUERY_CACHE) {
@@ -237,7 +244,7 @@ public class AndroidDNSClient extends AbstractDnsClient {
                 return null;
             }
             final long expiresIn = expiresIn(cachedResponse);
-            if (expiresIn < 0) {
+            if (expiresIn <= 0) {
                 QUERY_CACHE.remove(key);
                 return null;
             }

@@ -60,6 +60,10 @@ public class NetworkDataSource {
                                 }
                             });
 
+    public static void clearCache() {
+        socketCache.invalidateAll();
+    }
+
     private static List<Transport> transportsForPort(final int port) {
         final ImmutableList.Builder<Transport> transportBuilder = new ImmutableList.Builder<>();
         for (final Map.Entry<Transport, Integer> entry : Transport.DEFAULT_PORTS.entrySet()) {

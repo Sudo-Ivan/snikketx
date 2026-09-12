@@ -2,6 +2,7 @@ package eu.siacs.conversations.utils;
 
 import android.content.ContentValues;
 import android.database.Cursor;
+import android.os.SystemClock;
 import android.util.Log;
 import androidx.annotation.NonNull;
 import com.google.common.base.MoreObjects;
@@ -30,7 +31,10 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import org.minidns.dnsmessage.Question;
 import org.minidns.dnsname.DnsName;
 import org.minidns.dnsname.InvalidDnsNameException;
@@ -74,6 +78,17 @@ public class Resolver {
     private static final String DIRECT_TLS_SERVICE = "_xmpps-client";
     private static final String STARTTLS_SERVICE = "_xmpp-client";
 
+    // per-domain cache of fully resolved and ordered results. the underlying DNS
+    // client caches individual records by their TTL; this avoids re-running the
+    // entire SRV/address query chain (and the associated ConnectivityManager
+    // lookups) on every reconnect. stale entries are only used as a last resort
+    // when resolution fails entirely, for example while the network is flapping
+    private static final long RESOLUTION_CACHE_TTL_MS = TimeUnit.MINUTES.toMillis(5);
+    private static final long RESOLUTION_CACHE_STALE_MS = TimeUnit.MINUTES.toMillis(10);
+    private static final Map<String, CacheEntry> RESOLUTION_CACHE = new ConcurrentHashMap<>();
+
+    private record CacheEntry(List<Result> results, long expiresAt) {}
+
     public static List<Result> fromHardCoded(final String hostname, final int port) {
         final Result result = new Result();
         result.hostname = DnsName.from(hostname);
@@ -96,7 +111,10 @@ public class Resolver {
         }
     }
 
-    public static void clearCache() {}
+    public static void clearCache() {
+        RESOLUTION_CACHE.clear();
+        AndroidDNSClient.clearCache();
+    }
 
     public static boolean useDirectTls(final int port) {
         return port == 443 || port == XMPP_PORT_DIRECT_TLS;
@@ -106,6 +124,12 @@ public class Resolver {
         final List<Result> ipResults = fromIpAddress(domain);
         if (!ipResults.isEmpty()) {
             return ipResults;
+        }
+
+        final var cached = RESOLUTION_CACHE.get(domain);
+        if (cached != null && cached.expiresAt() > SystemClock.elapsedRealtime()) {
+            Log.d(Config.LOGTAG, "Resolver: serving cached results for " + domain);
+            return cached.results();
         }
 
         final var startTls = resolveSrvAsFuture(domain, false);
@@ -132,14 +156,31 @@ public class Resolver {
         try {
             final var ordered = orderedFuture.get();
             Log.d(Config.LOGTAG, "Resolver (" + ordered.size() + "): " + ordered);
+            if (!ordered.isEmpty()) {
+                RESOLUTION_CACHE.put(
+                        domain,
+                        new CacheEntry(
+                                ordered, SystemClock.elapsedRealtime() + RESOLUTION_CACHE_TTL_MS));
+            }
             return ordered;
         } catch (final ExecutionException e) {
             Log.d(Config.LOGTAG, "error resolving DNS", e);
-            return Collections.emptyList();
+            return staleResultsOrEmpty(cached, domain);
         } catch (final InterruptedException e) {
             Log.d(Config.LOGTAG, "DNS resolution interrupted");
-            return Collections.emptyList();
+            return staleResultsOrEmpty(cached, domain);
         }
+    }
+
+    private static List<Result> staleResultsOrEmpty(final CacheEntry cached, final String domain) {
+        if (cached != null
+                && cached.expiresAt() + RESOLUTION_CACHE_STALE_MS > SystemClock.elapsedRealtime()) {
+            Log.d(
+                    Config.LOGTAG,
+                    "Resolver: resolution failed. serving stale results for " + domain);
+            return cached.results();
+        }
+        return Collections.emptyList();
     }
 
     private static List<Result> fromIpAddress(final String domain) {

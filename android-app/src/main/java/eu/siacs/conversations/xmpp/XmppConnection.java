@@ -150,6 +150,7 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -422,13 +423,24 @@ public class XmppConnection implements Runnable {
                 } else {
                     storedBackupResult =
                             mXmppConnectionService.databaseBackend.findResolverResult(domain);
-                    if (storedBackupResult != null && !results.contains(storedBackupResult)) {
-                        results.add(storedBackupResult);
-                        Log.d(
-                                Config.LOGTAG,
-                                account.getJid().asBareJid()
-                                        + ": loaded backup resolver result from db: "
-                                        + storedBackupResult);
+                    if (storedBackupResult != null) {
+                        if (results.remove(storedBackupResult)) {
+                            // the last known good endpoint is still advertised by DNS;
+                            // try it first to speed up reconnects
+                            results.add(0, storedBackupResult);
+                            Log.d(
+                                    Config.LOGTAG,
+                                    account.getJid().asBareJid()
+                                            + ": prioritizing last known good resolver result: "
+                                            + storedBackupResult);
+                        } else {
+                            results.add(storedBackupResult);
+                            Log.d(
+                                    Config.LOGTAG,
+                                    account.getJid().asBareJid()
+                                            + ": loaded backup resolver result from db: "
+                                            + storedBackupResult);
+                        }
                     }
                 }
                 final StreamId streamId = this.streamId;
@@ -2795,7 +2807,15 @@ public class XmppConnection implements Runnable {
         } else {
             final int additionalTime =
                     account.getLastErrorStatus() == Account.State.POLICY_VIOLATION ? 3 : 0;
-            interval = Math.min((int) (25 * Math.pow(1.3, (additionalTime + attempt))), 300);
+            final int base = Math.min((int) (25 * Math.pow(1.3, (additionalTime + attempt))), 300);
+            // subtract up to ~25% (capped at 30s) of jitter so reconnects do not
+            // happen in lock-step after a shared outage
+            interval =
+                    Math.max(
+                            1,
+                            base
+                                    - ThreadLocalRandom.current()
+                                            .nextInt(Math.min(30, Math.max(1, base / 4)) + 1));
         }
         final var connectionDuration = Ints.saturatedCast(getConnectionDuration() / 1000);
         return interval - connectionDuration;
