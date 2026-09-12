@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="schedule_message">Schedule message</string>
+    <string name="scheduled_messages">Scheduled messages</string>
+    <string name="scheduled_message_caveat">Scheduled messages are sent while the app is open or on next launch.</string>
+    <string name="schedule_in_one_hour">In one hour</string>
+    <string name="schedule_tonight">Tonight at 9 PM</string>
+    <string name="schedule_tomorrow_morning">Tomorrow at 9 AM</string>
+    <string name="schedule_pick_date_time">Pick date and time…</string>
+    <string name="message_scheduled_for">Scheduled for %1$s</string>
+    <string name="scheduled_time_in_past">Please pick a time in the future</string>
+    <string name="no_scheduled_messages">No scheduled messages in this chat</string>
+    <string name="cancel_scheduled_message">Cancel this scheduled message?</string>
+    <string name="scheduled_message_deleted">Scheduled message removed</string>
+    <string name="schedule_not_available">Scheduling is only available for a plain draft. Finish editing or remove attachments first</string>
+    <string name="schedule_pgp_unsupported">Scheduling is not available with OpenPGP encryption</string>
+    <string name="export_chat">Export chat</string>
+    <string name="export_chat_finished">Chat exported</string>
+    <string name="export_chat_failed">Chat export failed</string>
+</resources>

@@ -29,6 +29,7 @@ import eu.siacs.conversations.entities.Conversation;
 import eu.siacs.conversations.entities.IndividualMessage;
 import eu.siacs.conversations.entities.Message;
 import eu.siacs.conversations.entities.PresenceTemplate;
+import eu.siacs.conversations.entities.ScheduledMessage;
 import eu.siacs.conversations.services.QuickConversationsService;
 import eu.siacs.conversations.services.ShortcutService;
 import eu.siacs.conversations.services.XmppConnectionService;
@@ -76,7 +77,7 @@ import org.whispersystems.libsignal.state.SignedPreKeyRecord;
 public class DatabaseBackend extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "history";
-    private static final int DATABASE_VERSION = 55;
+    private static final int DATABASE_VERSION = 56;
 
     private static boolean requiresMessageIndexRebuild = false;
     private static DatabaseBackend instance = null;
@@ -258,6 +259,29 @@ public class DatabaseBackend extends SQLiteOpenHelper {
             "CREATE INDEX idx_caps ON caps_cache(caps);";
     private static final String CREATE_CAPS_CACHE_INDEX_CAPS2 =
             "CREATE INDEX idx_caps2 ON caps_cache(caps2);";
+
+    private static final String CREATE_SCHEDULED_MESSAGES_STATEMENT =
+            "CREATE TABLE "
+                    + ScheduledMessage.TABLENAME
+                    + "("
+                    + ScheduledMessage.UUID
+                    + " TEXT PRIMARY KEY, "
+                    + ScheduledMessage.ACCOUNT
+                    + " TEXT, "
+                    + ScheduledMessage.CONVERSATION
+                    + " TEXT, "
+                    + ScheduledMessage.BODY
+                    + " TEXT, "
+                    + ScheduledMessage.SCHEDULED_AT
+                    + " NUMBER, "
+                    + ScheduledMessage.ENCRYPTION
+                    + " NUMBER, FOREIGN KEY("
+                    + ScheduledMessage.CONVERSATION
+                    + ") REFERENCES "
+                    + Conversation.TABLENAME
+                    + "("
+                    + Conversation.UUID
+                    + ") ON DELETE CASCADE);";
 
     private static final String RESOLVER_RESULTS_TABLENAME = "resolver_results";
 
@@ -521,6 +545,7 @@ public class DatabaseBackend extends SQLiteOpenHelper {
         db.execSQL(CREATE_CAPS_CACHE_TABLE);
         db.execSQL(CREATE_CAPS_CACHE_INDEX_CAPS);
         db.execSQL(CREATE_CAPS_CACHE_INDEX_CAPS2);
+        db.execSQL(CREATE_SCHEDULED_MESSAGES_STATEMENT);
     }
 
     @Override
@@ -1104,6 +1129,9 @@ public class DatabaseBackend extends SQLiteOpenHelper {
                             + Message.SHARED_STORAGE
                             + " BOOLEAN NOT NULL DEFAULT 1");
         }
+        if (oldVersion < 56 && newVersion >= 56) {
+            db.execSQL(CREATE_SCHEDULED_MESSAGES_STATEMENT);
+        }
     }
 
     private void canonicalizeJids(SQLiteDatabase db) {
@@ -1406,6 +1434,52 @@ public class DatabaseBackend extends SQLiteOpenHelper {
         }
         cursor.close();
         return list;
+    }
+
+    public void createScheduledMessage(final ScheduledMessage message) {
+        final SQLiteDatabase db = getWritableDatabase();
+        db.insert(ScheduledMessage.TABLENAME, null, message.getContentValues());
+    }
+
+    public List<ScheduledMessage> getDueScheduledMessages(final long timestamp) {
+        return getScheduledMessages(
+                ScheduledMessage.SCHEDULED_AT + "<=?", new String[] {String.valueOf(timestamp)});
+    }
+
+    public List<ScheduledMessage> getScheduledMessages(final String conversationUuid) {
+        return getScheduledMessages(
+                ScheduledMessage.CONVERSATION + "=?", new String[] {conversationUuid});
+    }
+
+    private List<ScheduledMessage> getScheduledMessages(
+            final String selection, final String[] selectionArgs) {
+        final var list = new ArrayList<ScheduledMessage>();
+        final SQLiteDatabase db = this.getReadableDatabase();
+        final Cursor cursor =
+                db.query(
+                        ScheduledMessage.TABLENAME,
+                        null,
+                        selection,
+                        selectionArgs,
+                        null,
+                        null,
+                        ScheduledMessage.SCHEDULED_AT + " ASC");
+        while (cursor != null && cursor.moveToNext()) {
+            try {
+                list.add(ScheduledMessage.fromCursor(cursor));
+            } catch (final Exception e) {
+                Log.e(Config.LOGTAG, "unable to restore scheduled message", e);
+            }
+        }
+        if (cursor != null) {
+            cursor.close();
+        }
+        return list;
+    }
+
+    public void deleteScheduledMessage(final String uuid) {
+        final SQLiteDatabase db = getWritableDatabase();
+        db.delete(ScheduledMessage.TABLENAME, ScheduledMessage.UUID + "=?", new String[] {uuid});
     }
 
     public Cursor getMessageSearchCursor(final List<String> term, final String uuid) {

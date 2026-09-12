@@ -55,6 +55,16 @@
         android:title="@string/search_messages"
         app:showAsAction="never" />
     <item
+        android:id="@+id/action_scheduled_messages"
+        android:orderInCategory="49"
+        android:title="@string/scheduled_messages"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_export_chat"
+        android:orderInCategory="49"
+        android:title="@string/export_chat"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/action_clear_history"
         android:orderInCategory="50"
         android:title="@string/action_clear_history"
