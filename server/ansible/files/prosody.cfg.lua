@@ -166,6 +166,13 @@ contact_info = {
 
 http_ports  = { ENV_SNIKKET_TWEAK_INTERNAL_HTTP_PORT or 5280 }
 http_interfaces = split(ENV_SNIKKET_TWEAK_INTERNAL_HTTP_INTERFACE or "127.0.0.1,::1")
+
+-- The web portal reverse-proxies /xmpp-websocket, /http-bind and host-meta
+-- from the TLS edge. Treat those transport hops as secure and honor the
+-- X-Forwarded-* headers the proxy sets (docker bridge subnet).
+consider_websocket_secure = true
+consider_bosh_secure = true
+trusted_proxies = { "172.16.0.0/12", "10.0.0.0/8" }
 http_max_content_size = 1024 * 1024 -- non-streaming uploads limited to 1MB (improves RAM usage)
 
 https_ports = {};

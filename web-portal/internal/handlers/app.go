@@ -76,6 +76,10 @@ const ctxRequestID ctxKey = iota
 func (a *App) Routes() http.Handler {
 	mux := http.NewServeMux()
 
+	// The anonymous XMPP protocol endpoints are mounted first. They carry
+	// their own authentication and skip session, CSRF and browser security
+	// header handling.
+	a.mountXMPPProxy(mux)
 	a.mountMain(mux)
 	a.mountUser(mux)
 	a.mountAdmin(mux)
@@ -120,6 +124,19 @@ func (w *statusWriter) Write(p []byte) (int, error) {
 	n, err := w.ResponseWriter.Write(p)
 	w.bytes += n
 	return n, err
+}
+
+// Unwrap exposes the wrapped writer so http.ResponseController can reach
+// Hijack and Flush for proxied WebSocket and streaming responses.
+func (w *statusWriter) Unwrap() http.ResponseWriter {
+	return w.ResponseWriter
+}
+
+// Flush relays a flush to the underlying writer when it supports streaming.
+func (w *statusWriter) Flush() {
+	if f, ok := w.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
 }
 
 // Status returns the recorded status, defaulting to 200 for handlers that
@@ -171,6 +188,12 @@ func secureHeaders(next http.Handler) http.Handler {
 		"manifest-src 'self'"
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Proxied XMPP protocol endpoints keep the headers Prosody sends so
+		// its CORS and discovery responses reach external clients unchanged.
+		if xmppProxyPath(r.URL.Path) {
+			next.ServeHTTP(w, r)
+			return
+		}
 		header := w.Header()
 		header.Set("Content-Security-Policy", policy)
 		header.Set("X-Content-Type-Options", "nosniff")
@@ -252,9 +275,11 @@ func safeMethod(method string) bool {
 	}
 }
 
-// csrfExempt reports whether a path is excluded from CSRF validation.
+// csrfExempt reports whether a path is excluded from CSRF validation. The
+// proxied XMPP endpoints are exempt because external XMPP clients have no
+// portal session and carry no CSRF token.
 func csrfExempt(path string) bool {
-	return path == "/metrics" || strings.HasPrefix(path, "/_health")
+	return path == "/metrics" || strings.HasPrefix(path, "/_health") || xmppProxyPath(path)
 }
 
 // routeGroup buckets a path for the metrics registry.
@@ -274,6 +299,8 @@ func routeGroup(path string) string {
 		return "health"
 	case path == "/metrics":
 		return "metrics"
+	case xmppProxyPath(path):
+		return "xmpp"
 	default:
 		return "main"
 	}
