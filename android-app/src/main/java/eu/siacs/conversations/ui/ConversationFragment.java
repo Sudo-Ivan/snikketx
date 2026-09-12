@@ -29,6 +29,8 @@ import android.provider.ContactsContract;
 import android.provider.MediaStore;
 import android.text.Editable;
 import android.text.TextUtils;
+import android.text.format.DateFormat;
+import android.text.format.DateUtils;
 import android.util.Log;
 import android.view.ContextMenu;
 import android.view.ContextMenu.ContextMenuInfo;
@@ -55,6 +57,8 @@ import android.widget.TextView;
 import android.widget.TextView.OnEditorActionListener;
 import android.widget.Toast;
 import androidx.activity.OnBackPressedCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.DrawableRes;
 import androidx.annotation.IdRes;
 import androidx.annotation.NonNull;
@@ -69,7 +73,10 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
 import androidx.fragment.app.FragmentManager;
 import androidx.lifecycle.Lifecycle;
+import com.google.android.material.datepicker.MaterialDatePicker;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.timepicker.MaterialTimePicker;
+import com.google.android.material.timepicker.TimeFormat;
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
 import com.google.common.collect.Collections2;
@@ -103,6 +110,7 @@ import eu.siacs.conversations.entities.Conversational;
 import eu.siacs.conversations.entities.Message;
 import eu.siacs.conversations.entities.MucOptions;
 import eu.siacs.conversations.entities.ReadByMarker;
+import eu.siacs.conversations.entities.ScheduledMessage;
 import eu.siacs.conversations.entities.Transferable;
 import eu.siacs.conversations.entities.TransferablePlaceholder;
 import eu.siacs.conversations.http.HttpDownloadConnection;
@@ -137,6 +145,7 @@ import eu.siacs.conversations.ui.widget.MessagesListView;
 import eu.siacs.conversations.ui.widget.StickerPickerDialog;
 import eu.siacs.conversations.utils.AccountUtils;
 import eu.siacs.conversations.utils.CharSequences;
+import eu.siacs.conversations.utils.ChatExporter;
 import eu.siacs.conversations.utils.Compatibility;
 import eu.siacs.conversations.utils.GeoHelper;
 import eu.siacs.conversations.utils.MessageUtils;
@@ -172,6 +181,10 @@ import im.conversations.android.xmpp.model.state.Composing;
 import im.conversations.android.xmpp.model.state.Paused;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -182,6 +195,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -612,7 +626,13 @@ public class ConversationFragment extends XmppFragment
                     updateSnackBar(conversation);
                 }
             };
+    private static final int MENU_ID_SCHEDULE_MESSAGE = 1;
+    private static final int MENU_ID_SCHEDULED_MESSAGES = 2;
     private final AtomicBoolean mSendingPgpMessage = new AtomicBoolean(false);
+    private final ActivityResultLauncher<String> exportChatLauncher =
+            registerForActivityResult(
+                    new ActivityResultContracts.CreateDocument("text/plain"),
+                    this::onExportChatTarget);
     private final OnEditorActionListener mEditorActionListener =
             (v, actionId, event) -> {
                 if (actionId == EditorInfo.IME_ACTION_SEND) {
@@ -794,6 +814,12 @@ public class ConversationFragment extends XmppFragment
                         return true;
                     } else if (itemId == R.id.action_wallpaper) {
                         showWallpaperDialog();
+                        return true;
+                    } else if (itemId == R.id.action_scheduled_messages) {
+                        showScheduledMessagesDialog();
+                        return true;
+                    } else if (itemId == R.id.action_export_chat) {
+                        exportChat();
                         return true;
                     } else {
                         return false;
@@ -1436,6 +1462,7 @@ public class ConversationFragment extends XmppFragment
                 });
 
         binding.textSendButton.setOnClickListener(this.mSendButtonListener);
+        binding.textSendButton.setOnLongClickListener(this::onSendButtonLongClick);
 
         binding.scrollToBottomButton.setOnClickListener(this.mScrollButtonListener);
         binding.pinnedMessagesBanner.setOnClickListener(v -> onPinnedMessagesBannerClicked());
@@ -3246,6 +3273,9 @@ public class ConversationFragment extends XmppFragment
                 .xmppConnectionService
                 .getNotificationService()
                 .setOpenConversation(this.conversation);
+        // keep the conversation shortcut published so it can be used for direct share and
+        // bubbles
+        requireXmppActivity().xmppConnectionService.getShortcutService().push(this.conversation);
         return true;
     }
 
@@ -4020,6 +4050,269 @@ public class ConversationFragment extends XmppFragment
     protected void sendMessage(final Message message) {
         requireXmppActivity().xmppConnectionService.sendMessage(message);
         messageSent();
+    }
+
+    private boolean onSendButtonLongClick(final View anchor) {
+        final Conversation c = this.conversation;
+        if (c == null) {
+            return false;
+        }
+        final Editable editable = binding.textInput.getText();
+        final String body = editable == null ? "" : editable.toString();
+        final PopupMenu popupMenu = new PopupMenu(requireContext(), anchor);
+        final Menu menu = popupMenu.getMenu();
+        if (!body.isEmpty()
+                && !mediaPreviewAdapter.hasAttachments()
+                && c.getCorrectingMessage() == null
+                && c.getNextCounterpart() == null) {
+            menu.add(Menu.NONE, MENU_ID_SCHEDULE_MESSAGE, 0, R.string.schedule_message);
+        }
+        menu.add(Menu.NONE, MENU_ID_SCHEDULED_MESSAGES, 1, R.string.scheduled_messages);
+        popupMenu.setOnMenuItemClickListener(
+                item -> {
+                    if (item.getItemId() == MENU_ID_SCHEDULE_MESSAGE) {
+                        showScheduleDialog(body);
+                        return true;
+                    } else if (item.getItemId() == MENU_ID_SCHEDULED_MESSAGES) {
+                        showScheduledMessagesDialog();
+                        return true;
+                    }
+                    return false;
+                });
+        popupMenu.show();
+        return true;
+    }
+
+    private void showScheduleDialog(final String body) {
+        final Conversation c = this.conversation;
+        if (c == null) {
+            return;
+        }
+        if (c.getNextEncryption() == Message.ENCRYPTION_PGP) {
+            Toast.makeText(requireContext(), R.string.schedule_pgp_unsupported, Toast.LENGTH_LONG)
+                    .show();
+            return;
+        }
+        if (c.getCorrectingMessage() != null
+                || c.getNextCounterpart() != null
+                || mediaPreviewAdapter.hasAttachments()) {
+            Toast.makeText(requireContext(), R.string.schedule_not_available, Toast.LENGTH_LONG)
+                    .show();
+            return;
+        }
+        final ZonedDateTime now = ZonedDateTime.now();
+        final long inOneHour = now.plusHours(1).toInstant().toEpochMilli();
+        ZonedDateTime tonight = now.withHour(21).withMinute(0).withSecond(0).withNano(0);
+        if (!tonight.isAfter(now)) {
+            tonight = tonight.plusDays(1);
+        }
+        final long tonightAt = tonight.toInstant().toEpochMilli();
+        final long tomorrowMorning =
+                now.plusDays(1)
+                        .withHour(9)
+                        .withMinute(0)
+                        .withSecond(0)
+                        .withNano(0)
+                        .toInstant()
+                        .toEpochMilli();
+        final CharSequence[] presets = {
+            getString(R.string.schedule_in_one_hour),
+            getString(R.string.schedule_tonight),
+            getString(R.string.schedule_tomorrow_morning),
+            getString(R.string.schedule_pick_date_time)
+        };
+        final long[] presetTimes = {inOneHour, tonightAt, tomorrowMorning};
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.schedule_message)
+                .setMessage(R.string.scheduled_message_caveat)
+                .setItems(
+                        presets,
+                        (dialog, which) -> {
+                            if (which < presetTimes.length) {
+                                confirmSchedule(body, presetTimes[which]);
+                            } else {
+                                pickScheduleDate(body);
+                            }
+                        })
+                .setNegativeButton(R.string.cancel, null)
+                .show();
+    }
+
+    private void pickScheduleDate(final String body) {
+        final var datePicker =
+                MaterialDatePicker.Builder.datePicker()
+                        .setTitleText(getString(R.string.schedule_message))
+                        .setSelection(MaterialDatePicker.todayInUtcMilliseconds())
+                        .build();
+        datePicker.addOnPositiveButtonClickListener(
+                selection -> {
+                    if (selection == null) {
+                        return;
+                    }
+                    final LocalDate date =
+                            Instant.ofEpochMilli(selection).atZone(ZoneOffset.UTC).toLocalDate();
+                    pickScheduleTime(body, date);
+                });
+        datePicker.show(getChildFragmentManager(), "schedule_date");
+    }
+
+    private void pickScheduleTime(final String body, final LocalDate date) {
+        final LocalTime now = LocalTime.now();
+        final var timePicker =
+                new MaterialTimePicker.Builder()
+                        .setTimeFormat(
+                                DateFormat.is24HourFormat(requireContext())
+                                        ? TimeFormat.CLOCK_24H
+                                        : TimeFormat.CLOCK_12H)
+                        .setHour(now.getHour())
+                        .setMinute(now.getMinute())
+                        .setTitleText(getString(R.string.schedule_message))
+                        .build();
+        timePicker.addOnPositiveButtonClickListener(
+                v ->
+                        confirmSchedule(
+                                body,
+                                date.atTime(timePicker.getHour(), timePicker.getMinute())
+                                        .atZone(ZoneId.systemDefault())
+                                        .toInstant()
+                                        .toEpochMilli()));
+        timePicker.show(getChildFragmentManager(), "schedule_time");
+    }
+
+    private void confirmSchedule(final String body, final long scheduledAt) {
+        final Conversation c = this.conversation;
+        if (c == null || binding == null) {
+            return;
+        }
+        if (scheduledAt <= System.currentTimeMillis()) {
+            Toast.makeText(requireContext(), R.string.scheduled_time_in_past, Toast.LENGTH_LONG)
+                    .show();
+            return;
+        }
+        requireXmppActivity()
+                .xmppConnectionService
+                .scheduleMessage(
+                        new ScheduledMessage(
+                                UUID.randomUUID().toString(),
+                                c.getAccount().getUuid(),
+                                c.getUuid(),
+                                body,
+                                scheduledAt,
+                                c.getNextEncryption()));
+        binding.textInput.setText("");
+        Toast.makeText(
+                        requireContext(),
+                        getString(R.string.message_scheduled_for, formatScheduledTime(scheduledAt)),
+                        Toast.LENGTH_LONG)
+                .show();
+    }
+
+    private void showScheduledMessagesDialog() {
+        final Conversation c = this.conversation;
+        final XmppConnectionService service = getXmppConnectionService();
+        if (c == null || service == null || !isAdded()) {
+            return;
+        }
+        XmppConnectionService.DATABASE_READER.execute(
+                () -> {
+                    final List<ScheduledMessage> scheduled = service.getScheduledMessages(c);
+                    runOnUiThreadQuiet(() -> showScheduledMessagesDialog(scheduled));
+                });
+    }
+
+    private void showScheduledMessagesDialog(final List<ScheduledMessage> scheduled) {
+        if (binding == null || !isAdded()) {
+            return;
+        }
+        if (scheduled.isEmpty()) {
+            new MaterialAlertDialogBuilder(requireContext())
+                    .setTitle(R.string.scheduled_messages)
+                    .setMessage(R.string.no_scheduled_messages)
+                    .setPositiveButton(R.string.ok, null)
+                    .show();
+            return;
+        }
+        final CharSequence[] items = new CharSequence[scheduled.size()];
+        for (int i = 0; i < scheduled.size(); ++i) {
+            final var entry = scheduled.get(i);
+            String preview = entry.getBody().replace('\n', ' ');
+            if (preview.length() > 80) {
+                preview = preview.substring(0, 80) + "…";
+            }
+            items[i] = formatScheduledTime(entry.getScheduledAt()) + " - " + preview;
+        }
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.scheduled_messages)
+                .setItems(
+                        items,
+                        (dialog, which) -> confirmCancelScheduledMessage(scheduled.get(which)))
+                .setNegativeButton(R.string.cancel, null)
+                .show();
+    }
+
+    private void confirmCancelScheduledMessage(final ScheduledMessage scheduled) {
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.scheduled_messages)
+                .setMessage(R.string.cancel_scheduled_message)
+                .setPositiveButton(
+                        R.string.delete,
+                        (dialog, which) -> {
+                            requireXmppActivity()
+                                    .xmppConnectionService
+                                    .deleteScheduledMessage(scheduled);
+                            Toast.makeText(
+                                            requireContext(),
+                                            R.string.scheduled_message_deleted,
+                                            Toast.LENGTH_SHORT)
+                                    .show();
+                        })
+                .setNegativeButton(R.string.cancel, null)
+                .show();
+    }
+
+    private String formatScheduledTime(final long when) {
+        return DateUtils.formatDateTime(
+                requireContext(),
+                when,
+                DateUtils.FORMAT_SHOW_DATE
+                        | DateUtils.FORMAT_SHOW_TIME
+                        | DateUtils.FORMAT_SHOW_WEEKDAY
+                        | DateUtils.FORMAT_ABBREV_ALL);
+    }
+
+    private void exportChat() {
+        final Conversation c = this.conversation;
+        if (c == null) {
+            return;
+        }
+        final String name = c.getName().toString().replaceAll("[^\\p{Alnum}._-]+", "_");
+        try {
+            exportChatLauncher.launch("chat-" + name + ".txt");
+        } catch (final ActivityNotFoundException e) {
+            Toast.makeText(requireContext(), R.string.no_application_found, Toast.LENGTH_LONG)
+                    .show();
+        }
+    }
+
+    private void onExportChatTarget(final Uri uri) {
+        final Conversation c = this.conversation;
+        if (uri == null || c == null || !isAdded()) {
+            return;
+        }
+        final Context appContext = requireContext().getApplicationContext();
+        XmppConnectionService.DATABASE_READER.execute(
+                () -> {
+                    final boolean success = ChatExporter.export(appContext, c, uri);
+                    runOnUiThreadQuiet(
+                            () ->
+                                    Toast.makeText(
+                                                    appContext,
+                                                    success
+                                                            ? R.string.export_chat_finished
+                                                            : R.string.export_chat_failed,
+                                                    Toast.LENGTH_LONG)
+                                            .show());
+                });
     }
 
     protected void sendPgpMessage(final Message message) {

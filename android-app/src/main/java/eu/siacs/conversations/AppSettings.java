@@ -80,6 +80,7 @@ public class AppSettings {
     public static final String QUICK_ACTION = "quick_action_button";
     public static final String CHAT_WALLPAPER = "chat_wallpaper";
     public static final String VOICE_PLAYBACK_SPEED = "voice_playback_speed";
+    public static final String WIDGET_SHOW_MESSAGE_PREVIEW = "widget_show_message_preview";
 
     private static final String ACCEPT_INVITES_FROM_STRANGERS = "accept_invites_from_strangers";
     private static final String NOTIFICATIONS_FROM_STRANGERS = "notifications_from_strangers";
@@ -259,6 +260,11 @@ public class AppSettings {
 
     public boolean isDynamicColorsDesired() {
         return getBooleanPreference(AppSettings.DYNAMIC_COLORS, R.bool.dynamic_colors);
+    }
+
+    public boolean isWidgetShowMessagePreview() {
+        return getBooleanPreference(
+                WIDGET_SHOW_MESSAGE_PREVIEW, R.bool.widget_show_message_preview);
     }
 
     public int getDesiredNightMode() {

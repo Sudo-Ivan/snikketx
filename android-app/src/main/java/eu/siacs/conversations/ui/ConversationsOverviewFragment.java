@@ -90,6 +90,7 @@ import eu.siacs.conversations.utils.AccountUtils;
 import eu.siacs.conversations.utils.CharSequences;
 import eu.siacs.conversations.utils.XmppUriLauncher;
 import eu.siacs.conversations.xmpp.manager.BookmarkManager;
+import eu.siacs.conversations.xmpp.manager.ConversationFolderManager;
 import eu.siacs.conversations.xmpp.manager.RosterManager;
 import im.conversations.android.model.SearchSuggestion;
 import im.conversations.android.provider.SearchSuggestionProvider;
@@ -871,6 +872,10 @@ public class ConversationsOverviewFragment extends XmppFragment {
     private void assignFolder(final Conversation conversation, @Nullable final String folder) {
         conversation.setFolder(folder);
         requireXmppActivity().xmppConnectionService.updateConversation(conversation);
+        final var connection = conversation.getAccount().getXmppConnection();
+        if (connection != null) {
+            connection.getManager(ConversationFolderManager.class).schedulePublish();
+        }
         refresh();
     }
 }

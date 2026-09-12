@@ -73,6 +73,7 @@ import eu.siacs.conversations.entities.Message;
 import eu.siacs.conversations.entities.MucOptions;
 import eu.siacs.conversations.entities.PresenceTemplate;
 import eu.siacs.conversations.entities.Presences;
+import eu.siacs.conversations.entities.ScheduledMessage;
 import eu.siacs.conversations.generator.IqGenerator;
 import eu.siacs.conversations.generator.MessageGenerator;
 import eu.siacs.conversations.http.HttpConnectionManager;
@@ -100,6 +101,7 @@ import eu.siacs.conversations.utils.Resolver;
 import eu.siacs.conversations.utils.SerialSingleThreadExecutor;
 import eu.siacs.conversations.utils.TorServiceUtils;
 import eu.siacs.conversations.utils.WakeLockHelper;
+import eu.siacs.conversations.widget.RecentChatsWidgetProvider;
 import eu.siacs.conversations.xml.Element;
 import eu.siacs.conversations.xml.LocalizedContent;
 import eu.siacs.conversations.xml.Namespace;
@@ -1191,6 +1193,10 @@ public class XmppConnectionService extends Service {
         toggleForegroundService();
         internalPingExecutor.scheduleWithFixedDelay(
                 this::manageAccountConnectionStatesInternal, 10, 10, TimeUnit.SECONDS);
+        // sweeps the scheduled_messages table; also flushes messages that became
+        // overdue while the app was not running. there is no exact alarm wakeup
+        internalPingExecutor.scheduleWithFixedDelay(
+                this::processScheduledMessages, 15, 15, TimeUnit.SECONDS);
         final SharedPreferences sharedPreferences =
                 androidx.preference.PreferenceManager.getDefaultSharedPreferences(this);
         sharedPreferences.registerOnSharedPreferenceChangeListener(
@@ -1800,6 +1806,56 @@ public class XmppConnectionService extends Service {
         sendMessage(message, true, delay, false);
     }
 
+    public void scheduleMessage(final ScheduledMessage scheduledMessage) {
+        mDatabaseWriterExecutor.execute(
+                () -> databaseBackend.createScheduledMessage(scheduledMessage));
+        final long delay =
+                Math.max(0L, scheduledMessage.getScheduledAt() - System.currentTimeMillis());
+        // one shot wakeup for timely delivery while the service is running; the
+        // periodic sweep started in onCreate acts as a safety net and flushes
+        // overdue messages on next launch
+        try {
+            internalPingExecutor.schedule(
+                    this::processScheduledMessages, delay, TimeUnit.MILLISECONDS);
+        } catch (final RejectedExecutionException e) {
+            Log.d(Config.LOGTAG, "unable to schedule wakeup; periodic sweep will pick it up", e);
+        }
+    }
+
+    public List<ScheduledMessage> getScheduledMessages(final Conversation conversation) {
+        return databaseBackend.getScheduledMessages(conversation.getUuid());
+    }
+
+    public void deleteScheduledMessage(final ScheduledMessage scheduledMessage) {
+        mDatabaseWriterExecutor.execute(
+                () -> databaseBackend.deleteScheduledMessage(scheduledMessage.getUuid()));
+    }
+
+    private void processScheduledMessages() {
+        if (destroyed || restoredFromDatabaseLatch.getCount() != 0) {
+            return;
+        }
+        final List<ScheduledMessage> due =
+                databaseBackend.getDueScheduledMessages(System.currentTimeMillis());
+        for (final var scheduled : due) {
+            sendScheduledMessage(scheduled);
+        }
+    }
+
+    private void sendScheduledMessage(final ScheduledMessage scheduled) {
+        final Conversation conversation = findConversationByUuid(scheduled.getConversationUuid());
+        if (conversation == null
+                || !conversation.getAccount().getUuid().equals(scheduled.getAccountUuid())) {
+            Log.d(Config.LOGTAG, "dropping scheduled message; conversation no longer exists");
+            databaseBackend.deleteScheduledMessage(scheduled.getUuid());
+            return;
+        }
+        final Message message =
+                new Message(conversation, scheduled.getBody(), scheduled.getEncryption());
+        sendMessage(message);
+        databaseBackend.deleteScheduledMessage(scheduled.getUuid());
+    }
+
     public void markReadUpToStanzaId(final Conversation conversation, final String stanzaId) {
         final Message message = conversation.findMessageWithServerMsgId(stanzaId);
         if (message == null) { // do we want to check if isRead?
@@ -2332,6 +2388,7 @@ public class XmppConnectionService extends Service {
         final var account = conversation.getAccount();
         final var connection = account.getXmppConnection();
         getNotificationService().clear(conversation);
+        mShortcutService.remove(conversation);
         conversation.setStatus(Conversation.STATUS_ARCHIVED);
         conversation.setNextMessage(null);
         synchronized (this.conversations) {
@@ -2561,6 +2618,7 @@ public class XmppConnectionService extends Service {
                         }
                     });
             this.accounts.remove(account);
+            mShortcutService.removeAll(account);
             if (CallIntegration.hasSystemFeature(this)) {
                 CallIntegrationConnectionService.unregisterPhoneAccount(this, account);
             }
@@ -3462,6 +3520,7 @@ public class XmppConnectionService extends Service {
         for (OnConversationUpdate listener : threadSafeList(this.mOnConversationUpdates)) {
             listener.onConversationUpdate();
         }
+        RecentChatsWidgetProvider.notifyConversationsChanged(this);
     }
 
     public void notifyJingleRtpConnectionUpdate(
@@ -3494,6 +3553,7 @@ public class XmppConnectionService extends Service {
         for (OnRosterUpdate listener : threadSafeList(this.mOnRosterUpdates)) {
             listener.onRosterUpdate();
         }
+        RecentChatsWidgetProvider.notifyConversationsChanged(this);
     }
 
     public boolean displayCaptchaRequest(
@@ -3880,6 +3940,7 @@ public class XmppConnectionService extends Service {
                         && jidMatches) {
                     this.conversations.remove(conversation);
                     markRead(conversation);
+                    mShortcutService.remove(conversation);
                     conversation.setStatus(Conversation.STATUS_ARCHIVED);
                     Log.d(
                             Config.LOGTAG,
