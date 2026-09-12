@@ -9,22 +9,29 @@ import android.os.Build;
 import android.os.PersistableBundle;
 import android.util.Log;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.core.app.Person;
 import androidx.core.content.pm.ShortcutInfoCompat;
 import androidx.core.content.pm.ShortcutManagerCompat;
+import androidx.core.graphics.drawable.IconCompat;
 import com.google.common.base.Joiner;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import eu.siacs.conversations.Config;
 import eu.siacs.conversations.entities.Account;
 import eu.siacs.conversations.entities.Contact;
+import eu.siacs.conversations.entities.Conversation;
 import eu.siacs.conversations.entities.MucOptions;
 import eu.siacs.conversations.ui.ConversationsActivity;
 import eu.siacs.conversations.ui.StartConversationActivity;
 import eu.siacs.conversations.utils.ReplacingSerialSingleThreadExecutor;
+import eu.siacs.conversations.utils.SerialSingleThreadExecutor;
 import eu.siacs.conversations.xmpp.Jid;
-import java.util.Collection;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -32,9 +39,26 @@ public class ShortcutService {
 
     public static final char ID_SEPARATOR = '#';
 
+    // category declared in the share-target element of res/xml/shortcuts.xml. matching this
+    // category makes published conversation shortcuts eligible as direct share targets in the
+    // system share sheet
+    public static final String CATEGORY_TEXT_SHARE_TARGET =
+            "org.snikketx.android.category.TEXT_SHARE_TARGET";
+
+    private static final String CATEGORY_SHARE_TARGET =
+            "eu.siacs.conversations.category.SHARE_TARGET";
+
+    private static final int MAX_FREQUENT_CONTACTS = 4;
+
     private final XmppConnectionService xmppConnectionService;
     private final ReplacingSerialSingleThreadExecutor replacingSerialSingleThreadExecutor =
             new ReplacingSerialSingleThreadExecutor(ShortcutService.class.getSimpleName());
+    private final SerialSingleThreadExecutor pushExecutor =
+            new SerialSingleThreadExecutor(ShortcutService.class.getSimpleName() + "Push");
+
+    // conversation shortcuts pushed via push(), most recently pushed last
+    private final LinkedHashMap<String, ShortcutInfoCompat> pushedConversations =
+            new LinkedHashMap<>();
 
     public ShortcutService(final XmppConnectionService xmppConnectionService) {
         this.xmppConnectionService = xmppConnectionService;
@@ -77,30 +101,146 @@ public class ShortcutService {
             if (contact.isSelf()) {
                 continue;
             }
-            if (count.getAndIncrement() < 4) {
+            if (count.getAndIncrement() < MAX_FREQUENT_CONTACTS) {
                 contactBuilder.put(frequentContact, contact);
             }
         }
         final var contacts = contactBuilder.build();
-        final var current = ShortcutManagerCompat.getDynamicShortcuts(xmppConnectionService);
-        boolean needsUpdate = forceUpdate || contactsChanged(contacts.values(), current);
-        if (!needsUpdate) {
-            Log.d(Config.LOGTAG, "skipping shortcut update");
-            return;
-        }
-        final var newDynamicShortcuts = new ImmutableList.Builder<ShortcutInfoCompat>();
+        final int capacity =
+                Math.max(
+                        1,
+                        ShortcutManagerCompat.getMaxShortcutCountPerActivity(
+                                xmppConnectionService));
+        final var newDynamicShortcuts = new ArrayList<ShortcutInfoCompat>();
+        final var seen = new HashSet<String>();
         for (final var entry : contacts.entrySet()) {
             final var contact = entry.getValue();
             final var conversation = entry.getKey().conversation;
             final var shortcut = getShortcutInfo(contact, conversation);
-            newDynamicShortcuts.add(shortcut);
+            if (seen.add(shortcut.getId())) {
+                newDynamicShortcuts.add(shortcut);
+            }
         }
-        if (ShortcutManagerCompat.setDynamicShortcuts(
-                xmppConnectionService, newDynamicShortcuts.build())) {
+        // setDynamicShortcuts replaces the entire dynamic shortcut list. merge in pushed
+        // conversation shortcuts (most recently used first) so they are not lost
+        synchronized (pushedConversations) {
+            for (final var shortcut :
+                    Lists.reverse(new ArrayList<>(pushedConversations.values()))) {
+                if (newDynamicShortcuts.size() >= capacity) {
+                    break;
+                }
+                if (seen.add(shortcut.getId())) {
+                    newDynamicShortcuts.add(shortcut);
+                }
+            }
+        }
+        final var current = ShortcutManagerCompat.getDynamicShortcuts(xmppConnectionService);
+        // keep already published conversation shortcuts that are neither frequent contacts nor
+        // tracked pushes, for example shortcuts pushed before a process restart
+        for (final var shortcut : current) {
+            if (newDynamicShortcuts.size() >= capacity) {
+                break;
+            }
+            if (shortcut.getId().indexOf(ID_SEPARATOR) >= 0 && seen.add(shortcut.getId())) {
+                newDynamicShortcuts.add(shortcut);
+            }
+        }
+        final boolean needsUpdate = forceUpdate || shortcutsChanged(newDynamicShortcuts, current);
+        if (!needsUpdate) {
+            Log.d(Config.LOGTAG, "skipping shortcut update");
+            return;
+        }
+        if (ShortcutManagerCompat.setDynamicShortcuts(xmppConnectionService, newDynamicShortcuts)) {
             Log.d(Config.LOGTAG, "updated dynamic shortcuts");
         } else {
             Log.d(Config.LOGTAG, "unable to update dynamic shortcuts");
         }
+    }
+
+    /**
+     * Publishes or updates the dynamic shortcut for the given conversation and reports it as used.
+     * Used when a conversation is opened or receives a new message so it is offered as a direct
+     * share target and stays eligible for bubbles.
+     */
+    public void push(final Conversation conversation) {
+        final var shortcut = getShortcutInfo(conversation);
+        if (shortcut == null) {
+            return;
+        }
+        push(shortcut);
+        pushExecutor.execute(
+                () ->
+                        ShortcutManagerCompat.reportShortcutUsed(
+                                xmppConnectionService, shortcut.getId()));
+    }
+
+    public void push(final ShortcutInfoCompat shortcut) {
+        final List<String> evicted;
+        synchronized (pushedConversations) {
+            pushedConversations.remove(shortcut.getId());
+            pushedConversations.put(shortcut.getId(), shortcut);
+            evicted = evictOverflow();
+        }
+        pushExecutor.execute(
+                () -> {
+                    if (!evicted.isEmpty()) {
+                        // removeLongLivedShortcuts evicts from the dynamic list but keeps
+                        // shortcuts the user pinned to the launcher
+                        ShortcutManagerCompat.removeLongLivedShortcuts(
+                                xmppConnectionService, evicted);
+                    }
+                    if (!ShortcutManagerCompat.pushDynamicShortcut(
+                            xmppConnectionService, shortcut)) {
+                        Log.d(Config.LOGTAG, "unable to push dynamic shortcut " + shortcut.getId());
+                    }
+                });
+    }
+
+    // caller must hold a lock on pushedConversations
+    private List<String> evictOverflow() {
+        final int capacity =
+                Math.max(
+                        1,
+                        ShortcutManagerCompat.getMaxShortcutCountPerActivity(
+                                xmppConnectionService));
+        final var evicted = new ArrayList<String>();
+        final var iterator = pushedConversations.keySet().iterator();
+        while (pushedConversations.size() > capacity && iterator.hasNext()) {
+            evicted.add(iterator.next());
+            iterator.remove();
+        }
+        return evicted;
+    }
+
+    public void remove(final Conversation conversation) {
+        final var id = getShortcutId(conversation);
+        synchronized (pushedConversations) {
+            pushedConversations.remove(id);
+        }
+        pushExecutor.execute(
+                () ->
+                        ShortcutManagerCompat.removeDynamicShortcuts(
+                                xmppConnectionService, List.of(id)));
+    }
+
+    public void removeAll(final Account account) {
+        final var prefix = account.getJid().asBareJid().toString() + ID_SEPARATOR;
+        synchronized (pushedConversations) {
+            pushedConversations.keySet().removeIf(id -> id.startsWith(prefix));
+        }
+        pushExecutor.execute(
+                () -> {
+                    final var stale = new ArrayList<String>();
+                    for (final var shortcut :
+                            ShortcutManagerCompat.getDynamicShortcuts(xmppConnectionService)) {
+                        if (shortcut.getId().startsWith(prefix)) {
+                            stale.add(shortcut.getId());
+                        }
+                    }
+                    if (!stale.isEmpty()) {
+                        ShortcutManagerCompat.removeDynamicShortcuts(xmppConnectionService, stale);
+                    }
+                });
     }
 
     public ShortcutInfoCompat getShortcutInfo(final Contact contact) {
@@ -109,13 +249,28 @@ public class ShortcutService {
         return getShortcutInfo(contact, uuid);
     }
 
+    @Nullable
+    public ShortcutInfoCompat getShortcutInfo(final Conversation conversation) {
+        if (conversation.getMode() == Conversation.MODE_SINGLE) {
+            final var contact = conversation.getContact();
+            if (contact == null || contact.isSelf()) {
+                return null;
+            }
+            return getShortcutInfo(contact, conversation.getUuid());
+        }
+        return getShortcutInfo(conversation.getMucOptions());
+    }
+
     public ShortcutInfoCompat getShortcutInfo(final Contact contact, final String conversation) {
+        final var icon = xmppConnectionService.getAvatarService().getAdaptive(contact);
         final ShortcutInfoCompat.Builder builder =
                 new ShortcutInfoCompat.Builder(xmppConnectionService, getShortcutId(contact))
                         .setShortLabel(contact.getDisplayName())
                         .setIntent(getShortcutIntent(contact))
-                        .setIsConversation();
-        builder.setIcon(xmppConnectionService.getAvatarService().getAdaptive(contact));
+                        .setIsConversation()
+                        .setLongLived(true)
+                        .setPerson(getPerson(contact, icon));
+        builder.setIcon(icon);
         if (conversation != null) {
             setConversation(builder, conversation);
         }
@@ -123,45 +278,76 @@ public class ShortcutService {
     }
 
     public ShortcutInfoCompat getShortcutInfo(final MucOptions mucOptions) {
+        final var icon = xmppConnectionService.getAvatarService().getAdaptive(mucOptions);
         final ShortcutInfoCompat.Builder builder =
                 new ShortcutInfoCompat.Builder(xmppConnectionService, getShortcutId(mucOptions))
                         .setShortLabel(mucOptions.getConversation().getName())
                         .setIntent(getShortcutIntent(mucOptions))
-                        .setIsConversation();
-        builder.setIcon(xmppConnectionService.getAvatarService().getAdaptive(mucOptions));
+                        .setIsConversation()
+                        .setLongLived(true)
+                        .setPerson(getPerson(mucOptions, icon));
+        builder.setIcon(icon);
         setConversation(builder, mucOptions.getConversation().getUuid());
+        return builder.build();
+    }
+
+    private static Person getPerson(final Contact contact, @Nullable final IconCompat icon) {
+        final var builder =
+                new Person.Builder()
+                        .setName(contact.getDisplayName())
+                        .setKey(getShortcutId(contact));
+        final Uri systemAccount = contact.getSystemAccount();
+        if (systemAccount != null) {
+            builder.setUri(systemAccount.toString());
+        }
+        if (icon != null) {
+            builder.setIcon(icon);
+        }
+        return builder.build();
+    }
+
+    private static Person getPerson(final MucOptions mucOptions, @Nullable final IconCompat icon) {
+        final var builder =
+                new Person.Builder()
+                        .setName(mucOptions.getConversation().getName())
+                        .setKey(getShortcutId(mucOptions));
+        if (icon != null) {
+            builder.setIcon(icon);
+        }
         return builder.build();
     }
 
     private static void setConversation(
             final ShortcutInfoCompat.Builder builder, @NonNull final String conversation) {
-        builder.setCategories(ImmutableSet.of("eu.siacs.conversations.category.SHARE_TARGET"));
+        builder.setCategories(ImmutableSet.of(CATEGORY_SHARE_TARGET, CATEGORY_TEXT_SHARE_TARGET));
         final var extras = new PersistableBundle();
         extras.putString(ConversationsActivity.EXTRA_CONVERSATION, conversation);
         builder.setExtras(extras);
     }
 
-    private static boolean contactsChanged(
-            final Collection<Contact> needles, final List<ShortcutInfoCompat> haystack) {
-        for (final Contact needle : needles) {
-            if (!contactExists(needle, haystack)) {
+    private static boolean shortcutsChanged(
+            final List<ShortcutInfoCompat> expected, final List<ShortcutInfoCompat> current) {
+        if (expected.size() != current.size()) {
+            return true;
+        }
+        for (int i = 0; i < expected.size(); ++i) {
+            final var a = expected.get(i);
+            final var b = current.get(i);
+            if (!a.getId().equals(b.getId())) {
                 return true;
             }
-        }
-        return needles.size() != haystack.size();
-    }
-
-    @TargetApi(25)
-    private static boolean contactExists(
-            final Contact needle, final List<ShortcutInfoCompat> haystack) {
-        for (final ShortcutInfoCompat shortcutInfo : haystack) {
-            final var label = shortcutInfo.getShortLabel();
-            if (getShortcutId(needle).equals(shortcutInfo.getId())
-                    && needle.getDisplayName().equals(label.toString())) {
+            if (!String.valueOf(a.getShortLabel()).equals(String.valueOf(b.getShortLabel()))) {
                 return true;
             }
         }
         return false;
+    }
+
+    private static String getShortcutId(final Conversation conversation) {
+        if (conversation.getMode() == Conversation.MODE_SINGLE) {
+            return getShortcutId(conversation.getContact());
+        }
+        return getShortcutId(conversation.getMucOptions());
     }
 
     private static String getShortcutId(final Contact contact) {

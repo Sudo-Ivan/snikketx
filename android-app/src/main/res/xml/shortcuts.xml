@@ -3,5 +3,6 @@
     <share-target android:targetClass="eu.siacs.conversations.ui.ShareWithActivity">
         <data android:mimeType="*/*" />
         <category android:name="eu.siacs.conversations.category.SHARE_TARGET" />
+        <category android:name="org.snikketx.android.category.TEXT_SHARE_TARGET" />
     </share-target>
 </shortcuts>

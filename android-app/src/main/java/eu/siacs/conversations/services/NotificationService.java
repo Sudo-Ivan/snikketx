@@ -12,7 +12,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.content.pm.ShortcutManager;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.Typeface;
@@ -1417,13 +1416,54 @@ public class NotificationService {
             // when do not want 'customized' notifications for silent notifications in their
             // respective channels
             notificationBuilder.setShortcutInfo(info);
-            if (Build.VERSION.SDK_INT >= 30) {
-                mXmppConnectionService
-                        .getSystemService(ShortcutManager.class)
-                        .pushDynamicShortcut(info.toShortcutInfo());
+            mXmppConnectionService.getShortcutService().push(info);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                applyBubbleMetadata(notificationBuilder, conversation, info);
             }
         }
         return notificationBuilder;
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.R)
+    private void applyBubbleMetadata(
+            final Builder builder, final Conversation conversation, final ShortcutInfoCompat info) {
+        final var notificationManager =
+                mXmppConnectionService.getSystemService(NotificationManager.class);
+        if (notificationManager == null || !canBubble(notificationManager)) {
+            return;
+        }
+        final Intent intent = new Intent(mXmppConnectionService, ConversationsActivity.class);
+        intent.setAction(ConversationsActivity.ACTION_VIEW_CONVERSATION);
+        intent.putExtra(ConversationsActivity.EXTRA_CONVERSATION, conversation.getUuid());
+        // bubble intents require a mutable pending intent on S+
+        final var bubbleIntent =
+                PendingIntent.getActivity(
+                        mXmppConnectionService,
+                        generateRequestCode(conversation, 28),
+                        intent,
+                        s()
+                                ? PendingIntent.FLAG_MUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
+                                : PendingIntent.FLAG_UPDATE_CURRENT);
+        final var icon = info.getIcon();
+        builder.setBubbleMetadata(
+                new NotificationCompat.BubbleMetadata.Builder(
+                                bubbleIntent,
+                                icon != null
+                                        ? icon
+                                        : IconCompat.createWithResource(
+                                                mXmppConnectionService,
+                                                R.drawable.ic_app_icon_notification))
+                        .build());
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.R)
+    private static boolean canBubble(final NotificationManager notificationManager) {
+        if (notificationManager.areBubblesEnabled()) {
+            return true;
+        }
+        final var channel =
+                notificationManager.getNotificationChannel(MESSAGES_NOTIFICATION_CHANNEL);
+        return channel != null && channel.canBubble();
     }
 
     private void modifyForImage(
