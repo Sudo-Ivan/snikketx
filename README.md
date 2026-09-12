@@ -1,6 +1,6 @@
 # snikketx
 
-Fork of the Snikket stack as SnikketX in one repo: Prosody server image, web
+Fork of the Snikket stack as SnikketX (eXtended) in one repo: Prosody server image, web
 portal, cert manager, Android client, plus RavenGuard on the HTTP edge.
 
 Upstream lives at [snikket-im](https://github.com/snikket-im). This fork
@@ -75,7 +75,7 @@ make rollback FROM=/etc/snikket BACKUP_DIR=/var/backups/snikketx
 usable backup is picked automatically. Without flags, rollback falls back to
 `deploy/migrate/state.env`.
 
-## Day-2 commands
+## Other Commands
 
 | Command | Purpose |
 |---------|---------|
