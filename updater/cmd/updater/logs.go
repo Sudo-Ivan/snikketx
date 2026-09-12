@@ -53,8 +53,12 @@ func clampTail(raw string) int {
 }
 
 func (s *server) fetchComposeLogs(ctx context.Context, service string, tail int) (string, error) {
+	if _, ok := resolveLogService(service); !ok {
+		return "", fmt.Errorf("unknown service %q", service)
+	}
 	ctx, cancel := context.WithTimeout(ctx, logFetchTimeout)
 	defer cancel()
+	// #nosec G204 G702 -- service is whitelisted against allowedLogServices above
 	cmd := exec.CommandContext(ctx, "docker", "compose", "logs", "--no-color", "--timestamps", "--tail", strconv.Itoa(tail), service)
 	cmd.Dir = s.composeDir
 	out, err := cmd.CombinedOutput()

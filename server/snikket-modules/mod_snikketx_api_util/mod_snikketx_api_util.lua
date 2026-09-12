@@ -1,7 +1,7 @@
 -- Shared helpers for the SnikketX HTTP API modules. Not meant to be enabled
 -- directly; consumers fetch this module's environment via
 -- module:depends("snikketx_api_util").
---luacheck: ignore 111 113/module 143/module
+--luacheck: ignore 111 113/module 131 143/module
 
 local array = require "prosody.util.array";
 local usermanager = require "prosody.core.usermanager";

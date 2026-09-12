@@ -68,6 +68,7 @@ func (s *server) compose(ctx context.Context, args ...string) (string, error) {
 	if pinMode && hasPins && fileExists(s.overridePath) && (len(args) > 0 && (args[0] == "up" || args[0] == "images")) {
 		cmdArgs = append([]string{"compose", "-f", "docker-compose.yml", "-f", "docker-compose.pins.yml"}, args...)
 	}
+	// #nosec G204 -- args are internal compose subcommands (pull/up/images)
 	cmd := exec.CommandContext(ctx, "docker", cmdArgs...)
 	cmd.Dir = s.composeDir
 	out, err := cmd.CombinedOutput()
@@ -122,7 +123,28 @@ func (s *server) imageInventory(ctx context.Context) (map[string]imageInfo, erro
 	return result, nil
 }
 
+// validImageID accepts docker image ids: hex digest with optional algo prefix.
+func validImageID(id string) bool {
+	if i := strings.IndexByte(id, ':'); i >= 0 {
+		id = id[i+1:]
+	}
+	if len(id) < 12 || len(id) > 128 {
+		return false
+	}
+	for i := 0; i < len(id); i++ {
+		c := id[i]
+		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f') {
+			return false
+		}
+	}
+	return true
+}
+
 func (s *server) imageDigest(ctx context.Context, id string) string {
+	if !validImageID(id) {
+		return ""
+	}
+	// #nosec G204 -- id validated as a hex image id above
 	cmd := exec.CommandContext(ctx, "docker", "image", "inspect", "--format", "{{index .RepoDigests 0}}", id)
 	out, err := cmd.CombinedOutput()
 	if err != nil {

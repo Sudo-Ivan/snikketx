@@ -96,12 +96,14 @@ func (s *server) requireSnikket() error {
 }
 
 func (s *server) volumeExists(name string) bool {
+	// #nosec G204 -- volume names come from internal constants
 	cmd := exec.Command("docker", "volume", "inspect", name)
 	return cmd.Run() == nil
 }
 
 func (s *server) dockerRun(ctx context.Context, args ...string) error {
 	cmdArgs := append([]string{"run", "--rm"}, args...)
+	// #nosec G204 -- args are built from internal constants and the operator-configured helper image
 	cmd := exec.CommandContext(ctx, "docker", cmdArgs...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -115,10 +117,12 @@ func (s *server) dockerRun(ctx context.Context, args ...string) error {
 }
 
 func (s *server) copyIfExists(src, dst string) error {
+	// #nosec G304 -- src is composeDir joined with a fixed file name
 	data, err := os.ReadFile(src)
 	if err != nil {
 		return err
 	}
+	// #nosec G703 -- dst is inside the archive dir created by createBackup
 	return os.WriteFile(dst, data, fileMode)
 }
 

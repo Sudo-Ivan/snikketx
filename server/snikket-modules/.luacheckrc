@@ -28,6 +28,7 @@ read_globals = {
 	"module.daily",
 	"module.hourly",
 	"module.broadcast",
+	"module.cron",
 	"module.context",
 	"module.default_permission",
 	"module.default_permissions",
@@ -89,6 +90,7 @@ globals = {
 	"module.add_host",
 	"module.save",
 	"module.restore",
+	"module.ready",
 	"module.command",
 	"module.environment",
 }

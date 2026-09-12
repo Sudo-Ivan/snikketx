@@ -201,7 +201,7 @@ for f in docker-compose.yml docker-compose.yaml compose.yml compose.yaml; do
 	fi
 done
 if [[ "$CLASSIC_HAS_COMPOSE" -eq 1 ]]; then
-	(cd "$FROM_DIR" && snikketx_docker_compose down --remove-orphans) || \
+	(cd "$FROM_DIR" && snikketx_docker_compose down --remove-orphans) ||
 		echo "classic compose down reported errors; continuing" >&2
 fi
 # Remove leftover classic containers that still hold the shared names

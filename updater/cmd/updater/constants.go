@@ -5,7 +5,7 @@ import "time"
 // Environment variable names.
 const (
 	envListenAddr        = "SNIKKET_UPDATER_LISTEN"
-	envToken             = "SNIKKET_UPDATER_TOKEN"
+	envToken             = "SNIKKET_UPDATER_TOKEN" // #nosec G101 -- env var name, not a credential
 	envComposeDir        = "SNIKKET_UPDATER_COMPOSE_DIR"
 	envStateDir          = "SNIKKET_UPDATER_STATE_DIR"
 	envImagePrefix       = "SNIKKET_UPDATER_IMAGE_PREFIX"
@@ -28,7 +28,7 @@ const (
 
 	// defaultToken is a well-known development fallback only. Set a random
 	// SNIKKET_UPDATER_TOKEN in .env for any reachable deployment.
-	defaultToken = "snikket-updater-local"
+	defaultToken = "snikket-updater-local" // #nosec G101 -- documented local fallback, not a shipped credential
 
 	defaultVerifySignatures = true
 	// Production requires Cosign signatures. Set

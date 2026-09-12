@@ -5,7 +5,7 @@ import "time"
 // Environment variable names.
 const (
 	envListenAddr     = "SNIKKET_BACKUP_LISTEN"
-	envToken          = "SNIKKET_BACKUP_TOKEN"
+	envToken          = "SNIKKET_BACKUP_TOKEN" // #nosec G101 -- env var name, not a credential
 	envStateDir       = "SNIKKET_BACKUP_STATE_DIR"
 	envArchiveDir     = "SNIKKET_BACKUP_ARCHIVE_DIR"
 	envComposeDir     = "SNIKKET_BACKUP_COMPOSE_DIR"
@@ -26,7 +26,7 @@ const (
 
 	// defaultToken is a well-known development fallback only. Set a random
 	// SNIKKET_BACKUP_TOKEN in .env for any reachable deployment.
-	defaultToken = "snikket-backup-local"
+	defaultToken = "snikket-backup-local" // #nosec G101 -- documented local fallback, not a shipped credential
 )
 
 // Default settings applied before settings.json is loaded.

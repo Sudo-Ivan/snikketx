@@ -23,6 +23,7 @@ func (s *server) resticCheck(ctx context.Context) (string, error) {
 	if s.resticRepo == "" {
 		return "", fmt.Errorf("%s is not set", envResticRepo)
 	}
+	// #nosec G204 -- resticBin is operator-configured via env
 	cmd := exec.CommandContext(ctx, s.resticBin, "snapshots", "--json")
 	cmd.Env = s.resticEnv()
 	out, err := cmd.CombinedOutput()
@@ -37,10 +38,12 @@ func (s *server) resticBackup(ctx context.Context, archiveDir string) error {
 		return fmt.Errorf("%s or %s is required", envResticPass, envResticPassFile)
 	}
 	// Ensure repo exists.
+	// #nosec G204 -- resticBin is operator-configured via env
 	initCmd := exec.CommandContext(ctx, s.resticBin, "init")
 	initCmd.Env = s.resticEnv()
 	_ = initCmd.Run() // ignore already initialized
 
+	// #nosec G204 -- resticBin is operator-configured, archiveDir is internal
 	cmd := exec.CommandContext(ctx, s.resticBin, "backup", archiveDir)
 	cmd.Env = s.resticEnv()
 	out, err := cmd.CombinedOutput()
@@ -56,6 +59,7 @@ func (s *server) resticBackup(ctx context.Context, archiveDir string) error {
 	if keepDaily > 0 {
 		args = append(args, "--keep-daily", fmt.Sprintf("%d", keepDaily))
 	}
+	// #nosec G204 -- resticBin is operator-configured, args are fixed subcommands
 	forget := exec.CommandContext(ctx, s.resticBin, args...)
 	forget.Env = s.resticEnv()
 	out, err = forget.CombinedOutput()

@@ -55,7 +55,7 @@ func readTrimmed(path string) string {
 	if path == "" {
 		return ""
 	}
-	// #nosec G304 -- operator-configured password file path
+	// #nosec G304 G703 -- operator-configured password file path
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return ""

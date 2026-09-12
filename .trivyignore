@@ -1,0 +1,7 @@
+# golang.org/x/mod v0.39.0 (indirect dep inside the cosign binary, built from
+# sigstore/cosign@633e8f43). Both CVEs affect the sumdb/tlog client used when
+# resolving Go module checksums; cosign never fetches Go modules at runtime,
+# so the code path is unreachable in this image. Drop once cosign releases
+# with x/mod >= 0.40.0.
+CVE-2026-56864
+CVE-2026-56865
