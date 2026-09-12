@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="attachment_choice_sticker">Sticker</string>
+    <string name="sticker_picker_title">Choose a sticker</string>
+    <string name="no_sticker_packs">No stickers installed</string>
+    <string name="sticker_content_description">Sticker</string>
+    <dimen name="sticker_preview_size">96dp</dimen>
+</resources>

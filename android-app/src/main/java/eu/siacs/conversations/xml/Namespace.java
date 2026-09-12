@@ -135,4 +135,9 @@ public final class Namespace {
     public static final String LIMITS = "urn:xmpp:stream-limits:0";
     public static final String LAST = "jabber:iq:last";
     public static final String REPORTING_ACCOUNT_AFFILIATIONS = "urn:xmpp:raa:0";
+    public static final String STICKERS = "urn:xmpp:stickers:0";
+    public static final String SFS = "urn:xmpp:sfs:0";
+    public static final String FILE_METADATA = "urn:xmpp:file:metadata:0";
+    public static final String URL_DATA = "http://jabber.org/protocol/url-data";
+    public static final String FASTEN = "urn:xmpp:fasten:0";
 }

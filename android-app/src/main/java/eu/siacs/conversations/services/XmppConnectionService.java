@@ -430,6 +430,32 @@ public class XmppConnectionService extends Service {
                 future, v -> encryptIfNeededAndSend(message), MoreExecutors.directExecutor());
     }
 
+    /**
+     * Sends a sticker (XEP-0449) by reusing the regular file send pipeline. The message is marked
+     * as a sticker so the generator can attach the sticker element to the outgoing stanza.
+     */
+    public ListenableFuture<Void> attachStickerToConversation(
+            final Conversation conversation,
+            final Uri uri,
+            final String type,
+            final String packId,
+            final String description) {
+        final Message message;
+        if (conversation.getNextEncryption() == Message.ENCRYPTION_PGP) {
+            message = new Message(conversation, "", Message.ENCRYPTION_DECRYPTED);
+        } else {
+            message = new Message(conversation, "", conversation.getNextEncryption());
+        }
+        if (!Message.configurePrivateFileMessage(message)) {
+            message.setCounterpart(conversation.getNextCounterpart());
+            message.setType(Message.TYPE_FILE);
+        }
+        message.setSticker(packId, description);
+        final var future = submitAttachToConversation(uri, type, message);
+        return Futures.transformAsync(
+                future, v -> encryptIfNeededAndSend(message), MoreExecutors.directExecutor());
+    }
+
     public Conversation find(Bookmark bookmark) {
         return find(bookmark.getAccount(), bookmark.getAddress());
     }

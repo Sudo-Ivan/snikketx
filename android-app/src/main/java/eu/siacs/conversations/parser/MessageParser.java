@@ -288,6 +288,7 @@ public class MessageParser extends AbstractParser
 
         final var oob = packet.getExtension(OutOfBandData.class);
         final String oobUrl = oob != null ? oob.getURL() : null;
+        final Element stickerElement = findStickerElement(packet);
         final var replace = packet.getExtension(Replace.class);
         final var replacementId = replace == null ? null : replace.getId();
         final var axolotlEncrypted = packet.getOnlyExtension(Encrypted.class);
@@ -365,7 +366,8 @@ public class MessageParser extends AbstractParser
         if ((body != null && !bodyIsFallback)
                 || pgpEncrypted != null
                 || (axolotlEncrypted != null && axolotlEncrypted.hasExtension(Payload.class))
-                || oobUrl != null) {
+                || oobUrl != null
+                || stickerElement != null) {
             final boolean conversationIsProbablyMuc =
                     isTypeGroupChat
                             || mucUserElement != null
@@ -510,6 +512,14 @@ public class MessageParser extends AbstractParser
                 if (CryptoHelper.isPgpEncryptedUrl(oobUrl)) {
                     message.setEncryption(Message.ENCRYPTION_DECRYPTED);
                 }
+            } else if (body == null && stickerElement != null) {
+                final String stickerSource = findFileSharingSource(packet);
+                if (stickerSource == null) {
+                    Log.d(Config.LOGTAG, "received sticker without a retrievable file source");
+                    return;
+                }
+                message = new Message(conversation, stickerSource, Message.ENCRYPTION_NONE, status);
+                message.setOob(true);
             } else {
                 message = new Message(conversation, body.content, Message.ENCRYPTION_NONE, status);
                 if (body.count > 1) {
@@ -526,6 +536,19 @@ public class MessageParser extends AbstractParser
                 message.setOob(true);
                 if (CryptoHelper.isPgpEncryptedUrl(oobUrl)) {
                     message.setEncryption(Message.ENCRYPTION_DECRYPTED);
+                }
+            }
+            if (stickerElement != null) {
+                message.setSticker(
+                        stickerElement.getAttribute("pack"), findStickerDescription(packet));
+                if (message.getEncryption() == Message.ENCRYPTION_NONE && !message.isOOb()) {
+                    final String stickerSource =
+                            oobUrl != null ? oobUrl : findFileSharingSource(packet);
+                    if (stickerSource != null) {
+                        // make sure stickers sent with an emoji fallback body still download
+                        message.setBody(stickerSource);
+                        message.setOob(true);
+                    }
                 }
             }
             message.markable = packet.hasExtension(Markable.class);
@@ -868,6 +891,43 @@ public class MessageParser extends AbstractParser
                 return null;
             }
             return new Pair<>(forwardedMessage, timestamp);
+        }
+        return null;
+    }
+
+    private static Element findStickerElement(
+            final im.conversations.android.xmpp.model.stanza.Message packet) {
+        final var sticker = packet.findChild("sticker", Namespace.STICKERS);
+        if (sticker != null) {
+            return sticker;
+        }
+        // some implementations wrap the sticker into a fasten apply-to element
+        final var applyTo = packet.findChild("apply-to", Namespace.FASTEN);
+        return applyTo == null ? null : applyTo.findChild("sticker");
+    }
+
+    private static String findStickerDescription(
+            final im.conversations.android.xmpp.model.stanza.Message packet) {
+        final var sharing = packet.findChild("file-sharing", Namespace.SFS);
+        final var file =
+                sharing == null ? null : sharing.findChild("file", Namespace.FILE_METADATA);
+        return file == null ? null : Strings.emptyToNull(file.findChildContent("desc"));
+    }
+
+    private static String findFileSharingSource(
+            final im.conversations.android.xmpp.model.stanza.Message packet) {
+        final var sharing = packet.findChild("file-sharing", Namespace.SFS);
+        final var sources = sharing == null ? null : sharing.findChild("sources");
+        if (sources == null) {
+            return null;
+        }
+        for (final Element source : sources.getChildren()) {
+            final var target = source.getAttribute("target");
+            if ("url-data".equals(source.getName())
+                    && target != null
+                    && (target.startsWith("https://") || target.startsWith("http://"))) {
+                return target;
+            }
         }
         return null;
     }

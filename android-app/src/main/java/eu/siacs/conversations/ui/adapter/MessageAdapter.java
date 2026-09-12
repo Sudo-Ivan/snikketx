@@ -686,7 +686,12 @@ public class MessageAdapter extends ArrayAdapter<Message> {
         viewHolder.audioPlayer().setVisibility(View.GONE);
         viewHolder.image().setVisibility(View.VISIBLE);
         final FileParams params = message.getFileParams();
-        final float target = activity.getResources().getDimension(R.dimen.image_preview_width);
+        final float target =
+                activity.getResources()
+                        .getDimension(
+                                message.isSticker()
+                                        ? R.dimen.sticker_preview_size
+                                        : R.dimen.image_preview_width);
         final int scaledW;
         final int scaledH;
         if (Math.max(params.height, params.width) * metrics.density <= target) {
@@ -706,6 +711,15 @@ public class MessageAdapter extends ArrayAdapter<Message> {
                 new LinearLayout.LayoutParams(scaledW, scaledH);
         viewHolder.image().setLayoutParams(layoutParams);
         activity.loadBitmap(message, viewHolder.image());
+        if (message.isSticker()) {
+            final String stickerDescription = message.getStickerDescription();
+            viewHolder
+                    .image()
+                    .setContentDescription(
+                            stickerDescription == null
+                                    ? activity.getString(R.string.sticker_content_description)
+                                    : stickerDescription);
+        }
         viewHolder.image().setOnClickListener(v -> openDownloadable(message));
     }
 

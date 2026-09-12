@@ -13,6 +13,7 @@ public record AttachmentChoice(
         PICTURE,
         FILE,
         VIDEO,
-        CONTACT
+        CONTACT,
+        STICKER
     }
 }

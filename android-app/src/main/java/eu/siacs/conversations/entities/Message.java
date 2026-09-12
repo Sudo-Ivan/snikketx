@@ -126,6 +126,8 @@ public class Message extends AbstractEntity
     private String errorMessage = null;
     private final Set<ReadByMarker> readByMarkers = new CopyOnWriteArraySet<>();
     private String occupantId;
+    private String stickerPackId = null;
+    private String stickerDescription = null;
     private Collection<Reaction> reactions = Collections.emptyList();
 
     private Boolean isGeoUri = null;
@@ -543,6 +545,32 @@ public class Message extends AbstractEntity
 
     public void setType(int type) {
         this.type = type;
+    }
+
+    /**
+     * Marks this message as a XEP-0449 sticker. The pack id refers to the pubsub item id of the
+     * sticker pack when known. This flag is transient and intentionally not persisted; after a
+     * restart a sticker simply renders as a regular image message.
+     */
+    public void setSticker(final String packId) {
+        setSticker(packId, null);
+    }
+
+    public void setSticker(final String packId, final String description) {
+        this.stickerPackId = Strings.nullToEmpty(packId);
+        this.stickerDescription = Strings.emptyToNull(description);
+    }
+
+    public boolean isSticker() {
+        return stickerPackId != null;
+    }
+
+    public String getStickerPackId() {
+        return stickerPackId;
+    }
+
+    public String getStickerDescription() {
+        return stickerDescription;
     }
 
     // TODO carbons is mostly unused these days (only the inValidSession() is still using this)
