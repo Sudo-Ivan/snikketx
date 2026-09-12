@@ -19,9 +19,18 @@ PASS=0
 WARN=0
 FAIL=0
 
-ok() { echo "PASS  $*"; PASS=$((PASS + 1)); }
-warn() { echo "WARN  $*"; WARN=$((WARN + 1)); }
-fail() { echo "FAIL  $*"; FAIL=$((FAIL + 1)); }
+ok() {
+	echo "PASS  $*"
+	PASS=$((PASS + 1))
+}
+warn() {
+	echo "WARN  $*"
+	WARN=$((WARN + 1))
+}
+fail() {
+	echo "FAIL  $*"
+	FAIL=$((FAIL + 1))
+}
 
 echo "== SnikketX preflight (${COMPOSE_MODE}) =="
 
@@ -55,7 +64,7 @@ if [[ -z "$domain" ]]; then
 	fail "SNIKKET_DOMAIN is empty"
 else
 	case "$domain" in
-	*.localhost|localhost)
+	*.localhost | localhost)
 		ok "Local domain ${domain} (DNS checks skipped)"
 		;;
 	*)

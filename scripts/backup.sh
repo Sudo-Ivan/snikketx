@@ -34,7 +34,7 @@ EOF
 
 while [[ $# -gt 0 ]]; do
 	case "$1" in
-	-h|--help)
+	-h | --help)
 		usage
 		exit 0
 		;;
@@ -70,8 +70,8 @@ fi
 
 backup_via_service() {
 	local endpoint token scope
-	endpoint="${SNIKKET_BACKUP_ENDPOINT:-http://127.0.0.1:9292}"
-	token="${SNIKKET_BACKUP_TOKEN:-${SNIKKET_UPDATER_TOKEN:-snikket-backup-local}}"
+	endpoint="${SNIKKET_BACKUP_ENDPOINT:-$SNIKKETX_BACKUP_ENDPOINT_LOCAL}"
+	token="${SNIKKET_BACKUP_TOKEN:-${SNIKKET_UPDATER_TOKEN:-$SNIKKETX_BACKUP_TOKEN_DEFAULT}}"
 	if ! curl -fsS --max-time 2 "${endpoint}/healthz" >/dev/null 2>&1; then
 		return 1
 	fi
@@ -85,8 +85,8 @@ backup_via_service() {
 	curl -fsS -X POST "${endpoint}/v1/backup" \
 		-H "Authorization: Bearer ${token}" \
 		>/dev/null
-	local i status
-	for i in $(seq 1 120); do
+	local status
+	for _ in $(seq 1 120); do
 		status="$(curl -fsS -H "Authorization: Bearer ${token}" "${endpoint}/v1/status")"
 		if echo "$status" | grep -q '"status":"idle"'; then
 			if echo "$status" | grep -q '"phase":"failed"'; then
@@ -104,14 +104,14 @@ backup_via_service() {
 		return 1
 	fi
 	# Archives live in the backup_data volume; copy via docker.
-	local vol=snikketx_backup_data
+	local vol="$SNIKKETX_VOL_BACKUP_DATA"
 	if ! docker volume inspect "$vol" >/dev/null 2>&1; then
 		echo "Backup volume ${vol} missing" >&2
 		return 1
 	fi
 	local out="${DEST%/}/${name}"
 	mkdir -p "$out"
-	docker run --rm -v "$vol":/data:ro -v "$out":/out alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b \
+	docker run --rm -v "$vol":/data:ro -v "$out":/out "$SNIKKETX_HELPER_IMAGE" \
 		sh -c "cp -a /data/archives/${name}/. /out/"
 	echo "Backup copied to ${out}"
 	return 0
@@ -128,15 +128,15 @@ STAMP=$(date +%F-%H%M%S)
 OUT="${DEST%/}/snikketx-backup-${STAMP}"
 mkdir -p "$OUT"
 
-ALPINE="alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b"
+ALPINE="$SNIKKETX_HELPER_IMAGE"
 
-if ! docker container inspect snikket >/dev/null 2>&1; then
-	echo "Container 'snikket' not found. Start the stack (or classic Snikket) first." >&2
+if ! docker container inspect "$SNIKKETX_CONTAINER_SERVER" >/dev/null 2>&1; then
+	echo "Container '${SNIKKETX_CONTAINER_SERVER}' not found. Start the stack (or classic Snikket) first." >&2
 	exit 1
 fi
 
 echo "Backing up /snikket (accounts, chats/MAM, MUCs, uploads) ..."
-docker run --rm --volumes-from=snikket -v "$OUT":/backup "$ALPINE" \
+docker run --rm --volumes-from="$SNIKKETX_CONTAINER_SERVER" -v "$OUT":/backup "$ALPINE" \
 	tar czf "/backup/snikket-data-${STAMP}.tar.gz" /snikket
 
 if [[ -f snikket.conf ]]; then
@@ -158,16 +158,16 @@ archive_named_volume() {
 }
 
 MODE=classic
-if docker volume inspect snikketx_portal_data >/dev/null 2>&1 || docker volume inspect snikketx_ravenguard_data >/dev/null 2>&1; then
+if docker volume inspect "$SNIKKETX_VOL_PORTAL_DATA" >/dev/null 2>&1 || docker volume inspect "$SNIKKETX_VOL_RAVENGUARD_DATA" >/dev/null 2>&1; then
 	MODE=snikketx
 fi
 
 if [[ "$FULL" -eq 1 ]]; then
-	archive_named_volume snikketx_portal_data portal-data
-	archive_named_volume snikketx_ravenguard_data ravenguard-data
-	archive_named_volume snikketx_updater_data updater-data
-	archive_named_volume snikketx_backup_data backup-data
-	archive_named_volume snikket_portal_data portal-data-classic
+	archive_named_volume "$SNIKKETX_VOL_PORTAL_DATA" portal-data
+	archive_named_volume "$SNIKKETX_VOL_RAVENGUARD_DATA" ravenguard-data
+	archive_named_volume "$SNIKKETX_VOL_UPDATER_DATA" updater-data
+	archive_named_volume "$SNIKKETX_VOL_BACKUP_DATA" backup-data
+	archive_named_volume "$SNIKKETX_VOL_PORTAL_DATA_CLASSIC" portal-data-classic
 fi
 
 {
@@ -179,7 +179,7 @@ fi
 	echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 	echo "contents:"
 	ls -1 "$OUT"
-} > "$OUT/MANIFEST.txt"
+} >"$OUT/MANIFEST.txt"
 
 echo ""
 echo "Backup written to ${OUT}"

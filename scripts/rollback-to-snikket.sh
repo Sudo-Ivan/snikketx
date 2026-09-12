@@ -24,7 +24,7 @@ EOF
 
 while [[ $# -gt 0 ]]; do
 	case "$1" in
-	-h|--help)
+	-h | --help)
 		usage
 		exit 0
 		;;
@@ -36,7 +36,7 @@ while [[ $# -gt 0 ]]; do
 		BACKUP_DIR="$2"
 		shift 2
 		;;
-	--yes|-y)
+	--yes | -y)
 		YES=1
 		shift
 		;;
@@ -78,8 +78,11 @@ if [[ "$YES" -ne 1 ]]; then
 	read -r -n1 ans
 	echo ""
 	case "$ans" in
-	y|Y) ;;
-	*) echo "Aborting."; exit 1 ;;
+	y | Y) ;;
+	*)
+		echo "Aborting."
+		exit 1
+		;;
 	esac
 fi
 

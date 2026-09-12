@@ -4,31 +4,22 @@
 
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT"
+# shellcheck source=lib/compose.sh
+source "$(cd "$(dirname "$0")" && pwd)/lib/compose.sh"
+
+snikketx_cd_root
 
 MODE="${1:-prod}"
-CONF="${ROOT}/snikket.conf"
-ENVFILE="${ROOT}/.env"
-CONTAINER="${RG_CONTAINER:-snikketx-ravenguard}"
+CONTAINER="${RG_CONTAINER:-$SNIKKETX_CONTAINER_RAVENGUARD}"
 
-domain=""
-if [[ -f "$CONF" ]]; then
-	domain=$(grep -E '^SNIKKET_DOMAIN=' "$CONF" | head -n1 | cut -d= -f2- | tr -d '"' | tr -d "'")
-fi
-if [[ -z "$domain" && -f "$ENVFILE" ]]; then
-	domain=$(grep -E '^SNIKKET_DOMAIN=' "$ENVFILE" | head -n1 | cut -d= -f2- | tr -d '"' | tr -d "'")
-fi
+domain="$(snikketx_domain)"
 domain="${domain:-${SNIKKET_DOMAIN:-}}"
 if [[ -z "$domain" ]]; then
 	echo "SNIKKET_DOMAIN is not set. Run ./scripts/init.sh or export it." >&2
 	exit 1
 fi
 
-password=""
-if [[ -f "$ENVFILE" ]]; then
-	password=$(grep -E '^RG_ADMIN_BOOTSTRAP_PASSWORD=' "$ENVFILE" | head -n1 | cut -d= -f2- || true)
-fi
+password="$(snikketx_conf_get RG_ADMIN_BOOTSTRAP_PASSWORD .env || true)"
 password="${RG_ADMIN_BOOTSTRAP_PASSWORD:-$password}"
 
 echo "Waiting for RavenGuard (${CONTAINER})..."
@@ -68,13 +59,16 @@ docker run -d --name snikketx-rg-seed --network "$net" \
 	docker.io/library/python:3.12-alpine \
 	sleep 180 >/dev/null
 
-docker exec -i -e RG_PASS="$password" -e RG_DOMAIN="$domain" -e RG_MODE="$MODE" snikketx-rg-seed python3 - <<'PY'
+docker exec -i -e RG_PASS="$password" -e RG_DOMAIN="$domain" -e RG_MODE="$MODE" \
+	-e RG_PORTAL_URL="$SNIKKETX_PORTAL_ENDPOINT" \
+	snikketx-rg-seed python3 - <<'PY'
 import json, os, urllib.request, http.cookiejar, time, urllib.error
 
 base = "http://ravenguard:9090/api/v1"
 password = os.environ["RG_PASS"]
 domain = os.environ["RG_DOMAIN"]
 mode = os.environ.get("RG_MODE", "prod")
+portal_url = os.environ.get("RG_PORTAL_URL", "http://snikket_portal:5765")
 hosts = [domain, f"share.{domain}", f"groups.{domain}"]
 
 cj = http.cookiejar.CookieJar()
@@ -133,7 +127,7 @@ def ensure_upstream(name, url, health_path="/", health_enabled=True):
 	print(f"created upstream {name} -> {url}")
 	return up["id"]
 
-portal_id = ensure_upstream("portal", "http://snikket_portal:5765", "/_health", True)
+portal_id = ensure_upstream("portal", portal_url, "/_health", True)
 prosody_id = ensure_upstream("prosody", "http://snikket_server:5280", "/", False)
 acme_id = None
 if mode != "dev":

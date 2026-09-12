@@ -29,7 +29,7 @@ EOF
 
 while [[ $# -gt 0 ]]; do
 	case "$1" in
-	-h|--help)
+	-h | --help)
 		usage
 		exit 0
 		;;
@@ -37,7 +37,7 @@ while [[ $# -gt 0 ]]; do
 		FULL=1
 		shift
 		;;
-	--yes|-y)
+	--yes | -y)
 		YES=1
 		shift
 		;;
@@ -45,7 +45,7 @@ while [[ $# -gt 0 ]]; do
 		DRY_RUN=1
 		shift
 		;;
-	--dev|dev|--prod|prod)
+	--dev | dev | --prod | prod)
 		shift
 		;;
 	/*)
@@ -89,8 +89,7 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
 			"${SRC_DIR}/portal-data-${stamp}.tar.gz" \
 			"${SRC_DIR}/ravenguard-data-${stamp}.tar.gz" \
 			"${SRC_DIR}/updater-data-${stamp}.tar.gz" \
-			"${SRC_DIR}/backup-data-${stamp}.tar.gz"
-		do
+			"${SRC_DIR}/backup-data-${stamp}.tar.gz"; do
 			if [[ -f "$f" ]]; then
 				echo "  found $(basename "$f")"
 			else
@@ -104,14 +103,14 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
 	exit 0
 fi
 
-if docker container inspect snikket >/dev/null 2>&1; then
-	running=$(docker inspect -f '{{.State.Running}}' snikket 2>/dev/null || echo false)
+if docker container inspect "$SNIKKETX_CONTAINER_SERVER" >/dev/null 2>&1; then
+	running=$(docker inspect -f '{{.State.Running}}' "$SNIKKETX_CONTAINER_SERVER" 2>/dev/null || echo false)
 	if [[ "$running" == "true" ]]; then
-		echo "Stopping snikket container for restore ..."
-		docker stop snikket >/dev/null
+		echo "Stopping ${SNIKKETX_CONTAINER_SERVER} container for restore ..."
+		docker stop "$SNIKKETX_CONTAINER_SERVER" >/dev/null
 	fi
 else
-	echo "Container snikket does not exist. Start the stack once so the volume is attached, then re-run restore." >&2
+	echo "Container ${SNIKKETX_CONTAINER_SERVER} does not exist. Start the stack once so the volume is attached, then re-run restore." >&2
 	exit 1
 fi
 
@@ -122,14 +121,17 @@ if [[ "$YES" -ne 1 ]]; then
 	read -r -n1 continue_answer
 	echo ""
 	case "$continue_answer" in
-	y|Y) echo "Ok, proceeding..." ;;
-	*) echo "Aborting."; exit 1 ;;
+	y | Y) echo "Ok, proceeding..." ;;
+	*)
+		echo "Aborting."
+		exit 1
+		;;
 	esac
 fi
 
-ALPINE="alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b"
+ALPINE="$SNIKKETX_HELPER_IMAGE"
 
-docker run --rm --volumes-from=snikket \
+docker run --rm --volumes-from="$SNIKKETX_CONTAINER_SERVER" \
 	--mount type=bind,source="$ARCHIVE",destination=/backup.tar.gz,readonly \
 	"$ALPINE" \
 	sh -c 'rm -rf /snikket/* /snikket/.[!.]* 2>/dev/null || true; tar xzf /backup.tar.gz -C /'
@@ -149,10 +151,10 @@ restore_vol() {
 }
 
 if [[ "$FULL" -eq 1 ]]; then
-	restore_vol "${SRC_DIR}/portal-data-${stamp}.tar.gz" snikketx_portal_data
-	restore_vol "${SRC_DIR}/ravenguard-data-${stamp}.tar.gz" snikketx_ravenguard_data
-	restore_vol "${SRC_DIR}/updater-data-${stamp}.tar.gz" snikketx_updater_data
-	restore_vol "${SRC_DIR}/backup-data-${stamp}.tar.gz" snikketx_backup_data
+	restore_vol "${SRC_DIR}/portal-data-${stamp}.tar.gz" "$SNIKKETX_VOL_PORTAL_DATA"
+	restore_vol "${SRC_DIR}/ravenguard-data-${stamp}.tar.gz" "$SNIKKETX_VOL_RAVENGUARD_DATA"
+	restore_vol "${SRC_DIR}/updater-data-${stamp}.tar.gz" "$SNIKKETX_VOL_UPDATER_DATA"
+	restore_vol "${SRC_DIR}/backup-data-${stamp}.tar.gz" "$SNIKKETX_VOL_BACKUP_DATA"
 	if [[ -f "${SRC_DIR}/snikket.conf" ]]; then
 		cp -a "${SRC_DIR}/snikket.conf" ./snikket.conf
 		echo "Restored snikket.conf"

@@ -36,7 +36,7 @@ if [[ ! -d "$WORKDIR/node_modules/puppeteer-core" ]]; then
 	)
 fi
 
-cat > "$WORKDIR/shot.mjs" <<EOF
+cat >"$WORKDIR/shot.mjs" <<EOF
 import puppeteer from "puppeteer-core";
 
 const out = process.env.SHOT_OUT;

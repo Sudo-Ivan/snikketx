@@ -2,11 +2,14 @@
 
 set -eo pipefail
 
+# shellcheck source=lib/compose.sh
+source "$(cd "$(dirname "$0")" && pwd)/lib/compose.sh"
+
 echo "Renewing XMPP certificates..."
-docker exec snikket-certs /etc/cron.daily/certbot
+docker exec "$SNIKKETX_CONTAINER_CERTS" /etc/cron.daily/certbot
 
 echo "Reloading Prosody..."
-docker exec snikket supervisorctl signal hup prosody
+docker exec "$SNIKKETX_CONTAINER_SERVER" supervisorctl signal hup prosody
 
 echo "HTTP TLS is managed by RavenGuard ACME. No nginx proxy reload is required."
 echo "Complete."

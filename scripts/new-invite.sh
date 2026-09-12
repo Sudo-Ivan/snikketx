@@ -2,22 +2,24 @@
 
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT"
+# shellcheck source=lib/compose.sh
+source "$(cd "$(dirname "$0")" && pwd)/lib/compose.sh"
+
+snikketx_cd_root
 
 if [ ! -f snikket.conf ]; then
 	echo "snikket.conf is missing. Run ./scripts/init.sh first."
 	exit 1
 fi
 
-SNIKKET_DOMAIN=$(grep -E '^SNIKKET_DOMAIN=' snikket.conf | head -n1 | cut -d= -f2-)
+SNIKKET_DOMAIN=$(snikketx_domain)
 if [[ -z "$SNIKKET_DOMAIN" ]]; then
 	echo "Failed to read SNIKKET_DOMAIN from snikket.conf, unable to continue"
 	exit 1
 fi
 
-if ! docker container inspect snikket >/dev/null 2>&1; then
-	echo "Container 'snikket' is not running. Start the stack first."
+if ! docker container inspect "$SNIKKETX_CONTAINER_SERVER" >/dev/null 2>&1; then
+	echo "Container '${SNIKKETX_CONTAINER_SERVER}' is not running. Start the stack first."
 	exit 1
 fi
 
@@ -31,21 +33,21 @@ rewrite_local_url() {
 }
 
 # In-image helper already uses `prosodyctl shell invite`.
-if docker exec snikket test -x /usr/local/bin/create-invite; then
-	output=$(docker exec -i -e "SNIKKET_DOMAIN=$SNIKKET_DOMAIN" snikket create-invite "$@" || true)
+if docker exec "$SNIKKETX_CONTAINER_SERVER" test -x /usr/local/bin/create-invite; then
+	output=$(docker exec -i -e "SNIKKET_DOMAIN=$SNIKKET_DOMAIN" "$SNIKKETX_CONTAINER_SERVER" create-invite "$@" || true)
 	if [[ -z "$output" ]]; then
 		echo "Failed to create invite"
 		exit 1
 	fi
 	while IFS= read -r line; do
 		case "$line" in
-			"Your invite link: "*)
-				url=${line#Your invite link: }
-				echo "Your invite link: $(rewrite_local_url "$url")"
-				;;
-			*)
-				printf '%s\n' "$line"
-				;;
+		"Your invite link: "*)
+			url=${line#Your invite link: }
+			echo "Your invite link: $(rewrite_local_url "$url")"
+			;;
+		*)
+			printf '%s\n' "$line"
+			;;
 		esac
 	done <<<"$output"
 	exit 0
@@ -63,9 +65,9 @@ if [ "${1-}" = "--reset" ]; then
 	if [[ "$jid" != *@* ]]; then
 		jid="${jid}@${SNIKKET_DOMAIN}"
 	fi
-	URL=$(docker exec -i snikket prosodyctl shell invite create_reset "$jid" | sed -n 's/^OK: //;T;p')
+	URL=$(docker exec -i "$SNIKKETX_CONTAINER_SERVER" prosodyctl shell invite create_reset "$jid" | sed -n 's/^OK: //;T;p')
 else
-	URL=$(docker exec -i snikket prosodyctl shell invite create_account "$@" "$SNIKKET_DOMAIN" | sed -n 's/^OK: //;T;p')
+	URL=$(docker exec -i "$SNIKKETX_CONTAINER_SERVER" prosodyctl shell invite create_account "$@" "$SNIKKET_DOMAIN" | sed -n 's/^OK: //;T;p')
 fi
 
 if [[ -z "$URL" ]]; then

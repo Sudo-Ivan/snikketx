@@ -2,8 +2,10 @@
 
 set -eo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT"
+# shellcheck source=lib/compose.sh
+source "$(cd "$(dirname "$0")" && pwd)/lib/compose.sh"
+
+snikketx_cd_root
 
 ## Platform detection ##
 OS=$(awk '/DISTRIB_ID=/' /etc/*-release 2>/dev/null | sed 's/DISTRIB_ID=//' | tr '[:upper:]' '[:lower:]' || true)
@@ -22,7 +24,7 @@ while [[ $# -gt 0 ]]; do
 		DEV_MODE=1
 		shift
 		;;
-	--force|-f)
+	--force | -f)
 		FORCE=1
 		shift
 		;;
@@ -38,7 +40,7 @@ while [[ $# -gt 0 ]]; do
 		# Alias used with --domain/--email or --dev
 		shift
 		;;
-	-h|--help)
+	-h | --help)
 		cat <<'EOF'
 Usage: ./scripts/init.sh [--dev] [--force] [--domain NAME] [--email ADDR]
 
@@ -59,10 +61,12 @@ done
 if ! command -v docker >/dev/null; then
 	echo "Docker is required but not installed."
 	case "$OS" in
-	ubuntu|debian|fedora|centos)
-		echo "Please follow the guide at https://docs.docker.com/install/linux/docker-ce/$OS/" ;;
+	ubuntu | debian | fedora | centos)
+		echo "Please follow the guide at https://docs.docker.com/install/linux/docker-ce/$OS/"
+		;;
 	*)
-		echo "Please follow the installation guide at https://docs.docker.com/engine/install/" ;;
+		echo "Please follow the installation guide at https://docs.docker.com/engine/install/"
+		;;
 	esac
 	exit 1
 fi
@@ -82,12 +86,14 @@ write_config() {
 	local domain="$1"
 	local email="$2"
 	local tos="$3"
-	local rg_secret rg_admin
-	rg_secret=$(head -c 32 /dev/urandom | base64 | tr -d '\n=/+' | head -c 32)
+	local rg_secret rg_admin updater_token backup_token
+	rg_secret=$(snikketx_random 32)
 	if [ "${#rg_secret}" -lt 16 ]; then
 		rg_secret="rg-replace-this-secret!!"
 	fi
-	rg_admin=$(head -c 24 /dev/urandom | base64 | tr -d '\n=/+' | head -c 24)
+	rg_admin=$(snikketx_random 24)
+	updater_token=$(snikketx_random 32)
+	backup_token=$(snikketx_random 32)
 
 	if [[ "$DEV_MODE" -eq 1 ]]; then
 		rg_secret="rg-dev-local-secret!!"
@@ -98,14 +104,15 @@ write_config() {
 		-e 's/^\(SNIKKET_DOMAIN\)=.*$/\1='"$domain"'/;' \
 		-e 's/^\(SNIKKET_ADMIN_EMAIL\)=.*$/\1='"$email"'/;' \
 		-e 's/^\(SNIKKET_LETSENCRYPT_TOS_AGREE\)=.*$/\1='"$tos"'/;' \
-		snikket.conf.example > snikket.conf
+		snikket.conf.example >snikket.conf
 
-	cat > .env <<EOF
+	cat >.env <<EOF
 SNIKKET_DOMAIN=${domain}
 SNIKKET_ADMIN_EMAIL=${email}
 RG_CHALLENGE_SECRET=${rg_secret}
 RG_ADMIN_BOOTSTRAP_PASSWORD=${rg_admin}
-SNIKKET_UPDATER_TOKEN=snikket-updater-local
+SNIKKET_UPDATER_TOKEN=${updater_token}
+SNIKKET_BACKUP_TOKEN=${backup_token}
 EOF
 }
 
@@ -144,7 +151,7 @@ if [ -f snikket.conf ]; then
 	echo -n "Would you like to keep the existing file? [Y/n] "
 	read -r -n1 -p "" remove_existing_config
 	case "$remove_existing_config" in
-	n|N) rm snikket.conf .env 2>/dev/null || true ;;
+	n | N) rm snikket.conf .env 2>/dev/null || true ;;
 	*)
 		exit 0
 		;;
@@ -186,7 +193,7 @@ read -r -n1 -p "Enter 'Y' to confirm: " SNIKKET_LETSENCRYPT_TOS_AGREE
 echo ""
 
 case "$SNIKKET_LETSENCRYPT_TOS_AGREE" in
-Y|y) ;;
+Y | y) ;;
 *)
 	echo "SnikketX requires certificates from Let's Encrypt to set up"
 	echo "the server. Since you do not accept the terms of service"
