@@ -4,10 +4,10 @@ import eu.siacs.conversations.xml.Namespace;
 
 public class OmemoVerifiedIceUdpTransportInfo extends IceUdpTransportInfo {
 
-
     public void ensureNoPlaintextFingerprint() {
         if (this.findChild("fingerprint", Namespace.JINGLE_APPS_DTLS) != null) {
-            throw new IllegalStateException("OmemoVerifiedIceUdpTransportInfo contains plaintext fingerprint");
+            throw new IllegalStateException(
+                    "OmemoVerifiedIceUdpTransportInfo contains plaintext fingerprint");
         }
     }
 
@@ -16,12 +16,12 @@ public class OmemoVerifiedIceUdpTransportInfo extends IceUdpTransportInfo {
             return transportInfo;
         }
         if (transportInfo.hasChild("fingerprint", Namespace.OMEMO_DTLS_SRTP_VERIFICATION)) {
-            final OmemoVerifiedIceUdpTransportInfo omemoVerifiedIceUdpTransportInfo = new OmemoVerifiedIceUdpTransportInfo();
+            final OmemoVerifiedIceUdpTransportInfo omemoVerifiedIceUdpTransportInfo =
+                    new OmemoVerifiedIceUdpTransportInfo();
             omemoVerifiedIceUdpTransportInfo.setAttributes(transportInfo.getAttributes());
             omemoVerifiedIceUdpTransportInfo.setChildren(transportInfo.getChildren());
             return omemoVerifiedIceUdpTransportInfo;
         }
         return transportInfo;
     }
-
 }

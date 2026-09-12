@@ -115,14 +115,19 @@ public class WelcomeActivity extends QrCodeProcessingActivity
         Activities.setStatusAndNavigationBarColors(this, binding.getRoot());
         setSupportActionBar(binding.toolbar);
         configureActionBar(getSupportActionBar(), false);
-        binding.learnMore.setOnClickListener(v -> {
-            final Intent intent = new Intent(Intent.ACTION_VIEW);
-            intent.setData(Uri.parse("https://snikket.org/app/learn/?ref=app"));
-            try {
-                startActivity(intent);
-            } catch (ActivityNotFoundException e) {
-                Toast.makeText(this,R.string.no_application_found_to_open_link, Toast.LENGTH_LONG).show();
-            }
+        binding.learnMore.setOnClickListener(
+                v -> {
+                    final Intent intent = new Intent(Intent.ACTION_VIEW);
+                    intent.setData(Uri.parse("https://snikket.org/app/learn/?ref=app"));
+                    try {
+                        startActivity(intent);
+                    } catch (ActivityNotFoundException e) {
+                        Toast.makeText(
+                                        this,
+                                        R.string.no_application_found_to_open_link,
+                                        Toast.LENGTH_LONG)
+                                .show();
+                    }
                 });
         binding.scanQr.setOnClickListener(v -> requestPermissionAndScanQrCode());
         binding.useExisting.setOnClickListener(

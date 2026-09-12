@@ -4,7 +4,5 @@ import android.content.Context;
 
 public class EmojiInitializationService {
 
-    public static void execute(final Context context) {
-
-    }
+    public static void execute(final Context context) {}
 }

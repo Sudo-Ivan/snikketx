@@ -33,5 +33,5 @@ import eu.siacs.conversations.entities.Conversation;
 
 public interface OnConversationArchived {
 
-	void onConversationArchived(Conversation conversation);
+    void onConversationArchived(Conversation conversation);
 }

@@ -1,16 +1,13 @@
 package eu.siacs.conversations.entities;
 
 import androidx.annotation.DrawableRes;
-
 import com.google.common.base.Strings;
-
 import eu.siacs.conversations.R;
 
 public class RtpSessionStatus {
 
     public final boolean successful;
     public final long duration;
-
 
     public RtpSessionStatus(boolean successful, long duration) {
         this.successful = successful;
@@ -29,7 +26,7 @@ public class RtpSessionStatus {
             try {
                 duration = Long.parseLong(parts[1]);
             } catch (NumberFormatException e) {
-                //do nothing
+                // do nothing
             }
         }
         boolean made;

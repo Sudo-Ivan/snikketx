@@ -32,26 +32,23 @@ package eu.siacs.conversations.ui.util;
 import android.view.View;
 import android.widget.ListView;
 
-
 public class ListViewUtils {
 
-	public static void scrollToBottom(final ListView listView) {
-		final int count = listView.getAdapter().getCount();
-		if (count > 0) {
-			setSelection(listView, count - 1, true);
-		}
-	}
+    public static void scrollToBottom(final ListView listView) {
+        final int count = listView.getAdapter().getCount();
+        if (count > 0) {
+            setSelection(listView, count - 1, true);
+        }
+    }
 
-	public static void setSelection(final ListView listView, int pos, boolean jumpToBottom) {
-		if (jumpToBottom) {
-			final View lastChild = listView.getChildAt(listView.getChildCount() - 1);
-			if (lastChild != null) {
-				listView.setSelectionFromTop(pos, -lastChild.getHeight());
-				return;
-			}
-		}
-		listView.setSelection(pos);
-	}
-
+    public static void setSelection(final ListView listView, int pos, boolean jumpToBottom) {
+        if (jumpToBottom) {
+            final View lastChild = listView.getChildAt(listView.getChildCount() - 1);
+            if (lastChild != null) {
+                listView.setSelectionFromTop(pos, -lastChild.getHeight());
+                return;
+            }
+        }
+        listView.setSelection(pos);
+    }
 }
-

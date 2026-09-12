@@ -1,10 +1,8 @@
 package eu.siacs.conversations.xmpp.jingle.transports;
 
 import com.google.common.util.concurrent.ListenableFuture;
-
 import eu.siacs.conversations.xmpp.jingle.stanzas.GenericTransportInfo;
 import eu.siacs.conversations.xmpp.jingle.stanzas.Group;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;

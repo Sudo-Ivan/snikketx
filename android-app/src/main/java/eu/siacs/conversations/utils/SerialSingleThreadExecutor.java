@@ -1,12 +1,10 @@
 package eu.siacs.conversations.utils;
 
 import android.util.Log;
-
+import eu.siacs.conversations.Config;
 import java.util.ArrayDeque;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
-
-import eu.siacs.conversations.Config;
 
 public class SerialSingleThreadExecutor implements Executor {
 
@@ -14,7 +12,6 @@ public class SerialSingleThreadExecutor implements Executor {
     private final Executor executor = Executors.newSingleThreadExecutor();
     private final String name;
     protected Runnable active;
-
 
     public SerialSingleThreadExecutor(String name) {
         this.name = name;

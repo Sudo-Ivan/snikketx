@@ -2,7 +2,6 @@ package eu.siacs.conversations.xmpp.jingle;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.Multimap;
-
 import java.util.List;
 
 public class MediaBuilder {

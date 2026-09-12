@@ -31,26 +31,24 @@ package eu.siacs.conversations.utils;
 
 import android.content.Context;
 import android.os.SystemClock;
-
 import androidx.annotation.PluralsRes;
-
-import java.util.Locale;
-
 import eu.siacs.conversations.R;
+import java.util.Locale;
 
 public class TimeFrameUtils {
 
     private static final TimeFrame[] TIME_FRAMES;
 
     static {
-        TIME_FRAMES = new TimeFrame[]{
-                new TimeFrame(1000L, R.plurals.seconds),
-                new TimeFrame(60L * 1000, R.plurals.minutes),
-                new TimeFrame(60L * 60 * 1000, R.plurals.hours),
-                new TimeFrame(24L * 60 * 60 * 1000, R.plurals.days),
-                new TimeFrame(7L * 24 * 60 * 60 * 1000, R.plurals.weeks),
-                new TimeFrame(30L * 24 * 60 * 60 * 1000, R.plurals.months),
-        };
+        TIME_FRAMES =
+                new TimeFrame[] {
+                    new TimeFrame(1000L, R.plurals.seconds),
+                    new TimeFrame(60L * 1000, R.plurals.minutes),
+                    new TimeFrame(60L * 60 * 1000, R.plurals.hours),
+                    new TimeFrame(24L * 60 * 60 * 1000, R.plurals.days),
+                    new TimeFrame(7L * 24 * 60 * 60 * 1000, R.plurals.weeks),
+                    new TimeFrame(30L * 24 * 60 * 60 * 1000, R.plurals.months),
+                };
     }
 
     public static String resolve(Context context, long timeFrame) {
@@ -58,7 +56,10 @@ public class TimeFrameUtils {
             long duration = TIME_FRAMES[i].duration;
             long threshold = i > 0 ? (TIME_FRAMES[i - 1].duration / 2) : 0;
             if (timeFrame >= duration - threshold) {
-                int count = (int) (timeFrame / duration + ((timeFrame % duration) > (duration / 2) ? 1 : 0));
+                int count =
+                        (int)
+                                (timeFrame / duration
+                                        + ((timeFrame % duration) > (duration / 2) ? 1 : 0));
                 return context.getResources().getQuantityString(TIME_FRAMES[i].name, count, count);
             }
         }
@@ -69,7 +70,8 @@ public class TimeFrameUtils {
         return formatTimePassed(since, SystemClock.elapsedRealtime(), withMilliseconds);
     }
 
-    public static String formatTimePassed(final long since, final long to, final boolean withMilliseconds) {
+    public static String formatTimePassed(
+            final long since, final long to, final boolean withMilliseconds) {
         final long passed = (since < 0) ? 0 : (to - since);
         return formatElapsedTime(passed, withMilliseconds);
     }
@@ -88,7 +90,6 @@ public class TimeFrameUtils {
         }
     }
 
-
     private static class TimeFrame {
         final long duration;
         public final int name;
@@ -98,5 +99,4 @@ public class TimeFrameUtils {
             this.name = name;
         }
     }
-
 }

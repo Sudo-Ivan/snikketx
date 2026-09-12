@@ -2,12 +2,9 @@ package eu.siacs.conversations.ui.activity;
 
 import android.app.Notification;
 import android.os.Bundle;
-
 import androidx.databinding.DataBindingUtil;
 import androidx.preference.PreferenceFragmentCompat;
-
 import com.google.common.collect.ImmutableSet;
-
 import eu.siacs.conversations.R;
 import eu.siacs.conversations.databinding.ActivitySettingsBinding;
 import eu.siacs.conversations.ui.Activities;
@@ -15,7 +12,6 @@ import eu.siacs.conversations.ui.XmppActivity;
 import eu.siacs.conversations.ui.fragment.settings.MainSettingsFragment;
 import eu.siacs.conversations.ui.fragment.settings.NotificationsSettingsFragment;
 import eu.siacs.conversations.ui.fragment.settings.XmppPreferenceFragment;
-
 import java.util.Collections;
 
 public class SettingsActivity extends XmppActivity {

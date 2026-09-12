@@ -2,12 +2,10 @@ package eu.siacs.conversations.xmpp.jingle.stanzas;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-
-import java.util.Collection;
-import java.util.List;
-
 import eu.siacs.conversations.xml.Element;
 import eu.siacs.conversations.xml.Namespace;
+import java.util.Collection;
+import java.util.List;
 
 public class Group extends Element {
 
@@ -45,10 +43,10 @@ public class Group extends Element {
         final String[] parts = input.split(" ");
         if (parts.length >= 2) {
             final String semantics = parts[0];
-            for(int i = 1; i < parts.length; ++i) {
+            for (int i = 1; i < parts.length; ++i) {
                 tagBuilder.add(parts[i]);
             }
-            return new Group(semantics,tagBuilder.build());
+            return new Group(semantics, tagBuilder.build());
         }
         return null;
     }

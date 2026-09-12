@@ -8,7 +8,5 @@ public class FileWriterException extends Exception {
         super(String.format("Could not write to %s", file.getAbsolutePath()));
     }
 
-    FileWriterException() {
-
-    }
+    FileWriterException() {}
 }

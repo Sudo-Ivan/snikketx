@@ -2,15 +2,13 @@ package eu.siacs.conversations.ui;
 
 import android.os.Bundle;
 import android.widget.ListView;
-
-import java.util.ArrayList;
-import java.util.List;
-
 import eu.siacs.conversations.R;
 import eu.siacs.conversations.entities.Account;
 import eu.siacs.conversations.entities.Conversation;
 import eu.siacs.conversations.ui.adapter.AccountAdapter;
 import eu.siacs.conversations.xmpp.Jid;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ShareViaAccountActivity extends XmppActivity {
     public static final String EXTRA_CONTACT = "contact";
@@ -39,26 +37,28 @@ public class ShareViaAccountActivity extends XmppActivity {
         accountListView = findViewById(R.id.account_list);
         this.mAccountAdapter = new AccountAdapter(this, accountList, false);
         accountListView.setAdapter(this.mAccountAdapter);
-        accountListView.setOnItemClickListener((arg0, view, position, arg3) -> {
-            final Account account = accountList.get(position);
-            final String body = getIntent().getStringExtra(EXTRA_BODY);
-            final String contactExtra = getIntent().getStringExtra(EXTRA_CONTACT);
+        accountListView.setOnItemClickListener(
+                (arg0, view, position, arg3) -> {
+                    final Account account = accountList.get(position);
+                    final String body = getIntent().getStringExtra(EXTRA_BODY);
+                    final String contactExtra = getIntent().getStringExtra(EXTRA_CONTACT);
 
-            if (contactExtra == null) {
-                finish();
-                return;
-            }
-            try {
-                final Jid contact = Jid.of(contactExtra);
-                final Conversation conversation = xmppConnectionService.findOrCreateConversation(
-                        account, contact, false, false);
-                switchToConversation(conversation, body);
-            } catch (IllegalArgumentException e) {
-                // ignore error
-            }
+                    if (contactExtra == null) {
+                        finish();
+                        return;
+                    }
+                    try {
+                        final Jid contact = Jid.of(contactExtra);
+                        final Conversation conversation =
+                                xmppConnectionService.findOrCreateConversation(
+                                        account, contact, false, false);
+                        switchToConversation(conversation, body);
+                    } catch (IllegalArgumentException e) {
+                        // ignore error
+                    }
 
-            finish();
-        });
+                    finish();
+                });
     }
 
     @Override
@@ -76,8 +76,9 @@ public class ShareViaAccountActivity extends XmppActivity {
             }
             try {
                 final Jid contact = Jid.of(contactExtra);
-                final Conversation conversation = xmppConnectionService.findOrCreateConversation(
-                        account, contact, false, false);
+                final Conversation conversation =
+                        xmppConnectionService.findOrCreateConversation(
+                                account, contact, false, false);
                 switchToConversation(conversation, body);
             } catch (IllegalArgumentException e) {
                 // ignore error

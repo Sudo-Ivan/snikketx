@@ -2,12 +2,9 @@ package eu.siacs.conversations.ui.fragment.settings;
 
 import android.os.Build;
 import android.os.Bundle;
-
 import androidx.annotation.Nullable;
 import androidx.preference.PreferenceFragmentCompat;
-
 import com.google.common.base.Strings;
-
 import eu.siacs.conversations.BuildConfig;
 import eu.siacs.conversations.R;
 

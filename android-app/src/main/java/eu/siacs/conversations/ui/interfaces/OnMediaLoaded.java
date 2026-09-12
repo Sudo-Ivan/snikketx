@@ -1,8 +1,7 @@
 package eu.siacs.conversations.ui.interfaces;
 
-import java.util.List;
-
 import eu.siacs.conversations.ui.util.Attachment;
+import java.util.List;
 
 public interface OnMediaLoaded {
 

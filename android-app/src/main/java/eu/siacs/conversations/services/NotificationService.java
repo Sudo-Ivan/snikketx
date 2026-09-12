@@ -914,7 +914,10 @@ public class NotificationService {
     }
 
     private void setNotificationColor(final Builder mBuilder) {
-        mBuilder.setColor(ContextCompat.getColor(mXmppConnectionService, R.color.snikket600)); //will be darkened even more by the OS
+        mBuilder.setColor(
+                ContextCompat.getColor(
+                        mXmppConnectionService,
+                        R.color.snikket600)); // will be darkened even more by the OS
     }
 
     public void updateNotification() {

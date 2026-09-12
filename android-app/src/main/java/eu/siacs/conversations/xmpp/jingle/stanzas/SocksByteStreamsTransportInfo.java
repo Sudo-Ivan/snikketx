@@ -1,16 +1,13 @@
 package eu.siacs.conversations.xmpp.jingle.stanzas;
 
 import android.util.Log;
-
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
-
 import eu.siacs.conversations.Config;
 import eu.siacs.conversations.xml.Element;
 import eu.siacs.conversations.xml.Namespace;
 import eu.siacs.conversations.xmpp.jingle.transports.SocksByteStreamsTransport;
-
 import java.util.Collection;
 import java.util.List;
 

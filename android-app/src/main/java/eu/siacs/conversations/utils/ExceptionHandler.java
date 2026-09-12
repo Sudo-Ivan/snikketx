@@ -2,16 +2,12 @@ package eu.siacs.conversations.utils;
 
 import android.content.Context;
 import android.os.Build;
-
 import androidx.annotation.NonNull;
-
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
-
 import eu.siacs.conversations.BuildConfig;
 import eu.siacs.conversations.services.NotificationService;
-
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;

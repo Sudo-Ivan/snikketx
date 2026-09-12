@@ -29,21 +29,22 @@
 
 package eu.siacs.conversations.ui.util;
 
-import java.util.List;
-
 import eu.siacs.conversations.entities.IndividualMessage;
 import eu.siacs.conversations.entities.Message;
 import eu.siacs.conversations.utils.UIHelper;
+import java.util.List;
 
 public class DateSeparator {
 
-	public static void addAll(List<Message> messages) {
-		for (int i = 0; i < messages.size(); ++i) {
-			final Message current = messages.get(i);
-			if (i == 0 || !UIHelper.sameDay(messages.get(i - 1).getTimeSent(), current.getTimeSent())) {
-				messages.add(i, IndividualMessage.createDateSeparator(current));
-				i++;
-			}
-		}
-	}
+    public static void addAll(List<Message> messages) {
+        for (int i = 0; i < messages.size(); ++i) {
+            final Message current = messages.get(i);
+            if (i == 0
+                    || !UIHelper.sameDay(
+                            messages.get(i - 1).getTimeSent(), current.getTimeSent())) {
+                messages.add(i, IndividualMessage.createDateSeparator(current));
+                i++;
+            }
+        }
+    }
 }

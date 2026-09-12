@@ -6,12 +6,10 @@ import android.net.Uri;
 import android.os.RemoteException;
 import android.preference.PreferenceManager;
 import android.util.Log;
-
 import com.android.installreferrer.api.InstallReferrerClient;
 import com.android.installreferrer.api.InstallReferrerStateListener;
 import com.android.installreferrer.api.ReferrerDetails;
 import com.google.common.base.Strings;
-
 import eu.siacs.conversations.Config;
 import eu.siacs.conversations.ui.WelcomeActivity;
 
@@ -19,14 +17,13 @@ public class InstallReferrerUtils implements InstallReferrerStateListener {
 
     private static final String PROCESSED_INSTALL_REFERRER = "processed_install_referrer";
 
-
     private final WelcomeActivity welcomeActivity;
     private final InstallReferrerClient installReferrerClient;
 
-
     public InstallReferrerUtils(WelcomeActivity welcomeActivity) {
         this.welcomeActivity = welcomeActivity;
-        final SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(welcomeActivity);
+        final SharedPreferences preferences =
+                PreferenceManager.getDefaultSharedPreferences(welcomeActivity);
         if (preferences.getBoolean(PROCESSED_INSTALL_REFERRER, false)) {
             Log.d(Config.LOGTAG, "install referrer already processed");
             this.installReferrerClient = null;
@@ -41,7 +38,8 @@ public class InstallReferrerUtils implements InstallReferrerStateListener {
     }
 
     public static void markInstallReferrerExecuted(final Activity context) {
-        final SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        final SharedPreferences preferences =
+                PreferenceManager.getDefaultSharedPreferences(context);
         preferences.edit().putBoolean(PROCESSED_INSTALL_REFERRER, true).apply();
     }
 
@@ -64,7 +62,5 @@ public class InstallReferrerUtils implements InstallReferrerStateListener {
     }
 
     @Override
-    public void onInstallReferrerServiceDisconnected() {
-
-    }
+    public void onInstallReferrerServiceDisconnected() {}
 }

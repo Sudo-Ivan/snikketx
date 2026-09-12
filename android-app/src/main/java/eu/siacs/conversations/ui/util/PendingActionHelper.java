@@ -1,9 +1,6 @@
 package eu.siacs.conversations.ui.util;
 
-/**
- * Created by mxf on 2018/4/3.
- */
-
+/** Created by mxf on 2018/4/3. */
 public class PendingActionHelper {
 
     private PendingAction pendingAction;
@@ -13,7 +10,7 @@ public class PendingActionHelper {
     }
 
     public void execute() {
-        if(pendingAction != null){
+        if (pendingAction != null) {
             pendingAction.execute();
             pendingAction = null;
         }

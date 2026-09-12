@@ -2,11 +2,6 @@ package eu.siacs.conversations.crypto.sasl;
 
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
-
-import org.bouncycastle.crypto.Digest;
-import org.bouncycastle.crypto.digests.SHA256Digest;
-import org.bouncycastle.crypto.macs.HMac;
-
 import eu.siacs.conversations.entities.Account;
 
 public class ScramSha256 extends ScramMechanism {
@@ -28,6 +23,7 @@ public class ScramSha256 extends ScramMechanism {
     protected HashFunction getDigest() {
         return Hashing.sha256();
     }
+
     @Override
     public int getPriority() {
         return 25;

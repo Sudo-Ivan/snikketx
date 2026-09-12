@@ -46,5 +46,4 @@ public class StringUtils {
     public static String nullOnEmpty(String input) {
         return input == null || input.trim().isEmpty() ? null : input;
     }
-
 }

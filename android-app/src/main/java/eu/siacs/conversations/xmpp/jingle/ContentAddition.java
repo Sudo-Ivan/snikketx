@@ -1,17 +1,14 @@
 package eu.siacs.conversations.xmpp.jingle;
 
 import androidx.annotation.NonNull;
-
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableSet;
-
-import java.util.Set;
-
 import eu.siacs.conversations.xmpp.jingle.stanzas.Content;
 import eu.siacs.conversations.xmpp.jingle.stanzas.IceUdpTransportInfo;
 import eu.siacs.conversations.xmpp.jingle.stanzas.RtpDescription;
+import java.util.Set;
 
 public final class ContentAddition {
 
@@ -36,7 +33,8 @@ public final class ContentAddition {
                 Collections2.transform(
                         rtpContentMap.contents.entrySet(),
                         e -> {
-                            final DescriptionTransport<RtpDescription, IceUdpTransportInfo> dt = e.getValue();
+                            final DescriptionTransport<RtpDescription, IceUdpTransportInfo> dt =
+                                    e.getValue();
                             return new Summary(e.getKey(), dt.description.getMedia(), dt.senders);
                         }));
     }

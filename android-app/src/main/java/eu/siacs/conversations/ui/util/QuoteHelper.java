@@ -5,14 +5,14 @@ import eu.siacs.conversations.utils.UIHelper;
 
 public class QuoteHelper {
 
-
     public static final char QUOTE_CHAR = '>';
     public static final char QUOTE_END_CHAR = '<'; // used for one check, not for actual quoting
     public static final char QUOTE_ALT_CHAR = '»';
     public static final char QUOTE_ALT_END_CHAR = '«';
 
     public static boolean isPositionQuoteCharacter(CharSequence body, int pos) {
-        // second part of logical check actually goes against the logic indicated in the method name, since it also checks for context
+        // second part of logical check actually goes against the logic indicated in the method
+        // name, since it also checks for context
         // but it's very useful
         return body.charAt(pos) == QUOTE_CHAR || isPositionAltQuoteStart(body, pos);
     }
@@ -39,9 +39,7 @@ public class QuoteHelper {
         return body.length() > pos + 1 && isPositionQuoteCharacter(body, pos + 1);
     }
 
-    /**
-     *  'Prequote' means anything we require or can accept in front of a QuoteChar.
-     */
+    /** 'Prequote' means anything we require or can accept in front of a QuoteChar. */
     public static boolean isPositionPrecededByPreQuote(CharSequence body, int pos) {
         return UIHelper.isPositionPrecededByLineStart(body, pos);
     }
@@ -50,7 +48,7 @@ public class QuoteHelper {
         return (isPositionQuoteCharacter(body, pos)
                 && isPositionPrecededByPreQuote(body, pos)
                 && (UIHelper.isPositionFollowedByQuoteableCharacter(body, pos)
-                || isPositionFollowedByQuoteChar(body, pos)));
+                        || isPositionFollowedByQuoteChar(body, pos)));
     }
 
     public static boolean bodyContainsQuoteStart(CharSequence body) {

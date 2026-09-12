@@ -1453,8 +1453,8 @@ public class MessageAdapter extends ArrayAdapter<Message> {
 
     private static ColorStateList bubbleToColorStateList(
             final View view, final BubbleColor bubbleColor) {
-        if(bubbleColor == BubbleColor.TRANSPARENT) {
-                return ColorStateList.valueOf(Color.TRANSPARENT);
+        if (bubbleColor == BubbleColor.TRANSPARENT) {
+            return ColorStateList.valueOf(Color.TRANSPARENT);
         }
 
         final @AttrRes int colorAttributeResId =
@@ -1502,11 +1502,9 @@ public class MessageAdapter extends ArrayAdapter<Message> {
 
     private static void setTextSize(final TextView textView, final boolean largeFont) {
         if (largeFont) {
-            textView.setTextAppearance(
-                    R.style.TextAppearance_Snikket_MessageContentLarge);
+            textView.setTextAppearance(R.style.TextAppearance_Snikket_MessageContentLarge);
         } else {
-            textView.setTextAppearance(
-                    R.style.TextAppearance_Snikket_MessageContentNormal);
+            textView.setTextAppearance(R.style.TextAppearance_Snikket_MessageContentNormal);
         }
     }
 
@@ -1533,7 +1531,7 @@ public class MessageAdapter extends ArrayAdapter<Message> {
 
     private static @AttrRes int bubbleToOnSurface(final BubbleColor bubbleColor) {
         return switch (bubbleColor) {
-            case TRANSPARENT ->  com.google.android.material.R.attr.colorOnBackground;
+            case TRANSPARENT -> com.google.android.material.R.attr.colorOnBackground;
             case SURFACE, SURFACE_HIGH -> com.google.android.material.R.attr.colorOnSurface;
             case PRIMARY -> com.google.android.material.R.attr.colorOnPrimaryContainer;
             case SECONDARY -> com.google.android.material.R.attr.colorOnSecondaryContainer;

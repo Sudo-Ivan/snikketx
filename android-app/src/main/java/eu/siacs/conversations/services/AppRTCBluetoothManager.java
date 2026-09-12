@@ -25,19 +25,14 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
-
 import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
-
 import com.google.common.collect.ImmutableList;
-
-import org.webrtc.ThreadUtils;
-
-import java.util.Collections;
-import java.util.List;
-
 import eu.siacs.conversations.Config;
 import eu.siacs.conversations.utils.AppRTCUtils;
+import java.util.Collections;
+import java.util.List;
+import org.webrtc.ThreadUtils;
 
 /** AppRTCProximitySensor manages functions related to Bluetoth devices in the AppRTC demo. */
 public class AppRTCBluetoothManager {

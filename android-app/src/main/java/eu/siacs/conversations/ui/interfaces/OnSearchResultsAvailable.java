@@ -29,12 +29,10 @@
 
 package eu.siacs.conversations.ui.interfaces;
 
-import java.util.List;
-
 import eu.siacs.conversations.entities.Message;
+import java.util.List;
 
 public interface OnSearchResultsAvailable {
 
-	void onSearchResultsAvailable(List<String> term, List<Message> messages);
-
+    void onSearchResultsAvailable(List<String> term, List<Message> messages);
 }

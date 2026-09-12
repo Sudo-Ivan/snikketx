@@ -31,6 +31,5 @@ package eu.siacs.conversations.ui.interfaces;
 
 public interface OnBackendConnected {
 
-	void onBackendConnected();
-
+    void onBackendConnected();
 }

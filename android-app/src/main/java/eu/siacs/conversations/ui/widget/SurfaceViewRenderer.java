@@ -4,12 +4,11 @@ import android.content.Context;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.util.Rational;
-
 import eu.siacs.conversations.Config;
 
 public class SurfaceViewRenderer extends org.webrtc.SurfaceViewRenderer {
 
-    private Rational aspectRatio = new Rational(1,1);
+    private Rational aspectRatio = new Rational(1, 1);
 
     private OnAspectRatioChanged onAspectRatioChanged;
 
@@ -27,7 +26,15 @@ public class SurfaceViewRenderer extends org.webrtc.SurfaceViewRenderer {
         final int rotatedHeight = rotation != 0 && rotation != 180 ? videoWidth : videoHeight;
         final Rational currentRational = this.aspectRatio;
         this.aspectRatio = new Rational(rotatedWidth, rotatedHeight);
-        Log.d(Config.LOGTAG,"onFrameResolutionChanged("+rotatedWidth+","+rotatedHeight+","+aspectRatio+")");
+        Log.d(
+                Config.LOGTAG,
+                "onFrameResolutionChanged("
+                        + rotatedWidth
+                        + ","
+                        + rotatedHeight
+                        + ","
+                        + aspectRatio
+                        + ")");
         if (currentRational.equals(this.aspectRatio) || onAspectRatioChanged == null) {
             return;
         }

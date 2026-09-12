@@ -1,16 +1,13 @@
 package eu.siacs.conversations.ui;
 
 import android.view.View;
-
 import com.google.android.material.chip.Chip;
 import com.google.android.material.chip.ChipGroup;
 import com.google.android.material.color.MaterialColors;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableSet;
-
 import eu.siacs.conversations.R;
 import eu.siacs.conversations.entities.Reaction;
-
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;

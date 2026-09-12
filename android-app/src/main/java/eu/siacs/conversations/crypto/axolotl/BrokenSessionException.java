@@ -9,7 +9,6 @@ public class BrokenSessionException extends CryptoFailedException {
     public BrokenSessionException(SignalProtocolAddress address, Exception e) {
         super(e);
         this.signalProtocolAddress = address;
-
     }
 
     public SignalProtocolAddress getSignalProtocolAddress() {

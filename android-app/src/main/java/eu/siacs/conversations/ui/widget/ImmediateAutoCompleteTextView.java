@@ -31,21 +31,20 @@ package eu.siacs.conversations.ui.widget;
 
 import android.content.Context;
 import android.util.AttributeSet;
-
 import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 
 public class ImmediateAutoCompleteTextView extends MaterialAutoCompleteTextView {
 
-	public ImmediateAutoCompleteTextView(Context context, AttributeSet attrs) {
-		super(context, attrs);
-	}
+    public ImmediateAutoCompleteTextView(Context context, AttributeSet attrs) {
+        super(context, attrs);
+    }
 
-	public ImmediateAutoCompleteTextView(Context context, AttributeSet attrs, int defStyleAttr) {
-		super(context, attrs, defStyleAttr);
-	}
+    public ImmediateAutoCompleteTextView(Context context, AttributeSet attrs, int defStyleAttr) {
+        super(context, attrs, defStyleAttr);
+    }
 
-	@Override
-	public boolean enoughToFilter() {
-		return true;
-	}
+    @Override
+    public boolean enoughToFilter() {
+        return true;
+    }
 }

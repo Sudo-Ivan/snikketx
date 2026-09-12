@@ -5,7 +5,6 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
 import com.google.common.io.BaseEncoding;
-
 import java.util.List;
 
 public class AsciiArmor {
@@ -30,5 +29,4 @@ public class AsciiArmor {
         }
         return BaseEncoding.base64().decode(withoutChecksum);
     }
-
 }

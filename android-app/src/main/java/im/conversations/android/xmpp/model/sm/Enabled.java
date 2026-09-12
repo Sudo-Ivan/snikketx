@@ -2,7 +2,6 @@ package im.conversations.android.xmpp.model.sm;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
-
 import im.conversations.android.annotation.XmlElement;
 import im.conversations.android.xmpp.model.StreamElement;
 

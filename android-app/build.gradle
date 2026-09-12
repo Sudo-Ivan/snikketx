@@ -29,7 +29,6 @@ configurations {
 }
 
 spotless {
-    ratchetFrom '2.17.4'
     java {
         target '**/*.java'
         googleJavaFormat().aosp().reflowLongStrings()
@@ -145,7 +144,7 @@ android {
 
         conversations {
             dimension "mode"
-            buildConfigField "String", "PRIVACY_POLICY", "\"https://snikket.org/app/privacy/\""
+            buildConfigField "String", "PRIVACY_POLICY", "\"https://github.com/Sudo-Ivan/snikketx/blob/main/android-app/PRIVACY.md\""
         }
 
         playstore {

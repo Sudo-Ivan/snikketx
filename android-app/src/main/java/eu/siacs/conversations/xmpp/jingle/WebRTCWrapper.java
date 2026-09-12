@@ -21,6 +21,7 @@ import eu.siacs.conversations.services.XmppConnectionService;
 import eu.siacs.conversations.xmpp.manager.JingleManager;
 import java.util.Collection;
 import java.util.LinkedList;
+import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -49,7 +50,6 @@ import org.webrtc.SessionDescription;
 import org.webrtc.VideoTrack;
 import org.webrtc.audio.JavaAudioDeviceModule;
 
-import java.util.Map;
 public class WebRTCWrapper {
 
     private static final String EXTENDED_LOGGING_TAG = WebRTCWrapper.class.getSimpleName();
@@ -59,9 +59,10 @@ public class WebRTCWrapper {
             Executors.newSingleThreadExecutor();
 
     private static final int TONE_DURATION = 200;
-    private static final Map<String,Integer> TONE_CODES;
+    private static final Map<String, Integer> TONE_CODES;
+
     static {
-        ImmutableMap.Builder<String,Integer> builder = new ImmutableMap.Builder<>();
+        ImmutableMap.Builder<String, Integer> builder = new ImmutableMap.Builder<>();
         builder.put("0", ToneGenerator.TONE_DTMF_0);
         builder.put("1", ToneGenerator.TONE_DTMF_1);
         builder.put("2", ToneGenerator.TONE_DTMF_2);
@@ -734,7 +735,7 @@ public class WebRTCWrapper {
         }
     }
 
-    //TODO: remove - hack to test dtmfSending
+    // TODO: remove - hack to test dtmfSending
     public DtmfSender getDtmfSender() {
         return peerConnection.getSenders().get(0).dtmf();
     }
@@ -746,7 +747,7 @@ public class WebRTCWrapper {
         localAudioTrack.rtpSender.dtmf().insertDtmf(tone, TONE_DURATION, 100);
         // FIXME: ToneManager has been removed upstream. Need to fix this code
         // to play the DTMF tone locally without ToneManager:
-        //toneManager.startTone(TONE_CODES.get(tone), TONE_DURATION);
+        // toneManager.startTone(TONE_CODES.get(tone), TONE_DURATION);
         return true;
     }
 

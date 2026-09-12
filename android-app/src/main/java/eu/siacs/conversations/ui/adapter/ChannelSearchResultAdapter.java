@@ -6,35 +6,35 @@ import android.view.ContextMenu;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-
 import androidx.annotation.NonNull;
 import androidx.databinding.DataBindingUtil;
 import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.ListAdapter;
 import androidx.recyclerview.widget.RecyclerView;
-
 import eu.siacs.conversations.R;
 import eu.siacs.conversations.databinding.ItemChannelDiscoveryBinding;
 import eu.siacs.conversations.entities.Room;
 import eu.siacs.conversations.ui.XmppActivity;
 import eu.siacs.conversations.ui.util.AvatarWorkerTask;
 import eu.siacs.conversations.xmpp.Jid;
-
 import java.util.Locale;
 
-public class ChannelSearchResultAdapter extends ListAdapter<Room, ChannelSearchResultAdapter.ViewHolder> implements View.OnCreateContextMenuListener {
+public class ChannelSearchResultAdapter
+        extends ListAdapter<Room, ChannelSearchResultAdapter.ViewHolder>
+        implements View.OnCreateContextMenuListener {
 
-    private static final DiffUtil.ItemCallback<Room> DIFF = new DiffUtil.ItemCallback<>() {
-        @Override
-        public boolean areItemsTheSame(@NonNull Room a, @NonNull Room b) {
-            return a.address != null && a.address.equals(b.address);
-        }
+    private static final DiffUtil.ItemCallback<Room> DIFF =
+            new DiffUtil.ItemCallback<>() {
+                @Override
+                public boolean areItemsTheSame(@NonNull Room a, @NonNull Room b) {
+                    return a.address != null && a.address.equals(b.address);
+                }
 
-        @Override
-        public boolean areContentsTheSame(@NonNull Room a, @NonNull Room b) {
-            return a.equals(b);
-        }
-    };
+                @Override
+                public boolean areContentsTheSame(@NonNull Room a, @NonNull Room b) {
+                    return a.equals(b);
+                }
+            };
     private OnChannelSearchResultSelected listener;
     private Room current;
 
@@ -45,7 +45,12 @@ public class ChannelSearchResultAdapter extends ListAdapter<Room, ChannelSearchR
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup viewGroup, int i) {
-        return new ViewHolder(DataBindingUtil.inflate(LayoutInflater.from(viewGroup.getContext()), R.layout.item_channel_discovery, viewGroup, false));
+        return new ViewHolder(
+                DataBindingUtil.inflate(
+                        LayoutInflater.from(viewGroup.getContext()),
+                        R.layout.item_channel_discovery,
+                        viewGroup,
+                        false));
     }
 
     @Override
@@ -84,7 +89,8 @@ public class ChannelSearchResultAdapter extends ListAdapter<Room, ChannelSearchR
     }
 
     @Override
-    public void onCreateContextMenu(ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
+    public void onCreateContextMenu(
+            ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
         final Activity activity = XmppActivity.find(v);
         final Object tag = v.getTag();
         if (activity != null && tag instanceof Room) {

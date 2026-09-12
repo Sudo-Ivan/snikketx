@@ -38,16 +38,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
-import org.webrtc.RendererCommon;
-import org.webrtc.SurfaceViewRenderer;
-import org.webrtc.VideoTrack;
-
-import java.lang.ref.WeakReference;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
-
 import eu.siacs.conversations.Config;
 import eu.siacs.conversations.R;
 import eu.siacs.conversations.databinding.ActivityRtpSessionBinding;
@@ -71,7 +61,6 @@ import eu.siacs.conversations.xmpp.jingle.OngoingRtpSession;
 import eu.siacs.conversations.xmpp.jingle.RtpCapability;
 import eu.siacs.conversations.xmpp.jingle.RtpEndUserState;
 import eu.siacs.conversations.xmpp.manager.JingleManager;
-
 import java.lang.ref.WeakReference;
 import java.util.Arrays;
 import java.util.Collections;
@@ -194,8 +183,8 @@ public class RtpSessionActivity extends XmppActivity
         setSupportActionBar(binding.toolbar);
         Activities.setStatusAndNavigationBarColors(this, binding.getRoot());
 
-        //TODO: remove this - for testing dialpad input
-        //((DialpadView)findViewById(R.id.action_dialpad)).
+        // TODO: remove this - for testing dialpad input
+        // ((DialpadView)findViewById(R.id.action_dialpad)).
 
         findViewById(R.id.dialpad_1_holder).setOnClickListener(view -> dialpadPressed(view));
         findViewById(R.id.dialpad_2_holder).setOnClickListener(view -> dialpadPressed(view));
@@ -215,8 +204,6 @@ public class RtpSessionActivity extends XmppActivity
             findViewById(R.id.dialpad).setVisibility(dialpad_visibility);
         }
     }
-
-
 
     private void dialpadPressed(View dialpadKeyHolderView) {
         JingleRtpConnection rtpConnection = requireRtpConnection();
@@ -287,9 +274,9 @@ public class RtpSessionActivity extends XmppActivity
     private boolean isAudioOnlyConversation() {
         final JingleRtpConnection connection =
                 this.rtpConnectionReference != null ? this.rtpConnectionReference.get() : null;
-        return connection != null &&
-                connection.getEndUserState() == RtpEndUserState.CONNECTED &&
-                !connection.isVideoEnabled();
+        return connection != null
+                && connection.getEndUserState() == RtpEndUserState.CONNECTED
+                && !connection.isVideoEnabled();
     }
 
     private void switchToConversation() {
@@ -303,8 +290,7 @@ public class RtpSessionActivity extends XmppActivity
     private void toggleDialpadVisibility() {
         if (binding.dialpad.getVisibility() == View.VISIBLE) {
             binding.dialpad.setVisibility(View.GONE);
-        }
-        else {
+        } else {
             binding.dialpad.setVisibility(View.VISIBLE);
         }
     }

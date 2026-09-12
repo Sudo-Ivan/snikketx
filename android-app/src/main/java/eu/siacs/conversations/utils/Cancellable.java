@@ -30,5 +30,5 @@
 package eu.siacs.conversations.utils;
 
 public interface Cancellable {
-	void cancel();
+    void cancel();
 }

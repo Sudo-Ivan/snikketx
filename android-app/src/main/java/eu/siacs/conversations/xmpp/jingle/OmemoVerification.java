@@ -2,10 +2,8 @@ package eu.siacs.conversations.xmpp.jingle;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
-
-import java.util.concurrent.atomic.AtomicBoolean;
-
 import eu.siacs.conversations.crypto.axolotl.AxolotlService;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class OmemoVerification {
 
@@ -52,7 +50,8 @@ public class OmemoVerification {
         Preconditions.checkNotNull(sessionFingerprint, "Session fingerprint must not be null");
         if (this.deviceIdWritten.get() || this.sessionFingerprintWritten.get()) {
             if (this.sessionFingerprint == null) {
-                throw new IllegalStateException("No session fingerprint has been previously provided");
+                throw new IllegalStateException(
+                        "No session fingerprint has been previously provided");
             }
             if (!sessionFingerprint.equals(this.sessionFingerprint)) {
                 throw new SecurityException("Session Fingerprints did not match");

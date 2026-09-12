@@ -1,10 +1,9 @@
 package eu.siacs.conversations.http.services;
 
+import eu.siacs.conversations.entities.Room;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
-
-import eu.siacs.conversations.entities.Room;
 import retrofit2.Call;
 import retrofit2.http.Body;
 import retrofit2.http.GET;
@@ -38,13 +37,10 @@ public interface MuclumbusService {
     class SearchResult {
 
         public Result result;
-
     }
 
     class Result {
 
         public List<Room> items;
-
     }
-
 }

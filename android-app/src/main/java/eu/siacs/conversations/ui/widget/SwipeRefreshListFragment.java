@@ -22,14 +22,13 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ListView;
-
 import androidx.fragment.app.ListFragment;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 /**
  * Subclass of {@link androidx.fragment.app.ListFragment} which provides automatic support for
- * providing the 'swipe-to-refresh' UX gesture by wrapping the the content view in a
- * {@link androidx.swiperefreshlayout.widget.SwipeRefreshLayout}.
+ * providing the 'swipe-to-refresh' UX gesture by wrapping the the content view in a {@link
+ * androidx.swiperefreshlayout.widget.SwipeRefreshLayout}.
  */
 public class SwipeRefreshListFragment extends ListFragment {
 
@@ -41,8 +40,8 @@ public class SwipeRefreshListFragment extends ListFragment {
     private SwipeRefreshLayout mSwipeRefreshLayout;
 
     @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                             Bundle savedInstanceState) {
+    public View onCreateView(
+            LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
 
         // Create the list fragment's content view by calling the super method
         final View listFragmentView = super.onCreateView(inflater, container, savedInstanceState);
@@ -55,7 +54,8 @@ public class SwipeRefreshListFragment extends ListFragment {
         final Context context = getActivity();
         if (context != null) {
             // TODO are default colors fine here?
-            //mSwipeRefreshLayout.setColorSchemeColors(StyledAttributes.getColor(context, androidx.appcompat.R.attr.colorAccent));
+            // mSwipeRefreshLayout.setColorSchemeColors(StyledAttributes.getColor(context,
+            // androidx.appcompat.R.attr.colorAccent));
         }
 
         if (onRefreshListener != null) {
@@ -64,14 +64,15 @@ public class SwipeRefreshListFragment extends ListFragment {
 
         // Add the list fragment's content view to the SwipeRefreshLayout, making sure that it fills
         // the SwipeRefreshLayout
-        mSwipeRefreshLayout.addView(listFragmentView,
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+        mSwipeRefreshLayout.addView(
+                listFragmentView,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT);
 
         // Make sure that the SwipeRefreshLayout will fill the fragment
         mSwipeRefreshLayout.setLayoutParams(
                 new ViewGroup.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.MATCH_PARENT));
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         // Now return the SwipeRefreshLayout as this fragment's content view
         return mSwipeRefreshLayout;
@@ -81,7 +82,8 @@ public class SwipeRefreshListFragment extends ListFragment {
      * Set the {@link androidx.core.widget.SwipeRefreshLayout.OnRefreshListener} to listen for
      * initiated refreshes.
      *
-     * @see androidx.core.widget.SwipeRefreshLayout#setOnRefreshListener(androidx.core.widget.SwipeRefreshLayout.OnRefreshListener)
+     * @see
+     *     androidx.core.widget.SwipeRefreshLayout#setOnRefreshListener(androidx.core.widget.SwipeRefreshLayout.OnRefreshListener)
      */
     public void setOnRefreshListener(SwipeRefreshLayout.OnRefreshListener listener) {
         onRefreshListener = listener;
@@ -93,8 +95,8 @@ public class SwipeRefreshListFragment extends ListFragment {
     }
 
     /**
-     * Set whether the {@link androidx.core.widget.SwipeRefreshLayout} should be displaying
-     * that it is refreshing or not.
+     * Set whether the {@link androidx.core.widget.SwipeRefreshLayout} should be displaying that it
+     * is refreshing or not.
      *
      * @see androidx.core.widget.SwipeRefreshLayout#setRefreshing(boolean)
      */
@@ -105,15 +107,13 @@ public class SwipeRefreshListFragment extends ListFragment {
         }
     }
 
-
     /**
-     * Sub-class of {@link androidx.core.widget.SwipeRefreshLayout} for use in this
-     * {@link androidx.core.app.ListFragment}. The reason that this is needed is because
-     * {@link androidx.core.widget.SwipeRefreshLayout} only supports a single child, which it
-     * expects to be the one which triggers refreshes. In our case the layout's child is the content
-     * view returned from
-     * {@link androidx.core.app.ListFragment#onCreateView(android.view.LayoutInflater, android.view.ViewGroup, android.os.Bundle)}
-     * which is a {@link android.view.ViewGroup}.
+     * Sub-class of {@link androidx.core.widget.SwipeRefreshLayout} for use in this {@link
+     * androidx.core.app.ListFragment}. The reason that this is needed is because {@link
+     * androidx.core.widget.SwipeRefreshLayout} only supports a single child, which it expects to be
+     * the one which triggers refreshes. In our case the layout's child is the content view returned
+     * from {@link androidx.core.app.ListFragment#onCreateView(android.view.LayoutInflater,
+     * android.view.ViewGroup, android.os.Bundle)} which is a {@link android.view.ViewGroup}.
      *
      * <p>To enable 'swipe-to-refresh' support via the {@link android.widget.ListView} we need to
      * override the default behavior and properly signal when a gesture is possible. This is done by
@@ -140,7 +140,5 @@ public class SwipeRefreshListFragment extends ListFragment {
                 return false;
             }
         }
-
     }
-
 }

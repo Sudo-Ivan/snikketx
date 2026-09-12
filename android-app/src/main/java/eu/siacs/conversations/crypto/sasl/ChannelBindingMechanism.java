@@ -1,18 +1,16 @@
 package eu.siacs.conversations.crypto.sasl;
 
-import org.bouncycastle.jcajce.provider.digest.SHA256;
-import org.conscrypt.Conscrypt;
-
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
-
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
+import org.bouncycastle.jcajce.provider.digest.SHA256;
+import org.conscrypt.Conscrypt;
 
 public interface ChannelBindingMechanism {
 

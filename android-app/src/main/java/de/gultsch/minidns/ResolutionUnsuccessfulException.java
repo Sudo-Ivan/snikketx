@@ -10,19 +10,15 @@
  */
 package de.gultsch.minidns;
 
-import org.minidns.MiniDnsException;
-import org.minidns.dnsmessage.Question;
-import org.minidns.dnsmessage.DnsMessage.RESPONSE_CODE;
-
 import java.io.Serial;
+import org.minidns.MiniDnsException;
+import org.minidns.dnsmessage.DnsMessage.RESPONSE_CODE;
+import org.minidns.dnsmessage.Question;
 
 public class ResolutionUnsuccessfulException extends MiniDnsException {
 
-    /**
-     * 
-     */
-    @Serial
-    private static final long serialVersionUID = 1L;
+    /** */
+    @Serial private static final long serialVersionUID = 1L;
 
     public final Question question;
     public final RESPONSE_CODE responseCode;

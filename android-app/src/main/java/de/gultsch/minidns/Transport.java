@@ -1,7 +1,6 @@
 package de.gultsch.minidns;
 
 import com.google.common.collect.ImmutableMap;
-
 import java.util.Map;
 
 public enum Transport {

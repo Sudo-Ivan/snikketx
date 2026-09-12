@@ -8,10 +8,8 @@ import android.graphics.Paint;
 import android.graphics.Typeface;
 import android.util.AttributeSet;
 import android.view.View;
-
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
-
 import eu.siacs.conversations.R;
 
 public class UnreadCountCustomView extends View {
@@ -40,8 +38,15 @@ public class UnreadCountCustomView extends View {
 
     private void initXMLAttrs(Context context, AttributeSet attrs) {
         TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.UnreadCountCustomView);
-        setBackgroundColor(a.getColor(a.getIndex(0), ContextCompat.getColor(context, R.color.md_theme_light_tertiaryContainer)));
-        this.textColor = a.getColor(a.getIndex(1),ContextCompat.getColor(context, R.color.md_theme_light_onTertiaryContainer));
+        setBackgroundColor(
+                a.getColor(
+                        a.getIndex(0),
+                        ContextCompat.getColor(context, R.color.md_theme_light_tertiaryContainer)));
+        this.textColor =
+                a.getColor(
+                        a.getIndex(1),
+                        ContextCompat.getColor(
+                                context, R.color.md_theme_light_onTertiaryContainer));
         a.recycle();
     }
 
@@ -65,8 +70,11 @@ public class UnreadCountCustomView extends View {
         float textOffset = canvas.getWidth() / 6.0f;
         textPaint.setTextSize(0.95f * radius);
         canvas.drawCircle(midx, midy, radius * 0.94f, paint);
-        canvas.drawText(unreadCount > 999 ? "\u221E" : String.valueOf(unreadCount), midx, midy + textOffset, textPaint);
-
+        canvas.drawText(
+                unreadCount > 999 ? "\u221E" : String.valueOf(unreadCount),
+                midx,
+                midy + textOffset,
+                textPaint);
     }
 
     public void setUnreadCount(int unreadCount) {

@@ -31,7 +31,6 @@ package eu.siacs.conversations.utils;
 
 import android.os.PowerManager;
 import android.util.Log;
-
 import eu.siacs.conversations.Config;
 
 public class WakeLockHelper {

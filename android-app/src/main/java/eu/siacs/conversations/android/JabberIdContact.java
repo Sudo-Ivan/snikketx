@@ -7,11 +7,9 @@ import android.database.Cursor;
 import android.os.Build;
 import android.provider.ContactsContract;
 import android.util.Log;
-
 import eu.siacs.conversations.Config;
 import eu.siacs.conversations.services.QuickConversationsService;
 import eu.siacs.conversations.xmpp.Jid;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;

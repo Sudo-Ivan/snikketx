@@ -6,7 +6,6 @@ import im.conversations.android.xmpp.model.Extension;
 @XmlElement
 public class Status extends Extension {
 
-
     public Status() {
         super(Status.class);
     }

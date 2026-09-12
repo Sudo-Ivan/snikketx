@@ -1,8 +1,7 @@
 package eu.siacs.conversations.crypto.sasl;
 
-import javax.net.ssl.SSLSocket;
-
 import eu.siacs.conversations.entities.Account;
+import javax.net.ssl.SSLSocket;
 
 public abstract class ScramPlusMechanism extends ScramMechanism implements ChannelBindingMechanism {
 

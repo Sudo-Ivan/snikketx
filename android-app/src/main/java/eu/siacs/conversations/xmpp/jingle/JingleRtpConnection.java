@@ -57,7 +57,6 @@ import im.conversations.android.xmpp.model.jmi.Propose;
 import im.conversations.android.xmpp.model.jmi.Reject;
 import im.conversations.android.xmpp.model.jmi.Retract;
 import im.conversations.android.xmpp.model.stanza.Iq;
-import org.webrtc.DtmfSender;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -180,11 +179,10 @@ public class JingleRtpConnection extends AbstractJingleConnection
         }
     }
 
-    //FIXME: possible implementation
+    // FIXME: possible implementation
     public boolean applyDtmfTone(String tone) {
         return webRTCWrapper.applyDtmfTone(tone);
     }
-
 
     private void receiveSessionTerminate(final Iq jinglePacket) {
         respondOk(jinglePacket);

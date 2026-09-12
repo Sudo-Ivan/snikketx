@@ -34,6 +34,6 @@ import androidx.annotation.StringRes;
 public interface OnAvatarPublication {
 
     void onAvatarPublicationSucceeded();
-    void onAvatarPublicationFailed(@StringRes int res);
 
+    void onAvatarPublicationFailed(@StringRes int res);
 }

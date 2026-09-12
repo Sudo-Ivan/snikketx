@@ -2,12 +2,9 @@ package eu.siacs.conversations.utils;
 
 import android.content.Context;
 import android.util.Log;
-
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.common.base.Charsets;
-import com.google.common.io.CharSink;
 import com.google.common.io.Files;
-
 import eu.siacs.conversations.AppSettings;
 import eu.siacs.conversations.Config;
 import eu.siacs.conversations.R;
@@ -16,12 +13,8 @@ import eu.siacs.conversations.entities.Conversation;
 import eu.siacs.conversations.entities.Message;
 import eu.siacs.conversations.services.XmppConnectionService;
 import eu.siacs.conversations.ui.XmppActivity;
-
 import java.io.File;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.text.SimpleDateFormat;
-import java.util.Locale;
 
 public class ExceptionHelper {
 

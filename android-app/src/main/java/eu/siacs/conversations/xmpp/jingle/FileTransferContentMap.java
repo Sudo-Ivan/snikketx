@@ -3,7 +3,6 @@ package eu.siacs.conversations.xmpp.jingle;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
-
 import eu.siacs.conversations.xml.Element;
 import eu.siacs.conversations.xml.Namespace;
 import eu.siacs.conversations.xmpp.jingle.stanzas.Content;
@@ -17,7 +16,6 @@ import eu.siacs.conversations.xmpp.jingle.stanzas.SocksByteStreamsTransportInfo;
 import eu.siacs.conversations.xmpp.jingle.stanzas.WebRTCDataChannelTransportInfo;
 import eu.siacs.conversations.xmpp.jingle.transports.Transport;
 import im.conversations.android.xmpp.model.jingle.Jingle;
-
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -33,7 +31,8 @@ public class FileTransferContentMap
                     WebRTCDataChannelTransportInfo.class);
 
     protected FileTransferContentMap(
-            final Group group, final Map<String, DescriptionTransport<FileTransferDescription, GenericTransportInfo>>
+            final Group group,
+            final Map<String, DescriptionTransport<FileTransferDescription, GenericTransportInfo>>
                     contents) {
         super(group, contents);
     }
@@ -71,10 +70,12 @@ public class FileTransferContentMap
     }
 
     public static FileTransferContentMap of(
-            final FileTransferDescription.File file, final Transport.InitialTransportInfo initialTransportInfo) {
+            final FileTransferDescription.File file,
+            final Transport.InitialTransportInfo initialTransportInfo) {
         // TODO copy groups
         final var transportInfo = initialTransportInfo.transportInfo;
-        return new FileTransferContentMap(initialTransportInfo.group,
+        return new FileTransferContentMap(
+                initialTransportInfo.group,
                 Map.of(
                         initialTransportInfo.contentName,
                         new DescriptionTransport<>(
@@ -110,7 +111,8 @@ public class FileTransferContentMap
 
     public FileTransferContentMap withTransport(final Transport.TransportInfo transportWrapper) {
         final var transportInfo = transportWrapper.transportInfo;
-        return new FileTransferContentMap(transportWrapper.group,
+        return new FileTransferContentMap(
+                transportWrapper.group,
                 ImmutableMap.copyOf(
                         Maps.transformValues(
                                 contents,
@@ -124,7 +126,8 @@ public class FileTransferContentMap
     }
 
     public FileTransferContentMap candidateUsed(final String streamId, final String cid) {
-        return new FileTransferContentMap(null,
+        return new FileTransferContentMap(
+                null,
                 ImmutableMap.copyOf(
                         Maps.transformValues(
                                 contents,
@@ -146,7 +149,8 @@ public class FileTransferContentMap
     }
 
     public FileTransferContentMap candidateError(final String streamId) {
-        return new FileTransferContentMap(null,
+        return new FileTransferContentMap(
+                null,
                 ImmutableMap.copyOf(
                         Maps.transformValues(
                                 contents,
@@ -165,7 +169,8 @@ public class FileTransferContentMap
     }
 
     public FileTransferContentMap proxyActivated(final String streamId, final String cid) {
-        return new FileTransferContentMap(null,
+        return new FileTransferContentMap(
+                null,
                 ImmutableMap.copyOf(
                         Maps.transformValues(
                                 contents,
@@ -186,7 +191,8 @@ public class FileTransferContentMap
     }
 
     FileTransferContentMap transportInfo() {
-        return new FileTransferContentMap(this.group,
+        return new FileTransferContentMap(
+                this.group,
                 Maps.transformValues(
                         contents,
                         dt -> new DescriptionTransport<>(dt.senders, null, dt.transport)));
@@ -194,14 +200,15 @@ public class FileTransferContentMap
 
     FileTransferContentMap transportInfo(
             final String contentName, final IceUdpTransportInfo.Candidate candidate) {
-        final DescriptionTransport<FileTransferDescription, GenericTransportInfo> descriptionTransport =
-                contents.get(contentName);
+        final DescriptionTransport<FileTransferDescription, GenericTransportInfo>
+                descriptionTransport = contents.get(contentName);
         if (descriptionTransport == null) {
             throw new IllegalArgumentException(
                     "Unable to find transport info for content name " + contentName);
         }
         final WebRTCDataChannelTransportInfo transportInfo;
-        if (descriptionTransport.transport instanceof WebRTCDataChannelTransportInfo webRTCDataChannelTransportInfo) {
+        if (descriptionTransport.transport
+                instanceof WebRTCDataChannelTransportInfo webRTCDataChannelTransportInfo) {
             transportInfo = webRTCDataChannelTransportInfo;
         } else {
             throw new IllegalStateException("TransportInfo is not WebRTCDataChannel");

@@ -1,7 +1,6 @@
 package eu.siacs.conversations.utils;
 
 import android.content.Context;
-
 import eu.siacs.conversations.xmpp.Jid;
 
 public class PhoneNumberUtilWrapper {

@@ -1,7 +1,6 @@
 package eu.siacs.conversations.ui;
 
 import android.view.MenuItem;
-
 import androidx.appcompat.app.ActionBar;
 
 public abstract class ActionBarActivity extends BaseActivity {

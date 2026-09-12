@@ -1,9 +1,7 @@
 package eu.siacs.conversations.xmpp.jingle.stanzas;
 
 import android.util.Log;
-
 import androidx.annotation.NonNull;
-
 import com.google.common.base.CaseFormat;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
@@ -11,12 +9,10 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.BaseEncoding;
 import com.google.common.primitives.Longs;
-
 import eu.siacs.conversations.Config;
 import eu.siacs.conversations.xml.Element;
 import eu.siacs.conversations.xml.Namespace;
 import im.conversations.android.xmpp.model.jingle.Jingle;
-
 import java.util.List;
 
 public class FileTransferDescription extends GenericDescription {
@@ -39,7 +35,7 @@ public class FileTransferDescription extends GenericDescription {
     public File getFile() {
         final Element fileElement = this.findChild("file", Namespace.JINGLE_APPS_FILE_TRANSFER);
         if (fileElement == null) {
-            Log.d(Config.LOGTAG,"no file? "+this);
+            Log.d(Config.LOGTAG, "no file? " + this);
             throw new IllegalStateException("file transfer description has no file");
         }
         final String name = fileElement.findChildContent("name");

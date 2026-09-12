@@ -1,21 +1,17 @@
 package eu.siacs.conversations.http;
 
 import java.util.regex.Pattern;
-
 import okhttp3.HttpUrl;
 
 public final class AesGcmURL {
 
-    /**
-     * This matches a 48 or 44 byte IV + KEY hex combo, like used in http/aesgcm upload anchors
-     */
-    public static final Pattern IV_KEY = Pattern.compile("([A-Fa-f0-9]{2}){48}|([A-Fa-f0-9]{2}){44}");
+    /** This matches a 48 or 44 byte IV + KEY hex combo, like used in http/aesgcm upload anchors */
+    public static final Pattern IV_KEY =
+            Pattern.compile("([A-Fa-f0-9]{2}){48}|([A-Fa-f0-9]{2}){44}");
 
     public static final String PROTOCOL_NAME = "aesgcm";
 
-    private AesGcmURL() {
-
-    }
+    private AesGcmURL() {}
 
     public static String toAesGcmUrl(HttpUrl url) {
         if (url.isHttps()) {
@@ -37,5 +33,4 @@ public final class AesGcmURL {
             return HttpUrl.get(url);
         }
     }
-
 }

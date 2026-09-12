@@ -3,7 +3,6 @@ package eu.siacs.conversations.xmpp.jingle.stanzas;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.primitives.Longs;
-
 import eu.siacs.conversations.xml.Element;
 import eu.siacs.conversations.xml.Namespace;
 
@@ -31,9 +30,13 @@ public class IbbTransportInfo extends GenericTransportInfo {
     }
 
     public static IbbTransportInfo upgrade(final Element element) {
-        Preconditions.checkArgument("transport".equals(element.getName()), "Name of provided element is not transport");
-        Preconditions.checkArgument(Namespace.JINGLE_TRANSPORTS_IBB.equals(element.getNamespace()), "Element does not match ibb transport namespace");
-        final IbbTransportInfo transportInfo = new IbbTransportInfo("transport", Namespace.JINGLE_TRANSPORTS_IBB);
+        Preconditions.checkArgument(
+                "transport".equals(element.getName()), "Name of provided element is not transport");
+        Preconditions.checkArgument(
+                Namespace.JINGLE_TRANSPORTS_IBB.equals(element.getNamespace()),
+                "Element does not match ibb transport namespace");
+        final IbbTransportInfo transportInfo =
+                new IbbTransportInfo("transport", Namespace.JINGLE_TRANSPORTS_IBB);
         transportInfo.setAttributes(element.getAttributes());
         transportInfo.setChildren(element.getChildren());
         return transportInfo;
