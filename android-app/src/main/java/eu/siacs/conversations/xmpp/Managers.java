@@ -32,6 +32,7 @@ import eu.siacs.conversations.xmpp.manager.NickManager;
 import eu.siacs.conversations.xmpp.manager.OfflineMessagesManager;
 import eu.siacs.conversations.xmpp.manager.PepManager;
 import eu.siacs.conversations.xmpp.manager.PingManager;
+import eu.siacs.conversations.xmpp.manager.PinnedMessagesManager;
 import eu.siacs.conversations.xmpp.manager.PresenceManager;
 import eu.siacs.conversations.xmpp.manager.PrivateStorageManager;
 import eu.siacs.conversations.xmpp.manager.PubSubManager;
@@ -87,6 +88,7 @@ public class Managers {
                 .put(OfflineMessagesManager.class, new OfflineMessagesManager(context, connection))
                 .put(PepManager.class, new PepManager(context, connection))
                 .put(PingManager.class, new PingManager(context, connection))
+                .put(PinnedMessagesManager.class, new PinnedMessagesManager(context, connection))
                 .put(PresenceManager.class, new PresenceManager(context, connection))
                 .put(PrivateStorageManager.class, new PrivateStorageManager(context, connection))
                 .put(PubSubManager.class, new PubSubManager(context, connection))
