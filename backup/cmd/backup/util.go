@@ -64,32 +64,32 @@ func readTrimmed(path string) string {
 }
 
 func normalizeSettings(s settings) settings {
-	if s.IntervalHours < 1 {
-		s.IntervalHours = 1
+	if s.IntervalHours < minIntervalHours {
+		s.IntervalHours = minIntervalHours
 	}
-	if s.IntervalHours > 168 {
-		s.IntervalHours = 168
+	if s.IntervalHours > maxIntervalHours {
+		s.IntervalHours = maxIntervalHours
 	}
-	if s.Scope != "data-only" {
-		s.Scope = "full"
+	if s.Scope != scopeDataOnly {
+		s.Scope = scopeFull
 	}
-	if s.KeepCount < 1 {
-		s.KeepCount = 1
+	if s.KeepCount < minKeepCount {
+		s.KeepCount = minKeepCount
 	}
-	if s.KeepCount > 365 {
-		s.KeepCount = 365
+	if s.KeepCount > maxKeepCount {
+		s.KeepCount = maxKeepCount
 	}
-	if s.KeepDays < 1 {
-		s.KeepDays = 1
+	if s.KeepDays < minKeepDays {
+		s.KeepDays = minKeepDays
 	}
-	if s.KeepDays > 3650 {
-		s.KeepDays = 3650
+	if s.KeepDays > maxKeepDays {
+		s.KeepDays = maxKeepDays
 	}
-	if s.ResticKeepLast < 1 {
-		s.ResticKeepLast = 1
+	if s.ResticKeepLast < minResticKeepLast {
+		s.ResticKeepLast = minResticKeepLast
 	}
-	if s.ResticKeepDaily < 0 {
-		s.ResticKeepDaily = 0
+	if s.ResticKeepDaily < minResticKeepDaily {
+		s.ResticKeepDaily = minResticKeepDaily
 	}
 	return s
 }

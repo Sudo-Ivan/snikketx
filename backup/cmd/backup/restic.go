@@ -11,17 +11,17 @@ import (
 func (s *server) resticEnv() []string {
 	env := os.Environ()
 	if s.resticRepo != "" {
-		env = append(env, "RESTIC_REPOSITORY="+s.resticRepo)
+		env = append(env, envResticRepo+"="+s.resticRepo)
 	}
 	if s.resticPass != "" {
-		env = append(env, "RESTIC_PASSWORD="+s.resticPass)
+		env = append(env, envResticPass+"="+s.resticPass)
 	}
 	return env
 }
 
 func (s *server) resticCheck(ctx context.Context) (string, error) {
 	if s.resticRepo == "" {
-		return "", fmt.Errorf("RESTIC_REPOSITORY is not set")
+		return "", fmt.Errorf("%s is not set", envResticRepo)
 	}
 	cmd := exec.CommandContext(ctx, s.resticBin, "snapshots", "--json")
 	cmd.Env = s.resticEnv()
@@ -31,10 +31,10 @@ func (s *server) resticCheck(ctx context.Context) (string, error) {
 
 func (s *server) resticBackup(ctx context.Context, archiveDir string) error {
 	if s.resticRepo == "" {
-		return fmt.Errorf("RESTIC_REPOSITORY is not set")
+		return fmt.Errorf("%s is not set", envResticRepo)
 	}
 	if s.resticPass == "" {
-		return fmt.Errorf("RESTIC_PASSWORD or RESTIC_PASSWORD_FILE is required")
+		return fmt.Errorf("%s or %s is required", envResticPass, envResticPassFile)
 	}
 	// Ensure repo exists.
 	initCmd := exec.CommandContext(ctx, s.resticBin, "init")

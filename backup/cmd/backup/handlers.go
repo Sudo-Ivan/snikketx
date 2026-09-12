@@ -116,8 +116,8 @@ func (s *server) snapshot() statusResponse {
 		ArchiveCount:          len(archives),
 		RecentArchives:        archives,
 	}
-	if len(resp.RecentArchives) > 5 {
-		resp.RecentArchives = resp.RecentArchives[:5]
+	if len(resp.RecentArchives) > recentArchivesMax {
+		resp.RecentArchives = resp.RecentArchives[:recentArchivesMax]
 	}
 	if !s.lastBackup.IsZero() {
 		resp.LastBackup = s.lastBackup.UTC().Format(time.RFC3339)

@@ -2,48 +2,51 @@ package main
 
 import (
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 )
 
 func main() {
-	addr := envOr("SNIKKET_BACKUP_LISTEN", "0.0.0.0:9292")
-	token := strings.TrimSpace(os.Getenv("SNIKKET_BACKUP_TOKEN"))
+	addr := envOr(envListenAddr, defaultListenAddr)
+	token := strings.TrimSpace(os.Getenv(envToken))
 	if token == "" {
-		token = "snikket-backup-local"
-		log.Printf("SNIKKET_BACKUP_TOKEN unset, using built-in local default")
+		token = defaultToken
+		log.Printf("%s unset, using built-in local default", envToken)
 	}
-	stateDir := envOr("SNIKKET_BACKUP_STATE_DIR", "/var/lib/snikket-backup")
-	archiveDir := envOr("SNIKKET_BACKUP_ARCHIVE_DIR", filepath.Join(stateDir, "archives"))
-	if err := os.MkdirAll(archiveDir, 0o750); err != nil {
+	if token == defaultToken {
+		slog.Warn(envToken + " is the well-known default; set a random token in .env")
+	}
+	stateDir := envOr(envStateDir, defaultStateDir)
+	archiveDir := envOr(envArchiveDir, filepath.Join(stateDir, archivesDirName))
+	if err := os.MkdirAll(archiveDir, dirMode); err != nil {
 		log.Fatal(err)
 	}
-	if err := os.MkdirAll(stateDir, 0o750); err != nil {
+	if err := os.MkdirAll(stateDir, dirMode); err != nil {
 		log.Fatal(err)
 	}
 
 	s := &server{
 		token:        token,
 		tokenBytes:   []byte(token),
-		composeDir:   envOr("SNIKKET_BACKUP_COMPOSE_DIR", "/work"),
+		composeDir:   envOr(envComposeDir, defaultComposeDir),
 		archiveDir:   archiveDir,
-		statePath:    filepath.Join(stateDir, "state.json"),
-		settingsPath: filepath.Join(stateDir, "settings.json"),
-		alpineImage:  envOr("SNIKKET_BACKUP_ALPINE_IMAGE", "alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b"),
-		resticBin:    envOr("SNIKKET_BACKUP_RESTIC_BIN", "restic"),
-		resticRepo:   strings.TrimSpace(os.Getenv("RESTIC_REPOSITORY")),
-		resticPass:   strings.TrimSpace(firstNonEmpty(os.Getenv("RESTIC_PASSWORD"), readTrimmed(os.Getenv("RESTIC_PASSWORD_FILE")))),
+		statePath:    filepath.Join(stateDir, stateFileName),
+		settingsPath: filepath.Join(stateDir, settingsFileName),
+		alpineImage:  envOr(envAlpineImage, defaultAlpineImage),
+		resticBin:    envOr(envResticBin, defaultResticBin),
+		resticRepo:   strings.TrimSpace(os.Getenv(envResticRepo)),
+		resticPass:   strings.TrimSpace(firstNonEmpty(os.Getenv(envResticPass), readTrimmed(os.Getenv(envResticPassFile)))),
 		settings: settings{
 			Enabled:         false,
-			IntervalHours:   24,
-			Scope:           "full",
-			KeepCount:       7,
-			KeepDays:        30,
-			ResticKeepLast:  7,
-			ResticKeepDaily: 14,
+			IntervalHours:   defaultIntervalHours,
+			Scope:           defaultScope,
+			KeepCount:       defaultKeepCount,
+			KeepDays:        defaultKeepDays,
+			ResticKeepLast:  defaultResticKeepLast,
+			ResticKeepDaily: defaultResticKeepDaily,
 		},
 	}
 	s.loadSettings()
@@ -68,11 +71,11 @@ func main() {
 	srv := &http.Server{
 		Addr:              addr,
 		Handler:           mux,
-		ReadHeaderTimeout: 10 * time.Second,
-		ReadTimeout:       30 * time.Second,
-		WriteTimeout:      10 * time.Minute,
-		IdleTimeout:       90 * time.Second,
-		MaxHeaderBytes:    16 << 10,
+		ReadHeaderTimeout: httpReadHeaderTimeout,
+		ReadTimeout:       httpReadTimeout,
+		WriteTimeout:      httpWriteTimeout,
+		IdleTimeout:       httpIdleTimeout,
+		MaxHeaderBytes:    httpMaxHeaderBytes,
 	}
 	log.Printf("snikket backup listening on %s archives=%s", addr, s.archiveDir)
 	log.Fatal(srv.ListenAndServe())

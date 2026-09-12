@@ -22,36 +22,36 @@ func (s *server) createBackup(ctx context.Context) (string, error) {
 		return "", err
 	}
 
-	stamp := time.Now().UTC().Format("2006-01-02-150405")
-	out := filepath.Join(s.archiveDir, "snikketx-backup-"+stamp)
-	if err := os.MkdirAll(out, 0o750); err != nil {
+	stamp := time.Now().UTC().Format(archiveStampFormat)
+	out := filepath.Join(s.archiveDir, archivePrefix+stamp)
+	if err := os.MkdirAll(out, dirMode); err != nil {
 		return "", err
 	}
 
-	dataName := "snikket-data-" + stamp + ".tar.gz"
-	s.logf("archiving /snikket")
+	dataName := dataArchivePrefix + stamp + ".tar.gz"
+	s.logf("archiving %s", snikketDataPath)
 	if err := s.dockerRun(ctx,
-		"--volumes-from=snikket",
-		"-v", out+":/backup",
+		"--volumes-from="+snikketContainer,
+		"-v", out+":"+helperBackupMount,
 		s.alpineImage,
-		"tar", "czf", "/backup/"+dataName, "/snikket",
+		"tar", "czf", helperBackupMount+"/"+dataName, snikketDataPath,
 	); err != nil {
 		return "", fmt.Errorf("prosody data: %w", err)
 	}
 
-	_ = s.copyIfExists(filepath.Join(s.composeDir, "snikket.conf"), filepath.Join(out, "snikket.conf"))
-	_ = s.copyIfExists(filepath.Join(s.composeDir, ".env"), filepath.Join(out, "env"))
+	_ = s.copyIfExists(filepath.Join(s.composeDir, snikketConfFileName), filepath.Join(out, snikketConfFileName))
+	_ = s.copyIfExists(filepath.Join(s.composeDir, envFileName), filepath.Join(out, envArchiveFileName))
 
-	if scope == "full" {
+	if scope == scopeFull {
 		vols := []struct{ vol, label string }{
-			{"snikketx_portal_data", "portal-data"},
-			{"snikketx_ravenguard_data", "ravenguard-data"},
-			{"snikketx_updater_data", "updater-data"},
-			{"snikketx_backup_data", "backup-data"},
-			{"snikket_portal_data", "portal-data-classic"},
+			{volPortalData, labelPortalData},
+			{volRavenguardData, labelRavenguardData},
+			{volUpdaterData, labelUpdaterData},
+			{volBackupData, labelBackupData},
+			{volPortalClassic, labelPortalClassic},
 		}
 		if includeACME {
-			vols = append(vols, struct{ vol, label string }{"snikketx_acme_challenges", "acme-challenges"})
+			vols = append(vols, struct{ vol, label string }{volACMEChallenges, labelACMEChallenges})
 		}
 		for _, v := range vols {
 			if !s.volumeExists(v.vol) {
@@ -59,19 +59,19 @@ func (s *server) createBackup(ctx context.Context) (string, error) {
 			}
 			s.logf("archiving volume %s", v.vol)
 			if err := s.dockerRun(ctx,
-				"-v", v.vol+":/data:ro",
-				"-v", out+":/backup",
+				"-v", v.vol+":"+helperDataMount+":ro",
+				"-v", out+":"+helperBackupMount,
 				s.alpineImage,
-				"tar", "czf", "/backup/"+v.label+"-"+stamp+".tar.gz", "-C", "/", "data",
+				"tar", "czf", helperBackupMount+"/"+v.label+"-"+stamp+".tar.gz", "-C", "/", "data",
 			); err != nil {
 				return "", fmt.Errorf("volume %s: %w", v.vol, err)
 			}
 		}
 	}
 
-	mode := "classic"
-	if s.volumeExists("snikketx_portal_data") || s.volumeExists("snikketx_ravenguard_data") {
-		mode = "snikketx"
+	mode := modeClassic
+	if s.volumeExists(volPortalData) || s.volumeExists(volRavenguardData) {
+		mode = modeSnikketX
 	}
 	entries, _ := os.ReadDir(out)
 	names := make([]string, 0, len(entries))
@@ -80,17 +80,17 @@ func (s *server) createBackup(ctx context.Context) (string, error) {
 	}
 	sort.Strings(names)
 	manifest := fmt.Sprintf("SnikketX backup %s\nmode=%s\nfull=%v\ncreated=%s\ncontents:\n%s\n",
-		stamp, mode, scope == "full", time.Now().UTC().Format(time.RFC3339), strings.Join(names, "\n"))
-	if err := os.WriteFile(filepath.Join(out, "MANIFEST.txt"), []byte(manifest), 0o600); err != nil {
+		stamp, mode, scope == scopeFull, time.Now().UTC().Format(time.RFC3339), strings.Join(names, "\n"))
+	if err := os.WriteFile(filepath.Join(out, manifestFileName), []byte(manifest), fileMode); err != nil {
 		return "", err
 	}
 	return out, nil
 }
 
 func (s *server) requireSnikket() error {
-	cmd := exec.Command("docker", "container", "inspect", "snikket")
+	cmd := exec.Command("docker", "container", "inspect", snikketContainer)
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("container snikket not found")
+		return fmt.Errorf("container %s not found", snikketContainer)
 	}
 	return nil
 }
@@ -119,7 +119,7 @@ func (s *server) copyIfExists(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(dst, data, 0o600)
+	return os.WriteFile(dst, data, fileMode)
 }
 
 func (s *server) listArchives() []archiveInfo {
@@ -135,7 +135,7 @@ func (s *server) listArchivesLocked() []archiveInfo {
 	}
 	out := make([]archiveInfo, 0)
 	for _, e := range entries {
-		if !e.IsDir() || !strings.HasPrefix(e.Name(), "snikketx-backup-") {
+		if !e.IsDir() || !strings.HasPrefix(e.Name(), archivePrefix) {
 			continue
 		}
 		path := filepath.Join(s.archiveDir, e.Name())
@@ -144,8 +144,8 @@ func (s *server) listArchivesLocked() []archiveInfo {
 			info.Created = st.ModTime().UTC().Format(time.RFC3339)
 		}
 		info.SizeBytes = dirSize(path)
-		info.HasData = hasPrefixFile(path, "snikket-data-")
-		info.HasFull = hasPrefixFile(path, "portal-data-") || hasPrefixFile(path, "ravenguard-data-")
+		info.HasData = hasPrefixFile(path, dataArchivePrefix)
+		info.HasFull = hasPrefixFile(path, labelPortalData+"-") || hasPrefixFile(path, labelRavenguardData+"-")
 		out = append(out, info)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name > out[j].Name })
@@ -193,19 +193,19 @@ func (s *server) dryRunRestore(archiveDir string) dryRunResult {
 		res.Files = append(res.Files, e.Name())
 	}
 	sort.Strings(res.Files)
-	if !hasPrefixFile(archiveDir, "snikket-data-") {
-		res.Messages = append(res.Messages, "missing snikket-data-*.tar.gz")
+	if !hasPrefixFile(archiveDir, dataArchivePrefix) {
+		res.Messages = append(res.Messages, "missing "+dataArchivePrefix+"*.tar.gz")
 		return res
 	}
 	res.Messages = append(res.Messages, "Prosody data archive present")
-	if hasPrefixFile(archiveDir, "portal-data-") {
-		res.Messages = append(res.Messages, "portal-data archive present (use --full to restore)")
+	if hasPrefixFile(archiveDir, labelPortalData+"-") {
+		res.Messages = append(res.Messages, labelPortalData+" archive present (use --full to restore)")
 	}
-	if hasPrefixFile(archiveDir, "ravenguard-data-") {
-		res.Messages = append(res.Messages, "ravenguard-data archive present (use --full to restore)")
+	if hasPrefixFile(archiveDir, labelRavenguardData+"-") {
+		res.Messages = append(res.Messages, labelRavenguardData+" archive present (use --full to restore)")
 	}
-	if hasPrefixFile(archiveDir, "updater-data-") {
-		res.Messages = append(res.Messages, "updater-data archive present (use --full to restore)")
+	if hasPrefixFile(archiveDir, labelUpdaterData+"-") {
+		res.Messages = append(res.Messages, labelUpdaterData+" archive present (use --full to restore)")
 	}
 	res.Messages = append(res.Messages, "dry-run only: no volumes were modified")
 	res.OK = true
@@ -243,7 +243,7 @@ func (s *server) saveState() error {
 		return err
 	}
 	tmp := s.statePath + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o600); err != nil {
+	if err := os.WriteFile(tmp, data, fileMode); err != nil {
 		return err
 	}
 	return os.Rename(tmp, s.statePath)
@@ -272,7 +272,7 @@ func (s *server) saveSettings(next settings) error {
 		return err
 	}
 	tmp := s.settingsPath + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o600); err != nil {
+	if err := os.WriteFile(tmp, data, fileMode); err != nil {
 		return err
 	}
 	if err := os.Rename(tmp, s.settingsPath); err != nil {

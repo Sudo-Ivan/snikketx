@@ -53,7 +53,7 @@ func (s *server) applyRetention() (int, error) {
 func keepNewest(names []string, n int) []string {
 	filtered := make([]string, 0, len(names))
 	for _, name := range names {
-		if strings.HasPrefix(filepath.Base(name), "snikketx-backup-") {
+		if strings.HasPrefix(filepath.Base(name), archivePrefix) {
 			filtered = append(filtered, name)
 		}
 	}
