@@ -840,11 +840,20 @@ public class StartConversationActivity extends XmppActivity
         }
         if (checkSelfPermission(Manifest.permission.READ_CONTACTS)
                 == PackageManager.PERMISSION_GRANTED) {
+            // installs that granted contacts access before the sync adapter existed still need
+            // WRITE_CONTACTS. same group, so this is granted without showing another dialog
+            if (checkSelfPermission(Manifest.permission.WRITE_CONTACTS)
+                            != PackageManager.PERMISSION_GRANTED
+                    && mRequestedContactsPermission.compareAndSet(false, true)) {
+                requestPermissions(
+                        new String[] {Manifest.permission.WRITE_CONTACTS}, REQUEST_SYNC_CONTACTS);
+            }
             return false;
         }
         if (mRequestedContactsPermission.compareAndSet(false, true)) {
             final ImmutableList.Builder<String> permissionBuilder = new ImmutableList.Builder<>();
             permissionBuilder.add(Manifest.permission.READ_CONTACTS);
+            permissionBuilder.add(Manifest.permission.WRITE_CONTACTS);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 permissionBuilder.add(Manifest.permission.POST_NOTIFICATIONS);
             }

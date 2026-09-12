@@ -323,9 +323,13 @@ public class CallIntegrationConnectionService extends ConnectionService {
     }
 
     public static PhoneAccountHandle getHandle(final Context context, final Account account) {
+        return getHandle(context, account.getUuid());
+    }
+
+    public static PhoneAccountHandle getHandle(final Context context, final String accountUuid) {
         final var competentName =
                 new ComponentName(context, CallIntegrationConnectionService.class);
-        return new PhoneAccountHandle(competentName, account.getUuid());
+        return new PhoneAccountHandle(competentName, accountUuid);
     }
 
     public static void placeCall(

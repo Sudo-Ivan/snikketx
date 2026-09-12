@@ -19,7 +19,9 @@ import eu.siacs.conversations.AppSettings;
 import eu.siacs.conversations.Config;
 import eu.siacs.conversations.R;
 import eu.siacs.conversations.services.CallIntegration;
+import eu.siacs.conversations.services.ContactsSyncAdapter;
 import eu.siacs.conversations.services.NotificationService;
+import eu.siacs.conversations.services.QuickConversationsService;
 import eu.siacs.conversations.ui.activity.result.PickRingtone;
 import eu.siacs.conversations.utils.Compatibility;
 
@@ -65,6 +67,7 @@ public class NotificationsSettingsFragment extends XmppPreferenceFragment {
         final var notificationLed = findPreference(AppSettings.NOTIFICATION_LED);
         final var foregroundService = findPreference(AppSettings.KEEP_FOREGROUND_SERVICE);
         final var callIntegration = findPreference(AppSettings.CALL_INTEGRATION);
+        final var contactsSync = findPreference(AppSettings.CONTACTS_SYNC);
         if (messageNotificationSettings == null
                 || fullscreenNotification == null
                 || notificationRingtone == null
@@ -72,7 +75,8 @@ public class NotificationsSettingsFragment extends XmppPreferenceFragment {
                 || notificationVibrate == null
                 || notificationLed == null
                 || foregroundService == null
-                || callIntegration == null) {
+                || callIntegration == null
+                || contactsSync == null) {
             throw new IllegalStateException("The preference resource file is missing preferences");
         }
         if (Compatibility.twentySix()) {
@@ -92,6 +96,8 @@ public class NotificationsSettingsFragment extends XmppPreferenceFragment {
             fullscreenNotification.setVisible(false);
         }
         callIntegration.setVisible(CallIntegration.selfManagedAvailable(requireContext()));
+        contactsSync.setVisible(
+                QuickConversationsService.isContactListIntegration(requireContext()));
     }
 
     @Override
@@ -130,6 +136,9 @@ public class NotificationsSettingsFragment extends XmppPreferenceFragment {
         super.onSharedPreferenceChanged(key);
         if (key.equals(AppSettings.KEEP_FOREGROUND_SERVICE)) {
             requireService().toggleForegroundService();
+        }
+        if (key.equals(AppSettings.CONTACTS_SYNC)) {
+            ContactsSyncAdapter.requestSync(requireContext());
         }
     }
 

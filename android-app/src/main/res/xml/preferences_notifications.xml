@@ -55,6 +55,12 @@
         android:key="call_integration"
         android:summary="@string/pref_call_integration_summary"
         android:title="@string/pref_call_integration" />
+    <SwitchPreferenceCompat
+        android:defaultValue="@bool/contacts_sync"
+        android:icon="@drawable/ic_contacts_24dp"
+        android:key="contacts_sync"
+        android:summary="@string/pref_contacts_sync_summary"
+        android:title="@string/pref_contacts_sync" />
     <ListPreference
         android:defaultValue="@integer/grace_period"
         android:entries="@array/grace_periods"

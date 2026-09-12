@@ -1961,6 +1961,7 @@ public class XmppConnectionService extends Service {
                     mShortcutService.refresh(
                             mInitialAddressbookSyncCompleted.compareAndSet(false, true));
                     updateRosterUi();
+                    ContactsSyncAdapter.requestSync(this);
                     mQuickConversationsService.considerSync();
                 });
     }

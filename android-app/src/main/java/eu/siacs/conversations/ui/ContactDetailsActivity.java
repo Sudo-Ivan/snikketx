@@ -145,7 +145,10 @@ public class ContactDetailsActivity extends OmemoActivity
             showAddToPhoneBookDialog();
         } else if (QuickConversationsService.isContactListIntegration(this)) {
             requestPermissions(
-                    new String[] {Manifest.permission.READ_CONTACTS}, REQUEST_SYNC_CONTACTS);
+                    new String[] {
+                        Manifest.permission.READ_CONTACTS, Manifest.permission.WRITE_CONTACTS
+                    },
+                    REQUEST_SYNC_CONTACTS);
         }
     }
 

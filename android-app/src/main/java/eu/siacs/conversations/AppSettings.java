@@ -70,6 +70,7 @@ public class AppSettings {
     public static final String SHOW_AVATARS_11 = "show_avatars";
     public static final String SHOW_AVATARS_ACCOUNTS = "show_avatars_accounts";
     public static final String CALL_INTEGRATION = "call_integration";
+    public static final String CONTACTS_SYNC = "contacts_sync";
     public static final String ALIGN_START = "align_start";
     public static final String BACKUP_LOCATION = "backup_location";
     public static final String AUTO_ACCEPT_FILE_SIZE = "auto_accept_file_size";
@@ -170,6 +171,10 @@ public class AppSettings {
 
     public boolean isCallIntegration() {
         return getBooleanPreference(CALL_INTEGRATION, R.bool.call_integration);
+    }
+
+    public boolean isContactsSync() {
+        return getBooleanPreference(CONTACTS_SYNC, R.bool.contacts_sync);
     }
 
     public boolean isAlignStart() {
