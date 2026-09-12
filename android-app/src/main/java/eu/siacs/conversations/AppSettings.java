@@ -77,6 +77,8 @@ public class AppSettings {
     public static final String AUTO_SEND_RECORDING = "auto_send_recording";
     public static final String USE_SHARED_STORAGE = "use_shared_storage";
     public static final String QUICK_ACTION = "quick_action_button";
+    public static final String CHAT_WALLPAPER = "chat_wallpaper";
+    public static final String VOICE_PLAYBACK_SPEED = "voice_playback_speed";
 
     private static final String ACCEPT_INVITES_FROM_STRANGERS = "accept_invites_from_strangers";
     private static final String NOTIFICATIONS_FROM_STRANGERS = "notifications_from_strangers";
@@ -359,6 +361,26 @@ public class AppSettings {
 
     public boolean isScrollToBottom() {
         return getBooleanPreference(SCROLL_TO_BOTTOM, R.bool.scroll_to_bottom);
+    }
+
+    public String getChatWallpaper() {
+        return getStringPreference(CHAT_WALLPAPER, R.string.chat_wallpaper_default);
+    }
+
+    public float getVoicePlaybackSpeed() {
+        final SharedPreferences sharedPreferences =
+                PreferenceManager.getDefaultSharedPreferences(context);
+        final float speed = sharedPreferences.getFloat(VOICE_PLAYBACK_SPEED, 1f);
+        if (speed <= 0f || speed > 4f) {
+            return 1f;
+        }
+        return speed;
+    }
+
+    public void setVoicePlaybackSpeed(final float speed) {
+        final SharedPreferences sharedPreferences =
+                PreferenceManager.getDefaultSharedPreferences(context);
+        sharedPreferences.edit().putFloat(VOICE_PLAYBACK_SPEED, speed).apply();
     }
 
     public void setSendCrashReports(boolean value) {

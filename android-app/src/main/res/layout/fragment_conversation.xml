@@ -23,12 +23,56 @@
 
         </com.google.android.material.appbar.AppBarLayout>
 
+        <LinearLayout
+            android:id="@+id/pinned_messages_banner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="?colorSurfaceContainerHigh"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="8dp"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:contentDescription="@string/pinned_message"
+                android:src="@drawable/ic_push_pin_24dp" />
+
+            <TextView
+                android:id="@+id/pinned_message_text"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textAppearance="?textAppearanceBodyMedium"
+                android:textColor="?colorOnSurface"
+                tools:text="A pinned message" />
+
+            <TextView
+                android:id="@+id/pinned_messages_count"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:textAppearance="?textAppearanceBodySmall"
+                android:textColor="?colorOnSurfaceVariant"
+                android:visibility="gone"
+                tools:text="+2"
+                tools:visibility="visible" />
+        </LinearLayout>
+
 
         <RelativeLayout xmlns:tools="http://schemas.android.com/tools"
             android:layout_width="match_parent"
             android:layout_height="match_parent">
 
-            <ListView
+            <eu.siacs.conversations.ui.widget.MessagesListView
                 android:id="@+id/messages_view"
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"

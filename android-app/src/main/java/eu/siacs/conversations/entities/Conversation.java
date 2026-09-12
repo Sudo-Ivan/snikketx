@@ -782,6 +782,32 @@ public class Conversation extends AbstractEntity
         this.attributes.pinnedOnTop = value;
     }
 
+    public List<PinnedMessage> getPinnedMessages() {
+        final var pinnedMessages = this.attributes.pinnedMessages;
+        return pinnedMessages == null
+                ? Collections.emptyList()
+                : ImmutableList.copyOf(pinnedMessages);
+    }
+
+    public boolean isMessagePinned(final String uuid) {
+        final var pinnedMessages = this.attributes.pinnedMessages;
+        return pinnedMessages != null
+                && pinnedMessages.stream().anyMatch(p -> p.uuid().equals(uuid));
+    }
+
+    public void pinMessage(final PinnedMessage pinnedMessage) {
+        if (this.attributes.pinnedMessages == null) {
+            this.attributes.pinnedMessages = new ArrayList<>();
+        }
+        this.attributes.pinnedMessages.removeIf(p -> p.uuid().equals(pinnedMessage.uuid()));
+        this.attributes.pinnedMessages.add(pinnedMessage);
+    }
+
+    public boolean unpinMessage(final String uuid) {
+        final var pinnedMessages = this.attributes.pinnedMessages;
+        return pinnedMessages != null && pinnedMessages.removeIf(p -> p.uuid().equals(uuid));
+    }
+
     public int getNextEncryption() {
         if (OmemoSetting.isAlways()) {
             return suitableForOmemoByDefault(this)
@@ -943,6 +969,15 @@ public class Conversation extends AbstractEntity
 
     public void setAlwaysNotify(final boolean value) {
         this.attributes.alwaysNotify = value;
+    }
+
+    @Nullable
+    public String getWallpaper() {
+        return this.attributes.wallpaper;
+    }
+
+    public void setWallpaper(@Nullable final String wallpaper) {
+        this.attributes.wallpaper = wallpaper;
     }
 
     public boolean alwaysNotify() {
@@ -1143,6 +1178,12 @@ public class Conversation extends AbstractEntity
         @SerializedName("accept_non_anonymous")
         private Boolean acceptNonAnonymous;
 
+        @SerializedName("wallpaper")
+        private String wallpaper;
+
+        @SerializedName("pinned_messages")
+        private List<PinnedMessage> pinnedMessages;
+
         public static Attributes parse(final String json) {
             if (Strings.isNullOrEmpty(json)) {
                 return new Attributes();
@@ -1181,4 +1222,7 @@ public class Conversation extends AbstractEntity
     }
 
     public record Draft(Instant instant, String message) {}
+
+    public record PinnedMessage(
+            String uuid, String serverMsgId, String preview, Instant pinnedAt) {}
 }

@@ -111,10 +111,13 @@ import eu.siacs.conversations.persistance.FileBackend;
 import eu.siacs.conversations.services.CallIntegrationConnectionService;
 import eu.siacs.conversations.services.QuickConversationsService;
 import eu.siacs.conversations.services.XmppConnectionService;
+import eu.siacs.conversations.stickers.StickerPack;
+import eu.siacs.conversations.stickers.StickerPackRepository;
 import eu.siacs.conversations.ui.adapter.MediaPreviewAdapter;
 import eu.siacs.conversations.ui.adapter.MessageAdapter;
 import eu.siacs.conversations.ui.util.ActivityResult;
 import eu.siacs.conversations.ui.util.Attachment;
+import eu.siacs.conversations.ui.util.ChatWallpapers;
 import eu.siacs.conversations.ui.util.ConversationMenuConfigurator;
 import eu.siacs.conversations.ui.util.DateSeparator;
 import eu.siacs.conversations.ui.util.EditMessageActionModeCallback;
@@ -130,6 +133,8 @@ import eu.siacs.conversations.ui.util.ShareUtil;
 import eu.siacs.conversations.ui.util.ToolbarUtils;
 import eu.siacs.conversations.ui.util.ViewUtil;
 import eu.siacs.conversations.ui.widget.EditMessage;
+import eu.siacs.conversations.ui.widget.MessagesListView;
+import eu.siacs.conversations.ui.widget.StickerPickerDialog;
 import eu.siacs.conversations.utils.AccountUtils;
 import eu.siacs.conversations.utils.CharSequences;
 import eu.siacs.conversations.utils.Compatibility;
@@ -156,6 +161,7 @@ import eu.siacs.conversations.xmpp.manager.JingleManager;
 import eu.siacs.conversations.xmpp.manager.MessageArchiveManager;
 import eu.siacs.conversations.xmpp.manager.ModerationManager;
 import eu.siacs.conversations.xmpp.manager.MultiUserChatManager;
+import eu.siacs.conversations.xmpp.manager.PinnedMessagesManager;
 import eu.siacs.conversations.xmpp.manager.PresenceManager;
 import im.conversations.android.model.AttachmentChoice;
 import im.conversations.android.provider.ApplicationProvider;
@@ -224,7 +230,12 @@ public class ConversationFragment extends XmppFragment
                             R.drawable.ic_mic_24dp,
                             R.string.attachment_choice_recording,
                             AttachmentChoice.Type.RECORDING,
-                            true));
+                            true),
+                    new AttachmentChoice(
+                            R.drawable.ic_add_reaction_24dp,
+                            R.string.attachment_choice_sticker,
+                            AttachmentChoice.Type.STICKER,
+                            false));
 
     private static Instant ackModeration = Instant.MIN;
 
@@ -780,6 +791,9 @@ public class ConversationFragment extends XmppFragment
                         return true;
                     } else if (itemId == R.id.action_toggle_pinned) {
                         togglePinned();
+                        return true;
+                    } else if (itemId == R.id.action_wallpaper) {
+                        showWallpaperDialog();
                         return true;
                     } else {
                         return false;
@@ -1424,6 +1438,7 @@ public class ConversationFragment extends XmppFragment
         binding.textSendButton.setOnClickListener(this.mSendButtonListener);
 
         binding.scrollToBottomButton.setOnClickListener(this.mScrollButtonListener);
+        binding.pinnedMessagesBanner.setOnClickListener(v -> onPinnedMessagesBannerClicked());
         binding.messagesView.setOnScrollListener(mOnScrollListener);
         binding.messagesView.setTranscriptMode(ListView.TRANSCRIPT_MODE_NORMAL);
         binding.mediaPreview.setAdapter(mediaPreviewAdapter);
@@ -1431,6 +1446,31 @@ public class ConversationFragment extends XmppFragment
         messageListAdapter.setOnContactPictureClicked(this);
         messageListAdapter.setOnContactPictureLongClicked(this);
         binding.messagesView.setAdapter(messageListAdapter);
+        binding.messagesView.setOnSwipeReplyListener(
+                new MessagesListView.OnSwipeReplyListener() {
+                    @Override
+                    public boolean canSwipeReply(final int position) {
+                        synchronized (messageList) {
+                            return position >= 0
+                                    && position < messageList.size()
+                                    && canQuoteMessage(messageList.get(position));
+                        }
+                    }
+
+                    @Override
+                    public void onSwipeReply(final int position) {
+                        final Message message;
+                        synchronized (messageList) {
+                            if (position < 0 || position >= messageList.size()) {
+                                return;
+                            }
+                            message = messageList.get(position);
+                        }
+                        if (canQuoteMessage(message)) {
+                            quoteMessage(message);
+                        }
+                    }
+                });
 
         registerForContextMenu(binding.messagesView);
 
@@ -1479,6 +1519,38 @@ public class ConversationFragment extends XmppFragment
 
     private void quoteMessage(Message message) {
         quoteText(MessageUtils.prepareQuote(message));
+    }
+
+    private static boolean canQuoteMessage(final Message m) {
+        if (m.getType() == Message.TYPE_STATUS || m.getType() == Message.TYPE_RTP_SESSION) {
+            return false;
+        }
+        if (m.getEncryption() == Message.ENCRYPTION_AXOLOTL_NOT_FOR_THIS_DEVICE
+                || m.getEncryption() == Message.ENCRYPTION_AXOLOTL_FAILED) {
+            return false;
+        }
+        final Transferable t = m.getTransferable();
+        if (m.getStatus() == Message.STATUS_RECEIVED
+                && t != null
+                && (t.getStatus() == Transferable.STATUS_CANCELLED
+                        || t.getStatus() == Transferable.STATUS_FAILED)) {
+            return false;
+        }
+        final boolean encrypted =
+                m.getEncryption() == Message.ENCRYPTION_DECRYPTION_FAILED
+                        || m.getEncryption() == Message.ENCRYPTION_PGP;
+        final boolean showError =
+                m.getStatus() == Message.STATUS_SEND_FAILED
+                        && m.getErrorMessage() != null
+                        && !Message.ERROR_MESSAGE_CANCELLED.equals(m.getErrorMessage());
+        return !m.isFileOrImage()
+                && !encrypted
+                && !m.isGeoUri()
+                && !m.treatAsDownloadable()
+                && !MessageUtils.unInitiatedButKnownSize(m)
+                && t == null
+                && !showError
+                && !MessageUtils.prepareQuote(m).isEmpty();
     }
 
     @Override
@@ -1543,6 +1615,7 @@ public class ConversationFragment extends XmppFragment
             final MenuItem moderateMessage = menu.findItem(R.id.moderation);
             final MenuItem showErrorMessage = menu.findItem(R.id.show_error_message);
             final MenuItem saveFile = menu.findItem(R.id.save_file);
+            final MenuItem pinMessage = menu.findItem(R.id.action_pin_message);
             final boolean unInitiatedButKnownSize = MessageUtils.unInitiatedButKnownSize(m);
             final boolean showError =
                     m.getStatus() == Message.STATUS_SEND_FAILED
@@ -1595,10 +1668,26 @@ public class ConversationFragment extends XmppFragment
                                 && m.getStatus() != Message.STATUS_RECEIVED
                                 && m.acceptMessageCorrection()
                                 && singleOrOccupantId);
+                final var pinnedMessagesManager =
+                        connection == null
+                                ? null
+                                : connection.getManager(PinnedMessagesManager.class);
+                final var canPinMessage =
+                        pinnedMessagesManager != null
+                                && pinnedMessagesManager.canPin(c)
+                                && !encrypted
+                                && !deleted
+                                && m.getStatus() != Message.STATUS_SEND_FAILED;
+                pinMessage.setVisible(canPinMessage);
+                pinMessage.setTitle(
+                        canPinMessage && pinnedMessagesManager.isPinned(c, m)
+                                ? R.string.unpin_message
+                                : R.string.pin_message);
             } else {
                 moderateMessage.setVisible(false);
                 addReaction.setVisible(false);
                 correctMessage.setVisible(false);
+                pinMessage.setVisible(false);
             }
             if (!m.isFileOrImage()
                     && !encrypted
@@ -1717,6 +1806,9 @@ public class ConversationFragment extends XmppFragment
         } else if (itemId == R.id.quote_message) {
             quoteMessage(selectedMessage);
             return true;
+        } else if (itemId == R.id.action_pin_message) {
+            togglePinMessage(selectedMessage);
+            return true;
         } else if (itemId == R.id.send_again) {
             resendMessage(selectedMessage, false);
             return true;
@@ -1771,6 +1863,128 @@ public class ConversationFragment extends XmppFragment
         startActivity(intent);
     }
 
+    private PinnedMessagesManager pinnedMessagesManager() {
+        final var c = this.conversation;
+        if (c == null) {
+            return null;
+        }
+        final var connection = c.getAccount().getXmppConnection();
+        return connection == null ? null : connection.getManager(PinnedMessagesManager.class);
+    }
+
+    private void togglePinMessage(final Message message) {
+        if (message == null || !(message.getConversation() instanceof Conversation c)) {
+            return;
+        }
+        final var manager = pinnedMessagesManager();
+        if (manager == null || !manager.canPin(c)) {
+            return;
+        }
+        if (manager.isPinned(c, message)) {
+            manager.unpin(c, message);
+        } else {
+            manager.pin(c, message, pinnedMessagePreviewOf(message));
+        }
+        refresh();
+    }
+
+    private String pinnedMessagePreviewOf(final Message message) {
+        String body = message.getBody();
+        if (Strings.isNullOrEmpty(body) && message.isFileOrImage()) {
+            body = UIHelper.getFileDescriptionString(requireContext(), message);
+        }
+        if (body == null) {
+            return null;
+        }
+        final var trimmed = body.trim().replaceAll("\\s+", " ");
+        return trimmed.length() > 200 ? trimmed.substring(0, 200) : trimmed;
+    }
+
+    private CharSequence pinnedMessageDisplayText(final Conversation.PinnedMessage pin) {
+        final var manager = pinnedMessagesManager();
+        final var c = this.conversation;
+        if (manager != null && c != null) {
+            final var message = manager.resolve(c, pin);
+            if (message != null) {
+                final var preview = pinnedMessagePreviewOf(message);
+                if (!Strings.isNullOrEmpty(preview)) {
+                    return preview;
+                }
+            }
+        }
+        return Strings.isNullOrEmpty(pin.preview())
+                ? getString(R.string.pinned_message)
+                : pin.preview();
+    }
+
+    private void updatePinnedMessagesBanner() {
+        final var c = this.conversation;
+        final var manager = pinnedMessagesManager();
+        final List<Conversation.PinnedMessage> pins =
+                c != null && manager != null && c.getMode() == Conversational.MODE_MULTI
+                        ? manager.getPinnedMessages(c)
+                        : Collections.emptyList();
+        if (pins.isEmpty()) {
+            binding.pinnedMessagesBanner.setVisibility(View.GONE);
+            return;
+        }
+        binding.pinnedMessageText.setText(pinnedMessageDisplayText(pins.get(pins.size() - 1)));
+        if (pins.size() > 1) {
+            binding.pinnedMessagesCount.setText(
+                    getString(R.string.pinned_additional, pins.size() - 1));
+            binding.pinnedMessagesCount.setVisibility(View.VISIBLE);
+        } else {
+            binding.pinnedMessagesCount.setVisibility(View.GONE);
+        }
+        binding.pinnedMessagesBanner.setVisibility(View.VISIBLE);
+    }
+
+    private void onPinnedMessagesBannerClicked() {
+        final var c = this.conversation;
+        final var manager = pinnedMessagesManager();
+        if (c == null || manager == null) {
+            return;
+        }
+        final var pins = manager.getPinnedMessages(c);
+        if (pins.isEmpty()) {
+            return;
+        }
+        if (pins.size() == 1) {
+            scrollToPinnedMessage(pins.get(0));
+            return;
+        }
+        final var ordered = new ArrayList<>(pins);
+        Collections.reverse(ordered); // most recently pinned first
+        final var items = new CharSequence[ordered.size()];
+        for (int i = 0; i < ordered.size(); ++i) {
+            items[i] = pinnedMessageDisplayText(ordered.get(i));
+        }
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.pinned_messages)
+                .setItems(items, (dialog, which) -> scrollToPinnedMessage(ordered.get(which)))
+                .setNegativeButton(R.string.cancel, null)
+                .show();
+    }
+
+    private void scrollToPinnedMessage(final Conversation.PinnedMessage pin) {
+        final var c = this.conversation;
+        final var manager = pinnedMessagesManager();
+        if (c == null || manager == null) {
+            return;
+        }
+        final var message = manager.resolve(c, pin);
+        final int position;
+        synchronized (this.messageList) {
+            position = message == null ? -1 : getIndexOf(message.getUuid(), this.messageList);
+        }
+        if (position >= 0) {
+            this.binding.messagesView.setSelection(position);
+        } else {
+            Toast.makeText(requireContext(), R.string.pinned_message_not_loaded, Toast.LENGTH_SHORT)
+                    .show();
+        }
+    }
+
     private void startSearch() {
         final Intent intent = new Intent(getActivity(), SearchActivity.class);
         intent.putExtra(SearchActivity.EXTRA_CONVERSATION_UUID, conversation.getUuid());
@@ -1813,6 +2027,35 @@ public class ConversationFragment extends XmppFragment
         conversation.setPinnedOnTop(!pinned);
         requireXmppActivity().xmppConnectionService.updateConversation(conversation);
         this.binding.toolbar.invalidateMenu();
+    }
+
+    private void showWallpaperDialog() {
+        final MaterialAlertDialogBuilder builder =
+                new MaterialAlertDialogBuilder(requireActivity());
+        builder.setTitle(R.string.chat_wallpaper);
+        String key = conversation.getWallpaper();
+        if (key == null) {
+            key = new AppSettings(requireContext()).getChatWallpaper();
+        }
+        builder.setSingleChoiceItems(
+                ChatWallpapers.labels(requireContext()),
+                ChatWallpapers.indexOfKey(key),
+                (dialog, which) -> {
+                    conversation.setWallpaper(ChatWallpapers.keyAt(which));
+                    requireXmppActivity().xmppConnectionService.updateConversation(conversation);
+                    applyWallpaper();
+                    dialog.dismiss();
+                });
+        builder.create().show();
+    }
+
+    private void applyWallpaper() {
+        if (this.binding == null || this.conversation == null) {
+            return;
+        }
+        final int drawable = ChatWallpapers.resolve(requireContext(), this.conversation);
+        this.binding.messagesView.setBackground(
+                drawable == 0 ? null : ContextCompat.getDrawable(requireContext(), drawable));
     }
 
     private boolean isAccountInsufficientState() {
@@ -1922,6 +2165,11 @@ public class ConversationFragment extends XmppFragment
     }
 
     private void handleAttachmentChoice(final AttachmentChoice.Type choice) {
+        if (choice == AttachmentChoice.Type.STICKER) {
+            showStickerPicker();
+            setAttachmentChoicesVisibility(false);
+            return;
+        }
         attachFile(
                 switch (choice) {
                     case CAMERA -> ATTACHMENT_CHOICE_TAKE_PHOTO;
@@ -1931,8 +2179,54 @@ public class ConversationFragment extends XmppFragment
                     case RECORDING -> ATTACHMENT_CHOICE_RECORD_VOICE;
                     case VIDEO -> ATTACHMENT_CHOICE_RECORD_VIDEO;
                     case CONTACT -> ATTACHMENT_CHOICE_CONTACT;
+                    case STICKER -> ATTACHMENT_CHOICE_INVALID;
                 });
         setAttachmentChoicesVisibility(false);
+    }
+
+    private void showStickerPicker() {
+        if (conversation == null) {
+            return;
+        }
+        final var activity = requireXmppActivity();
+        if (activity.xmppConnectionService == null) {
+            return;
+        }
+        final var future = StickerPackRepository.load(activity, conversation.getAccount());
+        Futures.addCallback(
+                future,
+                new FutureCallback<>() {
+                    @Override
+                    public void onSuccess(final List<StickerPack> packs) {
+                        if (!isAdded() || activity.isFinishing()) {
+                            return;
+                        }
+                        new StickerPickerDialog(packs, ConversationFragment.this::sendSticker)
+                                .create(activity)
+                                .show();
+                    }
+
+                    @Override
+                    public void onFailure(@NonNull final Throwable t) {
+                        Log.d(Config.LOGTAG, "could not load sticker packs", t);
+                    }
+                },
+                ContextCompat.getMainExecutor(requireContext()));
+    }
+
+    private void sendSticker(final StickerPack pack, final StickerPack.Item item) {
+        final var file = item.getFile();
+        if (conversation == null || file == null) {
+            return;
+        }
+        requireXmppActivity()
+                .xmppConnectionService
+                .attachStickerToConversation(
+                        conversation,
+                        Uri.fromFile(file),
+                        item.getMimeType(),
+                        pack.getId(),
+                        item.getDescription());
     }
 
     private void handleEncryptionSelection(MenuItem item) {
@@ -2919,6 +3213,7 @@ public class ConversationFragment extends XmppFragment
         this.mShowLastUserInteraction = appSettings.isBroadcastLastActivity();
         this.binding.textInput.refreshIme(this.inputSettings);
         setTextInputColors();
+        applyWallpaper();
         refresh(false);
         this.binding.toolbar.invalidateMenu();
         this.conversation.messagesLoaded.set(true);
@@ -3294,6 +3589,7 @@ public class ConversationFragment extends XmppFragment
             if (this.conversation != null) {
                 conversation.populateWithMessages(this.messageList);
                 updateSnackBar(conversation);
+                updatePinnedMessagesBanner();
                 updateStatusMessages();
                 if (conversation.getReceivedMessagesCountSinceUuid(lastMessageUuid) != 0) {
                     binding.unreadCountCustomView.setVisibility(View.VISIBLE);
