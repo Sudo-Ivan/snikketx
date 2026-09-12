@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -13,12 +14,17 @@ import (
 )
 
 const (
-	// #nosec G101 -- filesystem path for the secret key file, not a credential
-	defaultSecretKeyFile = "/var/lib/snikket-web-portal/secret_key"
-	defaultAvatarTTL     = 1800
-	defaultMaxAvatar     = 1024 * 1024
-	defaultAppleStore    = "https://apps.apple.com/us/app/snikket/id1544535398"
-	minSecretLen         = 32
+	// defaultStateDir is the base directory for the secret key, the audit
+	// log, the OAuth client registration and the Android APK cache.
+	defaultStateDir = "/var/lib/snikket-web-portal"
+	// #nosec G101 -- filesystem file name for the secret key, not a credential
+	secretKeyFileName = "secret_key"
+	defaultAvatarTTL  = 1800
+	defaultMaxAvatar  = 1024 * 1024
+	defaultAppleStore = "https://apps.apple.com/us/app/snikket/id1544535398"
+	defaultAndroidApp = "org.snikket.android"
+	defaultPlayStore  = "https://play.google.com/store/apps/details?id="
+	minSecretLen      = 32
 )
 
 type Config struct {
@@ -43,6 +49,9 @@ type Config struct {
 	Version         string
 	BuildCommit     string
 	BuildDate       string
+	StateDir        string
+	LogLevel        slog.Level
+	InsecureCookies bool
 
 	// Android host defaults seed portal_data/android/settings.json on first boot.
 	AndroidHostEnabled       bool
@@ -66,7 +75,25 @@ func Load(version, commit, buildDate string) (*Config, error) {
 		return nil, fmt.Errorf("SNIKKET_WEB_PROSODY_ENDPOINT is required")
 	}
 
-	secret, err := loadOrCreateSecret()
+	stateDir := envOr("SNIKKET_WEB_STATE_DIR", defaultStateDir)
+
+	logLevel := slog.LevelInfo
+	switch strings.ToLower(os.Getenv("SNIKKET_WEB_LOG_LEVEL")) {
+	case "debug":
+		logLevel = slog.LevelDebug
+	case "warn", "warning":
+		logLevel = slog.LevelWarn
+	case "error":
+		logLevel = slog.LevelError
+	}
+
+	insecureCookies := false
+	switch strings.ToLower(os.Getenv("SNIKKET_WEB_INSECURE_COOKIES")) {
+	case "1", "true", "yes":
+		insecureCookies = true
+	}
+
+	secret, err := loadOrCreateSecret(stateDir)
 	if err != nil {
 		return nil, err
 	}
@@ -128,12 +155,12 @@ func Load(version, commit, buildDate string) (*Config, error) {
 			return nil, err
 		}
 	}
-	androidPackage := envOr("SNIKKET_WEB_ANDROID_PACKAGE", "org.snikket.android")
+	androidPackage := envOr("SNIKKET_WEB_ANDROID_PACKAGE", defaultAndroidApp)
 	playURL := strings.TrimSpace(os.Getenv("SNIKKET_WEB_PLAY_STORE_URL"))
-	if playURL != "" {
-		if err := validateHTTPURL("SNIKKET_WEB_PLAY_STORE_URL", playURL); err != nil {
-			return nil, err
-		}
+	if playURL == "" {
+		playURL = defaultPlayStore + url.QueryEscape(androidPackage)
+	} else if err := validateHTTPURL("SNIKKET_WEB_PLAY_STORE_URL", playURL); err != nil {
+		return nil, err
 	}
 	fdroidURL := strings.TrimSpace(os.Getenv("SNIKKET_WEB_FDROID_URL"))
 	androidLimit := 6
@@ -196,6 +223,9 @@ func Load(version, commit, buildDate string) (*Config, error) {
 		Version:         version,
 		BuildCommit:     commit,
 		BuildDate:       buildDate,
+		StateDir:        stateDir,
+		LogLevel:        logLevel,
+		InsecureCookies: insecureCookies,
 
 		AndroidHostEnabled:       androidEnabled,
 		AndroidAPKSource:         androidSource,
@@ -237,11 +267,11 @@ func bridgeSnikketEnv() {
 	setIfEmpty("SNIKKET_WEB_SECURITY_EMAIL", "SNIKKET_SECURITY_EMAIL")
 }
 
-func loadOrCreateSecret() ([]byte, error) {
+func loadOrCreateSecret(stateDir string) ([]byte, error) {
 	if v := os.Getenv("SNIKKET_WEB_SECRET_KEY"); v != "" {
 		return []byte(v), nil
 	}
-	path := envOr("SNIKKET_WEB_SECRET_KEY_FILE", defaultSecretKeyFile)
+	path := envOr("SNIKKET_WEB_SECRET_KEY_FILE", filepath.Join(stateDir, secretKeyFileName))
 	path = filepath.Clean(path)
 	if !filepath.IsAbs(path) {
 		return nil, fmt.Errorf("SNIKKET_WEB_SECRET_KEY_FILE must be absolute")

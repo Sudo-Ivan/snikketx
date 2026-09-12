@@ -190,7 +190,7 @@ func displayAny(value any) string {
 }
 
 func (c *Client) opsEndpoint(parts ...string) string {
-	path := c.Endpoint + "/snikket_ops_api"
+	path := c.Endpoint + pathOpsAPI
 	for _, part := range parts {
 		path += "/" + strings.Trim(part, "/")
 	}

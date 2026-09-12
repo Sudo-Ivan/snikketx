@@ -26,7 +26,7 @@ func (a *App) mountInvite(mux *http.ServeMux) {
 	mux.HandleFunc("POST /invite/success", a.handleInviteSuccessSubmit)
 	mux.HandleFunc("GET /invite/success/reset", a.handleResetSuccess)
 	mux.HandleFunc("GET /invite/{id}", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/invite/"+url.PathEscape(r.PathValue("id"))+"/", http.StatusMovedPermanently)
+		http.Redirect(w, r, "/invite/"+url.PathEscape(r.PathValue(paramID))+"/", http.StatusMovedPermanently)
 	})
 	mux.HandleFunc("GET /invite/{id}/{$}", a.handleInviteView)
 	mux.HandleFunc("GET /invite/{id}/register", a.handleRegisterForm)
@@ -53,7 +53,7 @@ type invitePage struct {
 // handleInviteView shows the landing page of an invitation. A password reset
 // invitation gets its own page because it does not create an account.
 func (a *App) handleInviteView(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
+	id := r.PathValue(paramID)
 
 	invite, err := a.Prosody.GetPublicInviteByID(r.Context(), id)
 	if err != nil {
@@ -110,7 +110,7 @@ func (a *App) renderInviteInvalid(w http.ResponseWriter, r *http.Request) {
 
 // handleRegisterForm shows the manual account registration form.
 func (a *App) handleRegisterForm(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
+	id := r.PathValue(paramID)
 
 	invite, err := a.Prosody.GetPublicInviteByID(r.Context(), id)
 	if err != nil {
@@ -134,11 +134,11 @@ func (a *App) handleRegisterForm(w http.ResponseWriter, r *http.Request) {
 // handleRegisterSubmit creates an account from an invitation token and signs the
 // new account in.
 func (a *App) handleRegisterSubmit(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
+	id := r.PathValue(paramID)
 	sess := a.Sessions.Get(r)
 
-	localpart := strings.TrimSpace(r.FormValue("localpart"))
-	password := r.FormValue("password")
+	localpart := strings.TrimSpace(r.FormValue(fieldLocalpart))
+	password := r.FormValue(fieldPassword)
 	confirm := r.FormValue("password_confirm")
 
 	fail := func(message string) {
@@ -156,10 +156,10 @@ func (a *App) handleRegisterSubmit(w http.ResponseWriter, r *http.Request) {
 		fail("Choose a username.")
 		return
 	case len(password) < minPasswordLength:
-		fail("The password must be at least 10 characters long.")
+		fail(msgPasswordTooShort)
 		return
 	case password != confirm:
-		fail("The passwords must match.")
+		fail(msgPasswordsMustMatch)
 		return
 	}
 
@@ -190,7 +190,7 @@ func (a *App) handleRegisterSubmit(w http.ResponseWriter, r *http.Request) {
 
 // handleInviteResetForm shows the password reset form of a reset invitation.
 func (a *App) handleInviteResetForm(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
+	id := r.PathValue(paramID)
 
 	invite, err := a.Prosody.GetPublicInviteByID(r.Context(), id)
 	if err != nil {
@@ -214,7 +214,7 @@ func (a *App) handleInviteResetForm(w http.ResponseWriter, r *http.Request) {
 
 // handleInviteResetSubmit sets a new password from a reset invitation.
 func (a *App) handleInviteResetSubmit(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
+	id := r.PathValue(paramID)
 	sess := a.Sessions.Get(r)
 
 	invite, err := a.Prosody.GetPublicInviteByID(r.Context(), id)
@@ -227,7 +227,7 @@ func (a *App) handleInviteResetSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	password := r.FormValue("password")
+	password := r.FormValue(fieldPassword)
 	confirm := r.FormValue("password_confirm")
 
 	fail := func(message string) {
@@ -243,10 +243,10 @@ func (a *App) handleInviteResetSubmit(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case len(password) < minPasswordLength:
-		fail("The password must be at least 10 characters long.")
+		fail(msgPasswordTooShort)
 		return
 	case password != confirm:
-		fail("The passwords must match.")
+		fail(msgPasswordsMustMatch)
 		return
 	}
 

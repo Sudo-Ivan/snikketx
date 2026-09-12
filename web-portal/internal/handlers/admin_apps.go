@@ -47,10 +47,10 @@ func (a *App) handleAppsSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if a.AppCache == nil {
-		a.flashRedirect(w, r, sess, "Android APK hosting is unavailable.", "alert", "/admin/apps")
+		a.flashRedirect(w, r, sess, "Android APK hosting is unavailable.", "alert", pathAdminApps)
 		return
 	}
-	action := strings.TrimSpace(r.FormValue("action"))
+	action := strings.TrimSpace(r.FormValue(fieldAction))
 	switch action {
 	case "save":
 		next := a.AppCache.Settings()
@@ -62,7 +62,7 @@ func (a *App) handleAppsSubmit(w http.ResponseWriter, r *http.Request) {
 		if v := strings.TrimSpace(r.FormValue("download_limit")); v != "" {
 			n, err := strconv.Atoi(v)
 			if err != nil {
-				a.flashRedirect(w, r, sess, "Download limit must be a number.", "alert", "/admin/apps")
+				a.flashRedirect(w, r, sess, "Download limit must be a number.", "alert", pathAdminApps)
 				return
 			}
 			next.DownloadLimitPerHour = n
@@ -70,51 +70,51 @@ func (a *App) handleAppsSubmit(w http.ResponseWriter, r *http.Request) {
 		if v := strings.TrimSpace(r.FormValue("refresh_hours")); v != "" {
 			n, err := strconv.Atoi(v)
 			if err != nil {
-				a.flashRedirect(w, r, sess, "Refresh interval must be a number.", "alert", "/admin/apps")
+				a.flashRedirect(w, r, sess, "Refresh interval must be a number.", "alert", pathAdminApps)
 				return
 			}
 			next.RefreshIntervalHours = n
 		}
 		if err := a.AppCache.SaveSettings(next); err != nil {
-			a.flashRedirect(w, r, sess, err.Error(), "alert", "/admin/apps")
+			a.flashRedirect(w, r, sess, err.Error(), "alert", pathAdminApps)
 			return
 		}
 		if a.APKGate != nil {
 			a.APKGate.SetLimit(a.AppCache.DownloadLimit())
 		}
 		a.recordAudit(r, sess, "apps.settings", next.PackageID, "enabled="+strconv.FormatBool(next.Enabled))
-		a.flashRedirect(w, r, sess, "App hosting settings saved.", "success", "/admin/apps")
+		a.flashRedirect(w, r, sess, "App hosting settings saved.", "success", pathAdminApps)
 	case "refresh":
 		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Minute)
 		defer cancel()
 		if err := a.AppCache.Refresh(ctx); err != nil {
-			a.flashRedirect(w, r, sess, "Refresh failed: "+err.Error(), "alert", "/admin/apps")
+			a.flashRedirect(w, r, sess, "Refresh failed: "+err.Error(), "alert", pathAdminApps)
 			return
 		}
 		a.recordAudit(r, sess, "apps.refresh", a.AppCache.PackageID(), a.AppCache.Meta().SHA256)
-		a.flashRedirect(w, r, sess, "Cached Android APK refreshed.", "success", "/admin/apps")
+		a.flashRedirect(w, r, sess, "Cached Android APK refreshed.", "success", pathAdminApps)
 	case "upload":
 		file, header, err := r.FormFile("apk_file")
 		if err != nil {
-			a.flashRedirect(w, r, sess, "Choose an APK file to upload.", "alert", "/admin/apps")
+			a.flashRedirect(w, r, sess, "Choose an APK file to upload.", "alert", pathAdminApps)
 			return
 		}
 		defer func() { _ = file.Close() }()
 		meta, err := a.AppCache.StoreUpload(file, header.Filename)
 		if err != nil {
-			a.flashRedirect(w, r, sess, "Upload failed: "+err.Error(), "alert", "/admin/apps")
+			a.flashRedirect(w, r, sess, "Upload failed: "+err.Error(), "alert", pathAdminApps)
 			return
 		}
 		a.recordAudit(r, sess, "apps.upload", a.AppCache.PackageID(), meta.SHA256)
-		a.flashRedirect(w, r, sess, "APK uploaded into the local cache.", "success", "/admin/apps")
+		a.flashRedirect(w, r, sess, "APK uploaded into the local cache.", "success", pathAdminApps)
 	case "clear":
 		if err := a.AppCache.Clear(); err != nil {
-			a.flashRedirect(w, r, sess, err.Error(), "alert", "/admin/apps")
+			a.flashRedirect(w, r, sess, err.Error(), "alert", pathAdminApps)
 			return
 		}
 		a.recordAudit(r, sess, "apps.clear", a.AppCache.PackageID(), "")
-		a.flashRedirect(w, r, sess, "Cached APK cleared.", "success", "/admin/apps")
+		a.flashRedirect(w, r, sess, "Cached APK cleared.", "success", pathAdminApps)
 	default:
-		a.flashRedirect(w, r, sess, "Unknown action.", "alert", "/admin/apps")
+		a.flashRedirect(w, r, sess, msgUnknownAction, "alert", pathAdminApps)
 	}
 }

@@ -224,6 +224,15 @@ func (c *Client) ClearPins(ctx context.Context) error {
 	return err
 }
 
+// Services returns the registry of services the updater can tail logs for.
+func (c *Client) Services(ctx context.Context) ([]LogService, error) {
+	var out []LogService
+	if _, err := c.do(ctx, http.MethodGet, "/services", nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // Logs fetches a capped log tail for an allowlisted compose service.
 // Pass an empty service to list available services only.
 func (c *Client) Logs(ctx context.Context, service string, tail int) (*Logs, error) {

@@ -21,6 +21,18 @@ const (
 	maxIQBody      = 8 << 20
 )
 
+// Path prefixes of the Prosody HTTP modules the client talks to.
+const (
+	pathAdminAPI    = "/admin_api"
+	pathAuditAPI    = "/snikket_audit_api"
+	pathMUCAPI      = "/snikket_muc_api"
+	pathOAuth2      = "/oauth2"
+	pathOpsAPI      = "/snikket_ops_api"
+	pathRegisterAPI = "/register_api"
+	pathREST        = "/rest"
+	pathXEP227      = "/xep227"
+)
+
 // Client talks to the HTTP APIs of a single Prosody virtual host. It is safe
 // for concurrent use. Authenticated calls take the caller's bearer token, an
 // empty token issues the request unauthenticated.
@@ -58,28 +70,28 @@ func New(endpoint, domain, version string) *Client {
 }
 
 func (c *Client) loginEndpoint() string {
-	return c.Endpoint + "/oauth2/token"
+	return c.Endpoint + pathOAuth2 + "/token"
 }
 
 func (c *Client) revokeEndpoint() string {
-	return c.Endpoint + "/oauth2/revoke"
+	return c.Endpoint + pathOAuth2 + "/revoke"
 }
 
 func (c *Client) registerClientEndpoint() string {
-	return c.Endpoint + "/oauth2/register"
+	return c.Endpoint + pathOAuth2 + "/register"
 }
 
 func (c *Client) restEndpoint() string {
-	return c.Endpoint + "/rest"
+	return c.Endpoint + pathREST
 }
 
 // adminEndpoint builds a mod_admin_api URL, percent encoding every path
 // segment so URL unsafe characters inside a segment cannot escape it.
 func (c *Client) adminEndpoint(segments ...string) string {
 	var b strings.Builder
-	b.Grow(len(c.Endpoint) + 11 + len(segments)*12)
+	b.Grow(len(c.Endpoint) + len(pathAdminAPI) + len(segments)*12)
 	b.WriteString(c.Endpoint)
-	b.WriteString("/admin_api")
+	b.WriteString(pathAdminAPI)
 	for _, segment := range segments {
 		b.WriteByte('/')
 		b.WriteString(url.PathEscape(segment))
@@ -88,11 +100,11 @@ func (c *Client) adminEndpoint(segments ...string) string {
 }
 
 func (c *Client) publicEndpoint(subpath string) string {
-	return c.Endpoint + "/register_api" + subpath
+	return c.Endpoint + pathRegisterAPI + subpath
 }
 
 func (c *Client) xep227Endpoint(subpath string) string {
-	return c.Endpoint + "/xep227" + subpath
+	return c.Endpoint + pathXEP227 + subpath
 }
 
 func (c *Client) httpClient() *http.Client {

@@ -282,7 +282,7 @@ func (c *Client) ListAuditEvents(ctx context.Context, token string, limit int, q
 	if limit <= 0 {
 		limit = 100
 	}
-	endpoint := c.Endpoint + "/snikket_audit_api/events?limit=" + strconv.Itoa(limit)
+	endpoint := c.Endpoint + pathAuditAPI + "/events?limit=" + strconv.Itoa(limit)
 	if query != "" {
 		endpoint += "&q=" + url.QueryEscape(query)
 	}
@@ -334,7 +334,7 @@ type MUCOccupant struct {
 
 // ListMUCRooms returns rooms from the groups MUC component.
 func (c *Client) ListMUCRooms(ctx context.Context, token, query string) ([]MUCRoom, string, error) {
-	endpoint := c.Endpoint + "/snikket_muc_api/rooms"
+	endpoint := c.Endpoint + pathMUCAPI + "/rooms"
 	if query != "" {
 		endpoint += "?q=" + url.QueryEscape(query)
 	}
@@ -365,7 +365,7 @@ func (c *Client) ListMUCRooms(ctx context.Context, token, query string) ([]MUCRo
 
 // GetMUCRoom returns one room including its occupants.
 func (c *Client) GetMUCRoom(ctx context.Context, token, localpart string) (*MUCRoom, error) {
-	endpoint := c.Endpoint + "/snikket_muc_api/rooms/" + url.PathEscape(localpart)
+	endpoint := c.Endpoint + pathMUCAPI + "/rooms/" + url.PathEscape(localpart)
 	resp, err := c.requestJSON(ctx, http.MethodGet, endpoint, token, nil)
 	if err != nil {
 		return nil, err
@@ -391,7 +391,7 @@ func (c *Client) CreateMUCRoom(ctx context.Context, token, name, localpart, desc
 		"persistent":  true,
 	}
 	var room MUCRoom
-	if err := c.callJSON(ctx, http.MethodPost, c.Endpoint+"/snikket_muc_api/rooms", token, payload, &room); err != nil {
+	if err := c.callJSON(ctx, http.MethodPost, c.Endpoint+pathMUCAPI+"/rooms", token, payload, &room); err != nil {
 		return nil, err
 	}
 	return &room, nil
@@ -399,7 +399,7 @@ func (c *Client) CreateMUCRoom(ctx context.Context, token, name, localpart, desc
 
 // DestroyMUCRoom deletes a group chat room.
 func (c *Client) DestroyMUCRoom(ctx context.Context, token, localpart string) error {
-	endpoint := c.Endpoint + "/snikket_muc_api/rooms/" + url.PathEscape(localpart)
+	endpoint := c.Endpoint + pathMUCAPI + "/rooms/" + url.PathEscape(localpart)
 	resp, err := c.requestJSON(ctx, http.MethodDelete, endpoint, token, nil)
 	if err != nil {
 		return err

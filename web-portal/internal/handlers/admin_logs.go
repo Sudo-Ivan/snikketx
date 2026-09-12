@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -44,16 +45,70 @@ type logsJSONResponse struct {
 	Note      string        `json:"note,omitempty"`
 }
 
-func defaultLogSources() []logSource {
+// Log source ids mirrored from the updater service registry. They double as
+// the fallback list when the updater cannot be reached.
+const (
+	logSourcePortalErrors = "portal-errors"
+	logSourceServer       = "snikket_server"
+	logSourcePortal       = "snikket_portal"
+	logSourceEdge         = "ravenguard"
+	logSourceUpdater      = "snikket_updater"
+	logSourceBackup       = "snikket_backup"
+	logSourceCerts        = "snikket_certs"
+)
+
+const (
+	// logSourcesTTL is how long the updater service registry stays cached.
+	logSourcesTTL = time.Minute
+	// logSourcesTimeout bounds the registry fetch so a hung updater does
+	// not stall the logs page.
+	logSourcesTimeout = 5 * time.Second
+)
+
+func fallbackLogSources() []logSource {
 	return []logSource{
-		{ID: "portal-errors", Label: "Portal errors (in memory)"},
-		{ID: "snikket_server", Label: "Chat server (Prosody)"},
-		{ID: "snikket_portal", Label: "Web portal"},
-		{ID: "ravenguard", Label: "Edge (RavenGuard)"},
-		{ID: "snikket_updater", Label: "Updater"},
-		{ID: "snikket_backup", Label: "Backup"},
-		{ID: "snikket_certs", Label: "Cert manager"},
+		{ID: logSourcePortalErrors, Label: "Portal errors (in memory)"},
+		{ID: logSourceServer, Label: "Chat server (Prosody)"},
+		{ID: logSourcePortal, Label: "Web portal"},
+		{ID: logSourceEdge, Label: "Edge (RavenGuard)"},
+		{ID: logSourceUpdater, Label: "Updater"},
+		{ID: logSourceBackup, Label: "Backup"},
+		{ID: logSourceCerts, Label: "Cert manager"},
 	}
+}
+
+// logSources returns the service registry for the logs page. The updater's
+// /services listing wins when reachable, a stale cached copy is used when the
+// updater stops answering, and the built-in list is the last resort.
+func (a *App) logSources(ctx context.Context) []logSource {
+	a.logSourcesMu.Lock()
+	defer a.logSourcesMu.Unlock()
+	if a.logSourcesCache != nil && time.Since(a.logSourcesAt) < logSourcesTTL {
+		return a.logSourcesCache
+	}
+	if a.Updater != nil && a.Updater.Enabled() {
+		fetchCtx, cancel := context.WithTimeout(ctx, logSourcesTimeout)
+		remote, err := a.Updater.Services(fetchCtx)
+		cancel()
+		if err == nil && len(remote) > 0 {
+			a.logSourcesCache = mergeLogSources(remote)
+			a.logSourcesAt = time.Now()
+			return a.logSourcesCache
+		}
+	}
+	if a.logSourcesCache != nil {
+		return a.logSourcesCache
+	}
+	return fallbackLogSources()
+}
+
+// cacheLogSources refreshes the registry cache from a log response that
+// already carries the service list.
+func (a *App) cacheLogSources(sources []logSource) {
+	a.logSourcesMu.Lock()
+	defer a.logSourcesMu.Unlock()
+	a.logSourcesCache = sources
+	a.logSourcesAt = time.Now()
 }
 
 func (a *App) handleAdminLogs(w http.ResponseWriter, r *http.Request) {
@@ -61,10 +116,10 @@ func (a *App) handleAdminLogs(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	sources := defaultLogSources()
+	sources := a.logSources(r.Context())
 	service := strings.TrimSpace(r.URL.Query().Get("service"))
 	if service == "" {
-		service = "snikket_server"
+		service = logSourceServer
 	}
 	tail := 200
 	if raw := strings.TrimSpace(r.URL.Query().Get("tail")); raw != "" {
@@ -91,13 +146,13 @@ func (a *App) handleAdminLogs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch service {
-	case "portal-errors":
+	case logSourcePortalErrors:
 		view.Entries = a.portalErrorEntries(tail)
 		view.Lines = entriesToLines(view.Entries)
 	default:
 		if a.Updater == nil || !a.Updater.Enabled() {
 			view.Note = "Updater is not configured, so container logs are unavailable. Portal errors still work."
-			view.Service = "portal-errors"
+			view.Service = logSourcePortalErrors
 			view.Entries = a.portalErrorEntries(tail)
 			view.Lines = entriesToLines(view.Entries)
 			break
@@ -109,6 +164,7 @@ func (a *App) handleAdminLogs(w http.ResponseWriter, r *http.Request) {
 		}
 		if len(res.Services) > 0 {
 			view.Sources = mergeLogSources(res.Services)
+			a.cacheLogSources(view.Sources)
 		}
 		view.Lines = res.Lines
 		view.Entries = updaterEntriesToView(res.Entries, res.Lines)
@@ -195,7 +251,7 @@ func updaterEntriesToView(entries []updater.LogEntry, fallback []string) []logLi
 }
 
 func mergeLogSources(remote []updater.LogService) []logSource {
-	out := []logSource{{ID: "portal-errors", Label: "Portal errors (in memory)"}}
+	out := []logSource{{ID: logSourcePortalErrors, Label: "Portal errors (in memory)"}}
 	for _, svc := range remote {
 		out = append(out, logSource{ID: svc.ID, Label: svc.Label})
 	}

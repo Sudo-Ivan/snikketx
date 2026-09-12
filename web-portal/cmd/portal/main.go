@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strings"
 	"syscall"
 	"time"
 
@@ -52,27 +51,9 @@ const (
 )
 
 func main() {
-	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
-		Level: logLevel(),
-	})))
-
 	if err := run(); err != nil {
 		slog.Error("startup failed", slog.String("error", err.Error()))
 		os.Exit(1)
-	}
-}
-
-// logLevel reads the requested log level, defaulting to info.
-func logLevel() slog.Level {
-	switch strings.ToLower(os.Getenv("SNIKKET_WEB_LOG_LEVEL")) {
-	case "debug":
-		return slog.LevelDebug
-	case "warn", "warning":
-		return slog.LevelWarn
-	case "error":
-		return slog.LevelError
-	default:
-		return slog.LevelInfo
 	}
 }
 
@@ -83,6 +64,10 @@ func run() error {
 		return err
 	}
 
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
+		Level: cfg.LogLevel,
+	})))
+
 	templateFS, err := fs.Sub(web.FS, "templates")
 	if err != nil {
 		return err
@@ -92,7 +77,7 @@ func run() error {
 		return err
 	}
 
-	stateDir := envOr("SNIKKET_WEB_STATE_DIR", "/var/lib/snikket-web-portal")
+	stateDir := cfg.StateDir
 	auditStore, err := audit.Open(stateDir, 512)
 	if err != nil {
 		slog.Warn("audit log unavailable", slog.String("error", err.Error()))
@@ -111,7 +96,7 @@ func run() error {
 		return err
 	}
 
-	sessStore, err := session.New(cfg.SecretKey, secureCookies())
+	sessStore, err := session.New(cfg.SecretKey, !cfg.InsecureCookies)
 	if err != nil {
 		return err
 	}
@@ -200,18 +185,6 @@ func run() error {
 	}
 }
 
-// secureCookies reports whether session cookies must carry the Secure
-// attribute. It is on unless the operator turns it off for a plain HTTP
-// development setup.
-func secureCookies() bool {
-	switch strings.ToLower(os.Getenv("SNIKKET_WEB_INSECURE_COOKIES")) {
-	case "1", "true", "yes":
-		return false
-	default:
-		return true
-	}
-}
-
 // staticHandler serves the embedded assets with a long cache lifetime, since
 // every asset is versioned with the container image.
 func staticHandler(staticFS fs.FS) http.Handler {
@@ -221,11 +194,4 @@ func staticHandler(staticFS fs.FS) http.Handler {
 		w.Header().Set("Cache-Control", "public, max-age=3600")
 		fileServer.ServeHTTP(w, r)
 	})
-}
-
-func envOr(key, fallback string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return fallback
 }

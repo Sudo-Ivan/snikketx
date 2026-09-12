@@ -19,16 +19,12 @@ import (
 	"github.com/sudo-ivan/snikketx/web-portal/internal/xmpp"
 )
 
-// errCredentials is the wording shown for every rejected login, so a failed
-// attempt never reveals whether the account exists.
-const errCredentials = "Invalid username or password."
-
 // mountMain registers the routes that are not specific to a signed in user.
 func (a *App) mountMain(mux *http.ServeMux) {
 	mux.HandleFunc("GET /{$}", a.handleIndex)
 	mux.HandleFunc("GET /-", a.handleIndex)
-	mux.HandleFunc("GET /login", a.handleLoginForm)
-	mux.HandleFunc("POST /login", a.handleLoginSubmit)
+	mux.HandleFunc("GET "+pathLogin, a.handleLoginForm)
+	mux.HandleFunc("POST "+pathLogin, a.handleLoginSubmit)
 	mux.HandleFunc("GET /meta/about.html", a.handleAbout)
 	mux.HandleFunc("GET /policies/", a.handlePolicies)
 	mux.HandleFunc("GET /terms", a.handleTerms)
@@ -46,7 +42,7 @@ func (a *App) mountMain(mux *http.ServeMux) {
 // handleIndex sends the caller to their home page or to the login page.
 func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
 	if a.Sessions.Get(r).HasSession() {
-		http.Redirect(w, r, "/user/", http.StatusSeeOther)
+		http.Redirect(w, r, pathUserHome, http.StatusSeeOther)
 		return
 	}
 	a.redirectToLogin(w, r)
@@ -65,7 +61,7 @@ func (a *App) handleLoginForm(w http.ResponseWriter, r *http.Request) {
 	if sess.HasSession() {
 		ok, err := a.Prosody.TestSession(r.Context(), sess.Token(), sess.JID())
 		if err == nil && ok {
-			http.Redirect(w, r, "/user/", http.StatusSeeOther)
+			http.Redirect(w, r, pathUserHome, http.StatusSeeOther)
 			return
 		}
 		sess.ClearAuth()
@@ -83,7 +79,7 @@ func (a *App) handleLoginSubmit(w http.ResponseWriter, r *http.Request) {
 	started := time.Now()
 	sess := a.Sessions.Get(r)
 	address := strings.TrimSpace(r.FormValue("address"))
-	password := r.FormValue("password")
+	password := r.FormValue(fieldPassword)
 	ip := authlimit.ClientIP(r)
 
 	localpart, domain, _ := xmpp.SplitJID(address)
@@ -149,7 +145,7 @@ func (a *App) handleLoginSubmit(w http.ResponseWriter, r *http.Request) {
 	_ = csrf.Rotate(sess)
 	a.padLogin(started, gate.MinLatency())
 	a.recordAudit(r, sess, "auth.login", jid, "")
-	a.flashRedirect(w, r, sess, "Login successful.", "success", "/user/")
+	a.flashRedirect(w, r, sess, "Login successful.", "success", pathUserHome)
 }
 
 // padLogin waits until the login attempt has taken at least min so early

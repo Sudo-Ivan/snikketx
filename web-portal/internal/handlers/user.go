@@ -31,13 +31,13 @@ var accessModelChoices = []accessModelChoice{
 // mountUser registers the routes of the signed in account area.
 func (a *App) mountUser(mux *http.ServeMux) {
 	mux.HandleFunc("GET /user", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/user/", http.StatusMovedPermanently)
+		http.Redirect(w, r, pathUserHome, http.StatusMovedPermanently)
 	})
 	mux.HandleFunc("GET /user/{$}", a.handleUserHome)
-	mux.HandleFunc("GET /user/passwd", a.handlePasswordForm)
-	mux.HandleFunc("POST /user/passwd", a.handlePasswordSubmit)
-	mux.HandleFunc("GET /user/profile", a.handleProfileForm)
-	mux.HandleFunc("POST /user/profile", a.handleProfileSubmit)
+	mux.HandleFunc("GET "+pathUserPasswd, a.handlePasswordForm)
+	mux.HandleFunc("POST "+pathUserPasswd, a.handlePasswordSubmit)
+	mux.HandleFunc("GET "+pathUserProfile, a.handleProfileForm)
+	mux.HandleFunc("POST "+pathUserProfile, a.handleProfileSubmit)
 	mux.HandleFunc("POST /user/profile/sessions", a.handleProfileSessions)
 	mux.HandleFunc("GET /user/manage_data", a.handleManageDataForm)
 	mux.HandleFunc("POST /user/manage_data", a.handleManageDataSubmit)
@@ -134,12 +134,12 @@ func (a *App) handlePasswordSubmit(w http.ResponseWriter, r *http.Request) {
 	tokenInfo, err := a.Prosody.ChangePassword(r.Context(), sess.JID(), current, next)
 	if err != nil {
 		if errors.Is(err, prosody.ErrInvalidCredentials) {
-			fail("Incorrect password.")
+			fail(msgIncorrectPassword)
 			return
 		}
 		switch prosody.StatusOf(err) {
 		case http.StatusUnauthorized, http.StatusForbidden:
-			fail("Incorrect password.")
+			fail(msgIncorrectPassword)
 			return
 		}
 		a.failAPI(w, r, err)
@@ -147,7 +147,7 @@ func (a *App) handlePasswordSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sess.SetAuth(tokenInfo.Token, strings.Join(tokenInfo.Scopes, " "), sess.JID())
-	a.flashRedirect(w, r, sess, "Password changed.", "success", "/user/passwd")
+	a.flashRedirect(w, r, sess, "Password changed.", "success", pathUserPasswd)
 }
 
 // profilePage is the data behind the profile form.
@@ -284,7 +284,7 @@ func (a *App) handleProfileSubmit(w http.ResponseWriter, r *http.Request) {
 		defer func() { _ = file.Close() }()
 
 		if header.Size > a.Cfg.MaxAvatarSize {
-			fail("The chosen avatar is too big. To upload larger avatars, use your chat app.")
+			fail(msgAvatarTooBig)
 			return
 		}
 		data, err := io.ReadAll(io.LimitReader(file, a.Cfg.MaxAvatarSize+1))
@@ -293,7 +293,7 @@ func (a *App) handleProfileSubmit(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if int64(len(data)) > a.Cfg.MaxAvatarSize {
-			fail("The chosen avatar is too big. To upload larger avatars, use your chat app.")
+			fail(msgAvatarTooBig)
 			return
 		}
 		if len(data) > 0 {
@@ -333,7 +333,7 @@ func (a *App) handleProfileSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a.flashRedirect(w, r, sess, "Profile updated.", "success", "/user/profile")
+	a.flashRedirect(w, r, sess, "Profile updated.", "success", pathUserProfile)
 }
 
 // handleProfileSessions revokes one or every registered client for the caller.
@@ -342,33 +342,33 @@ func (a *App) handleProfileSessions(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	action := strings.TrimSpace(r.FormValue("action"))
+	action := strings.TrimSpace(r.FormValue(fieldAction))
 	switch action {
 	case "revoke":
 		clientID := strings.TrimSpace(r.FormValue("client_id"))
 		if clientID == "" || clientID == "portal" {
-			a.flashRedirect(w, r, sess, "Missing client id.", "alert", "/user/profile")
+			a.flashRedirect(w, r, sess, "Missing client id.", "alert", pathUserProfile)
 			return
 		}
 		if err := a.Prosody.RevokeMyClientDevice(r.Context(), sess.Token(), clientID); err != nil {
-			a.flashRedirect(w, r, sess, apiErrorMessage(err), "alert", "/user/profile")
+			a.flashRedirect(w, r, sess, apiErrorMessage(err), "alert", pathUserProfile)
 			return
 		}
-		a.flashRedirect(w, r, sess, "Device signed out.", "success", "/user/profile")
+		a.flashRedirect(w, r, sess, "Device signed out.", "success", pathUserProfile)
 	case "revoke_all":
 		if err := a.Prosody.RevokeAllMyClientDevices(r.Context(), sess.Token()); err != nil {
-			a.flashRedirect(w, r, sess, apiErrorMessage(err), "alert", "/user/profile")
+			a.flashRedirect(w, r, sess, apiErrorMessage(err), "alert", pathUserProfile)
 			return
 		}
-		a.flashRedirect(w, r, sess, "All chat devices signed out. This portal session is still active.", "success", "/user/profile")
+		a.flashRedirect(w, r, sess, "All chat devices signed out. This portal session is still active.", "success", pathUserProfile)
 	case "revoke_others":
 		if err := a.Prosody.RevokeAllMyClientDevices(r.Context(), sess.Token()); err != nil {
-			a.flashRedirect(w, r, sess, apiErrorMessage(err), "alert", "/user/profile")
+			a.flashRedirect(w, r, sess, apiErrorMessage(err), "alert", pathUserProfile)
 			return
 		}
-		a.flashRedirect(w, r, sess, "Other chat devices signed out. This portal session stays signed in.", "success", "/user/profile")
+		a.flashRedirect(w, r, sess, "Other chat devices signed out. This portal session stays signed in.", "success", pathUserProfile)
 	default:
-		a.flashRedirect(w, r, sess, "Unknown session action.", "alert", "/user/profile")
+		a.flashRedirect(w, r, sess, "Unknown session action.", "alert", pathUserProfile)
 	}
 }
 
@@ -442,5 +442,5 @@ func (a *App) handleLogoutSubmit(w http.ResponseWriter, r *http.Request) {
 
 	sess.ClearAuth()
 	a.Sessions.Clear(w)
-	http.Redirect(w, r, "/login", http.StatusSeeOther)
+	http.Redirect(w, r, pathLogin, http.StatusSeeOther)
 }

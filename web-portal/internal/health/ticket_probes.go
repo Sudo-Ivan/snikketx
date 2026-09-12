@@ -28,9 +28,9 @@ var (
 		`<`, "&lt;",
 		`>`, "&gt;",
 	)
-	probeDialer = &net.Dialer{Timeout: probeTimeout}
+	probeDialer    = &net.Dialer{Timeout: probeTimeout}
 	probeTLSConfig = &tls.Config{MinVersion: tls.VersionTLS12}
-	stunBufPool = sync.Pool{
+	stunBufPool    = sync.Pool{
 		New: func() any {
 			b := make([]byte, 148)
 			return &b

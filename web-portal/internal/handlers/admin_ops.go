@@ -20,35 +20,35 @@ import (
 )
 
 func (a *App) mountAdminOps(mux *http.ServeMux) {
-	mux.HandleFunc("GET /admin/devices", a.handleDevices)
-	mux.HandleFunc("POST /admin/devices", a.handleDevicesSubmit)
+	mux.HandleFunc("GET "+pathAdminDevices, a.handleDevices)
+	mux.HandleFunc("POST "+pathAdminDevices, a.handleDevicesSubmit)
 
-	mux.HandleFunc("GET /admin/storage", a.handleStorage)
-	mux.HandleFunc("POST /admin/storage", a.handleStorageSubmit)
+	mux.HandleFunc("GET "+pathAdminStorage, a.handleStorage)
+	mux.HandleFunc("POST "+pathAdminStorage, a.handleStorageSubmit)
 
 	mux.HandleFunc("GET /admin/invites/analytics", a.handleInviteAnalytics)
 
 	mux.HandleFunc("GET /admin/archives", a.handleArchives)
 
-	mux.HandleFunc("GET /admin/updates", a.handleUpdates)
-	mux.HandleFunc("POST /admin/updates", a.handleUpdatesSubmit)
+	mux.HandleFunc("GET "+pathAdminUpdates, a.handleUpdates)
+	mux.HandleFunc("POST "+pathAdminUpdates, a.handleUpdatesSubmit)
 
 	mux.HandleFunc("GET /admin/certs/", a.handleCerts)
 
-	mux.HandleFunc("GET /admin/limits/", a.handleLimits)
-	mux.HandleFunc("POST /admin/limits/", a.handleLimitsSubmit)
+	mux.HandleFunc("GET "+pathAdminLimits, a.handleLimits)
+	mux.HandleFunc("POST "+pathAdminLimits, a.handleLimitsSubmit)
 
-	mux.HandleFunc("GET /admin/backup/", a.handleBackup)
-	mux.HandleFunc("POST /admin/backup/", a.handleBackupSubmit)
+	mux.HandleFunc("GET "+pathAdminBackup, a.handleBackup)
+	mux.HandleFunc("POST "+pathAdminBackup, a.handleBackupSubmit)
 	mux.HandleFunc("GET /admin/backup/config.json", a.handleBackupConfig)
 	mux.HandleFunc("GET /admin/backup/export/{localpart}", a.handleBackupExport)
 
 	mux.HandleFunc("GET /admin/logs/", a.handleAdminLogs)
 
-	mux.HandleFunc("GET /admin/apps", a.handleApps)
-	mux.HandleFunc("POST /admin/apps", a.handleAppsSubmit)
+	mux.HandleFunc("GET "+pathAdminApps, a.handleApps)
+	mux.HandleFunc("POST "+pathAdminApps, a.handleAppsSubmit)
 
-	mux.HandleFunc("POST /admin/users/bulk", a.handleUsersBulk)
+	mux.HandleFunc("POST "+pathAdminUsers+"/bulk", a.handleUsersBulk)
 }
 
 type devicesPage struct {
@@ -84,18 +84,18 @@ func (a *App) handleDevicesSubmit(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	user := strings.TrimSpace(r.FormValue("user"))
+	user := strings.TrimSpace(r.FormValue(fieldUser))
 	clientID := strings.TrimSpace(r.FormValue("client_id"))
 	if user == "" || clientID == "" {
-		a.flashRedirect(w, r, sess, "Missing device identity.", "alert", "/admin/devices")
+		a.flashRedirect(w, r, sess, "Missing device identity.", "alert", pathAdminDevices)
 		return
 	}
 	if err := a.Prosody.RevokeClientDevice(r.Context(), sess.Token(), user, clientID); err != nil {
-		a.flashRedirect(w, r, sess, apiErrorMessage(err), "alert", "/admin/devices")
+		a.flashRedirect(w, r, sess, apiErrorMessage(err), "alert", pathAdminDevices)
 		return
 	}
 	a.recordAudit(r, sess, "device.revoke", user, clientID)
-	a.flashRedirect(w, r, sess, "Device revoked.", "success", "/admin/devices")
+	a.flashRedirect(w, r, sess, "Device revoked.", "success", pathAdminDevices)
 }
 
 type storageUserView struct {
@@ -154,10 +154,10 @@ func (a *App) handleStorageSubmit(w http.ResponseWriter, r *http.Request) {
 	if mode == "" {
 		mode = "orphans"
 	}
-	user := strings.TrimSpace(r.FormValue("user"))
+	user := strings.TrimSpace(r.FormValue(fieldUser))
 	removed, err := a.Prosody.PurgeUploads(r.Context(), sess.Token(), mode, user)
 	if err != nil {
-		a.flashRedirect(w, r, sess, apiErrorMessage(err), "alert", "/admin/storage")
+		a.flashRedirect(w, r, sess, apiErrorMessage(err), "alert", pathAdminStorage)
 		return
 	}
 	target := mode
@@ -165,7 +165,7 @@ func (a *App) handleStorageSubmit(w http.ResponseWriter, r *http.Request) {
 		target = mode + ":" + user
 	}
 	a.recordAudit(r, sess, "storage.purge", target, strconv.Itoa(removed))
-	a.flashRedirect(w, r, sess, fmt.Sprintf("Purged %d upload records (%s).", removed, target), "success", "/admin/storage")
+	a.flashRedirect(w, r, sess, fmt.Sprintf("Purged %d upload records (%s).", removed, target), "success", pathAdminStorage)
 }
 
 type inviteDayView struct {
@@ -297,32 +297,32 @@ func (a *App) handleUpdatesSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if a.Updater == nil || !a.Updater.Enabled() {
-		a.flashRedirect(w, r, sess, "Updater service is not configured.", "alert", "/admin/updates")
+		a.flashRedirect(w, r, sess, "Updater service is not configured.", "alert", pathAdminUpdates)
 		return
 	}
-	action := strings.TrimSpace(r.FormValue("action"))
+	action := strings.TrimSpace(r.FormValue(fieldAction))
 	switch action {
 	case "check":
 		if _, err := a.Updater.Check(r.Context()); err != nil {
-			a.flashRedirect(w, r, sess, err.Error(), "alert", "/admin/updates")
+			a.flashRedirect(w, r, sess, err.Error(), "alert", pathAdminUpdates)
 			return
 		}
 		a.recordAudit(r, sess, "updater.check", "", "")
-		a.flashRedirect(w, r, sess, "Update check started.", "success", "/admin/updates")
+		a.flashRedirect(w, r, sess, "Update check started.", "success", pathAdminUpdates)
 	case "apply":
 		if _, err := a.Updater.Apply(r.Context()); err != nil {
-			a.flashRedirect(w, r, sess, err.Error(), "alert", "/admin/updates")
+			a.flashRedirect(w, r, sess, err.Error(), "alert", pathAdminUpdates)
 			return
 		}
 		a.recordAudit(r, sess, "updater.apply", "", "")
-		a.flashRedirect(w, r, sess, "Container update started.", "success", "/admin/updates")
+		a.flashRedirect(w, r, sess, "Container update started.", "success", pathAdminUpdates)
 	case "clear_pins":
 		if err := a.Updater.ClearPins(r.Context()); err != nil {
-			a.flashRedirect(w, r, sess, err.Error(), "alert", "/admin/updates")
+			a.flashRedirect(w, r, sess, err.Error(), "alert", pathAdminUpdates)
 			return
 		}
 		a.recordAudit(r, sess, "updater.clear_pins", "", "")
-		a.flashRedirect(w, r, sess, "Digest pins cleared.", "success", "/admin/updates")
+		a.flashRedirect(w, r, sess, "Digest pins cleared.", "success", pathAdminUpdates)
 	case "settings":
 		hours, _ := strconv.Atoi(strings.TrimSpace(r.FormValue("interval_hours")))
 		settings := updater.Settings{
@@ -331,13 +331,13 @@ func (a *App) handleUpdatesSubmit(w http.ResponseWriter, r *http.Request) {
 			PinDigests:    r.FormValue("pin_digests") == "1",
 		}
 		if err := a.Updater.SaveSettings(r.Context(), settings); err != nil {
-			a.flashRedirect(w, r, sess, err.Error(), "alert", "/admin/updates")
+			a.flashRedirect(w, r, sess, err.Error(), "alert", pathAdminUpdates)
 			return
 		}
 		a.recordAudit(r, sess, "updater.settings", "", strconv.Itoa(settings.IntervalHours))
-		a.flashRedirect(w, r, sess, "Updater settings saved.", "success", "/admin/updates")
+		a.flashRedirect(w, r, sess, "Updater settings saved.", "success", pathAdminUpdates)
 	default:
-		a.flashRedirect(w, r, sess, "Unknown updater action.", "alert", "/admin/updates")
+		a.flashRedirect(w, r, sess, "Unknown updater action.", "alert", pathAdminUpdates)
 	}
 }
 
@@ -458,11 +458,11 @@ func (a *App) handleLimitsSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 	key := strings.TrimSpace(r.FormValue("key"))
 	if a.LoginGate == nil || !a.LoginGate.Unlock(key) {
-		a.flashRedirect(w, r, sess, "Lockout not found.", "alert", "/admin/limits/")
+		a.flashRedirect(w, r, sess, "Lockout not found.", "alert", pathAdminLimits)
 		return
 	}
 	a.recordAudit(r, sess, "limits.unlock", key, "")
-	a.flashRedirect(w, r, sess, "Login lockout cleared.", "success", "/admin/limits/")
+	a.flashRedirect(w, r, sess, "Login lockout cleared.", "success", pathAdminLimits)
 }
 
 type backupPage struct {
@@ -497,7 +497,7 @@ func (a *App) handleBackup(w http.ResponseWriter, r *http.Request) {
 			view.ServiceOK = true
 		}
 	} else {
-		view.ServiceErr = "Backup service is not configured."
+		view.ServiceErr = msgBackupNotConfigured
 	}
 	a.render(w, r, http.StatusOK, "admin_backup.html", view)
 }
@@ -551,10 +551,10 @@ func (a *App) handleBackupExport(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	localpart := strings.TrimSpace(r.PathValue("localpart"))
+	localpart := strings.TrimSpace(r.PathValue(paramLocalpart))
 	data, err := a.Prosody.ExportAccountPackage(r.Context(), sess.Token(), localpart)
 	if err != nil {
-		a.flashRedirect(w, r, sess, apiErrorMessage(err), "alert", "/admin/backup/")
+		a.flashRedirect(w, r, sess, apiErrorMessage(err), "alert", pathAdminBackup)
 		return
 	}
 	a.recordAudit(r, sess, "backup.export", localpart, "")
@@ -568,11 +568,11 @@ func (a *App) handleBackupSubmit(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	action := strings.TrimSpace(r.FormValue("action"))
+	action := strings.TrimSpace(r.FormValue(fieldAction))
 	switch action {
 	case "save_settings":
 		if a.Backup == nil || !a.Backup.Enabled() {
-			a.flashRedirect(w, r, sess, "Backup service is not configured.", "alert", "/admin/backup/")
+			a.flashRedirect(w, r, sess, msgBackupNotConfigured, "alert", pathAdminBackup)
 			return
 		}
 		settings := backupclient.Settings{
@@ -587,31 +587,31 @@ func (a *App) handleBackupSubmit(w http.ResponseWriter, r *http.Request) {
 		settings.ResticKeepLast, _ = strconv.Atoi(strings.TrimSpace(r.FormValue("restic_keep_last")))
 		settings.ResticKeepDaily, _ = strconv.Atoi(strings.TrimSpace(r.FormValue("restic_keep_daily")))
 		if err := a.Backup.SaveSettings(r.Context(), settings); err != nil {
-			a.flashRedirect(w, r, sess, err.Error(), "alert", "/admin/backup/")
+			a.flashRedirect(w, r, sess, err.Error(), "alert", pathAdminBackup)
 			return
 		}
 		a.recordAudit(r, sess, "backup.settings", settings.Scope, "")
-		a.flashRedirect(w, r, sess, "Backup settings saved.", "success", "/admin/backup/")
+		a.flashRedirect(w, r, sess, "Backup settings saved.", "success", pathAdminBackup)
 	case "run_backup":
 		if a.Backup == nil || !a.Backup.Enabled() {
-			a.flashRedirect(w, r, sess, "Backup service is not configured.", "alert", "/admin/backup/")
+			a.flashRedirect(w, r, sess, msgBackupNotConfigured, "alert", pathAdminBackup)
 			return
 		}
 		if _, err := a.Backup.RunBackup(r.Context()); err != nil {
-			a.flashRedirect(w, r, sess, err.Error(), "alert", "/admin/backup/")
+			a.flashRedirect(w, r, sess, err.Error(), "alert", pathAdminBackup)
 			return
 		}
 		a.recordAudit(r, sess, "backup.run", "", "")
-		a.flashRedirect(w, r, sess, "Backup started.", "success", "/admin/backup/")
+		a.flashRedirect(w, r, sess, "Backup started.", "success", pathAdminBackup)
 	case "dry_run":
 		if a.Backup == nil || !a.Backup.Enabled() {
-			a.flashRedirect(w, r, sess, "Backup service is not configured.", "alert", "/admin/backup/")
+			a.flashRedirect(w, r, sess, msgBackupNotConfigured, "alert", pathAdminBackup)
 			return
 		}
 		name := strings.TrimSpace(r.FormValue("archive"))
 		res, err := a.Backup.DryRunRestore(r.Context(), name)
 		if err != nil {
-			a.flashRedirect(w, r, sess, err.Error(), "alert", "/admin/backup/")
+			a.flashRedirect(w, r, sess, err.Error(), "alert", pathAdminBackup)
 			return
 		}
 		users, _ := a.Prosody.ListUsers(r.Context(), sess.Token())
@@ -626,43 +626,43 @@ func (a *App) handleBackupSubmit(w http.ResponseWriter, r *http.Request) {
 		})
 	case "restic_check":
 		if a.Backup == nil || !a.Backup.Enabled() {
-			a.flashRedirect(w, r, sess, "Backup service is not configured.", "alert", "/admin/backup/")
+			a.flashRedirect(w, r, sess, msgBackupNotConfigured, "alert", pathAdminBackup)
 			return
 		}
 		if err := a.Backup.ResticCheck(r.Context()); err != nil {
-			a.flashRedirect(w, r, sess, err.Error(), "alert", "/admin/backup/")
+			a.flashRedirect(w, r, sess, err.Error(), "alert", pathAdminBackup)
 			return
 		}
-		a.flashRedirect(w, r, sess, "Restic repository is reachable.", "success", "/admin/backup/")
+		a.flashRedirect(w, r, sess, "Restic repository is reachable.", "success", pathAdminBackup)
 	case "import", "":
-		localpart := strings.TrimSpace(r.FormValue("localpart"))
+		localpart := strings.TrimSpace(r.FormValue(fieldLocalpart))
 		if localpart == "" {
-			a.flashRedirect(w, r, sess, "Choose an account to restore into.", "alert", "/admin/backup/")
+			a.flashRedirect(w, r, sess, "Choose an account to restore into.", "alert", pathAdminBackup)
 			return
 		}
 		file, header, err := r.FormFile("package")
 		if err != nil {
-			a.flashRedirect(w, r, sess, "Upload a JSON account package.", "alert", "/admin/backup/")
+			a.flashRedirect(w, r, sess, "Upload a JSON account package.", "alert", pathAdminBackup)
 			return
 		}
 		defer file.Close()
 		if header.Size > maxImportSize {
-			a.flashRedirect(w, r, sess, "Package is too large.", "alert", "/admin/backup/")
+			a.flashRedirect(w, r, sess, "Package is too large.", "alert", pathAdminBackup)
 			return
 		}
 		data, err := io.ReadAll(io.LimitReader(file, maxImportSize+1))
 		if err != nil || int64(len(data)) > maxImportSize {
-			a.flashRedirect(w, r, sess, "Could not read the package.", "alert", "/admin/backup/")
+			a.flashRedirect(w, r, sess, "Could not read the package.", "alert", pathAdminBackup)
 			return
 		}
 		if err := a.Prosody.ImportAccountPackage(r.Context(), sess.Token(), localpart, data); err != nil {
-			a.flashRedirect(w, r, sess, apiErrorMessage(err), "alert", "/admin/backup/")
+			a.flashRedirect(w, r, sess, apiErrorMessage(err), "alert", pathAdminBackup)
 			return
 		}
 		a.recordAudit(r, sess, "backup.import", localpart, header.Filename)
-		a.flashRedirect(w, r, sess, "Account package imported.", "success", "/admin/backup/")
+		a.flashRedirect(w, r, sess, "Account package imported.", "success", pathAdminBackup)
 	default:
-		a.flashRedirect(w, r, sess, "Unknown action.", "alert", "/admin/backup/")
+		a.flashRedirect(w, r, sess, msgUnknownAction, "alert", pathAdminBackup)
 	}
 }
 
@@ -671,10 +671,10 @@ func (a *App) handleUsersBulk(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	action := strings.TrimSpace(r.FormValue("action"))
+	action := strings.TrimSpace(r.FormValue(fieldAction))
 	users := r.Form["users"]
 	if len(users) == 0 {
-		a.flashRedirect(w, r, sess, "Select at least one account.", "alert", "/admin/users")
+		a.flashRedirect(w, r, sess, "Select at least one account.", "alert", pathAdminUsers)
 		return
 	}
 	var failed int
@@ -696,7 +696,7 @@ func (a *App) handleUsersBulk(w http.ResponseWriter, r *http.Request) {
 				a.recordAudit(r, sess, "user.bulk_unlock", localpart, "")
 			}
 		case "role":
-			role := r.FormValue("role")
+			role := r.FormValue(fieldRole)
 			if !validRole(role) {
 				role = prosody.ScopeDefault
 			}
@@ -715,7 +715,7 @@ func (a *App) handleUsersBulk(w http.ResponseWriter, r *http.Request) {
 				a.recordAudit(r, sess, "user.bulk_circle", localpart, circleID)
 			}
 		default:
-			a.flashRedirect(w, r, sess, "Unknown bulk action.", "alert", "/admin/users")
+			a.flashRedirect(w, r, sess, "Unknown bulk action.", "alert", pathAdminUsers)
 			return
 		}
 		if err != nil {
@@ -725,8 +725,8 @@ func (a *App) handleUsersBulk(w http.ResponseWriter, r *http.Request) {
 	msg := fmt.Sprintf("Bulk %s finished for %d accounts.", action, len(users)-failed)
 	if failed > 0 {
 		msg = fmt.Sprintf("Bulk %s finished with %d failures.", action, failed)
-		a.flashRedirect(w, r, sess, msg, "alert", "/admin/users")
+		a.flashRedirect(w, r, sess, msg, "alert", pathAdminUsers)
 		return
 	}
-	a.flashRedirect(w, r, sess, msg, "success", "/admin/users")
+	a.flashRedirect(w, r, sess, msg, "success", pathAdminUsers)
 }
