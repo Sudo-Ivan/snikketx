@@ -45,22 +45,35 @@ public class InstallReferrerUtils implements InstallReferrerStateListener {
 
     @Override
     public void onInstallReferrerSetupFinished(int responseCode) {
-        if (responseCode == InstallReferrerClient.InstallReferrerResponse.OK) {
-            try {
-                final ReferrerDetails referrerDetails = installReferrerClient.getInstallReferrer();
-                final String referrer = referrerDetails.getInstallReferrer();
-                if (Strings.isNullOrEmpty(referrer)) {
-                    return;
+        try {
+            if (responseCode == InstallReferrerClient.InstallReferrerResponse.OK) {
+                try {
+                    final ReferrerDetails referrerDetails =
+                            installReferrerClient.getInstallReferrer();
+                    final String referrer = referrerDetails.getInstallReferrer();
+                    if (Strings.isNullOrEmpty(referrer)) {
+                        return;
+                    }
+                    welcomeActivity.onInstallReferrerDiscovered(Uri.parse(referrer));
+                } catch (final RemoteException | IllegalArgumentException e) {
+                    Log.d(Config.LOGTAG, "unable to get install referrer", e);
                 }
-                welcomeActivity.onInstallReferrerDiscovered(Uri.parse(referrer));
-            } catch (final RemoteException | IllegalArgumentException e) {
-                Log.d(Config.LOGTAG, "unable to get install referrer", e);
+            } else {
+                Log.d(
+                        Config.LOGTAG,
+                        "unable to setup install referrer client. code=" + responseCode);
             }
-        } else {
-            Log.d(Config.LOGTAG, "unable to setup install referrer client. code=" + responseCode);
+        } finally {
+            if (installReferrerClient != null) {
+                installReferrerClient.endConnection();
+            }
         }
     }
 
     @Override
-    public void onInstallReferrerServiceDisconnected() {}
+    public void onInstallReferrerServiceDisconnected() {
+        if (installReferrerClient != null) {
+            installReferrerClient.endConnection();
+        }
+    }
 }

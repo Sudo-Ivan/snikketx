@@ -61,6 +61,11 @@ clone and are then synced into this repo.
 - Rebranding: applicationId, app name, icon set, `snikketx` strings.
 - `UpdateChecker` (conversationsFree only) polls the server portal for a
   newer APK. The playstore flavor carries a no-op stub.
+- The `conversationsPlaystore` flavor does not build from a clean
+  checkout: it needs `src/conversationsPlaystore/res/values/push.xml`
+  (gitignored) defining `app_server` (the push gateway JID) and
+  `gcm_defaultSenderId` (your Firebase sender ID). Create it when wiring
+  up SnikketX push infrastructure.
 - Crash reports still go to `bugs@snikket.org` upstream, since nearly all
   bugs live in shared code. Revisit if upstream objects.
 - `PRIVACY_POLICY` points at this repo's `android-app/PRIVACY.md`.
