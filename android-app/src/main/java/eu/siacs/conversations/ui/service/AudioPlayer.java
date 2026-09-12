@@ -21,15 +21,20 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import com.google.android.material.button.MaterialButton;
 import com.google.common.primitives.Ints;
+import eu.siacs.conversations.AppSettings;
 import eu.siacs.conversations.Config;
 import eu.siacs.conversations.R;
 import eu.siacs.conversations.entities.Message;
+import eu.siacs.conversations.persistance.FileBackend;
 import eu.siacs.conversations.services.MediaPlayer;
 import eu.siacs.conversations.ui.ConversationsActivity;
 import eu.siacs.conversations.ui.adapter.MessageAdapter;
 import eu.siacs.conversations.ui.util.PendingItem;
+import eu.siacs.conversations.ui.widget.WaveformSeekBar;
 import eu.siacs.conversations.utils.TimeFrameUtils;
+import eu.siacs.conversations.utils.WaveformCache;
 import eu.siacs.conversations.utils.WeakReferenceSet;
+import java.io.File;
 import java.lang.ref.WeakReference;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -43,10 +48,12 @@ public class AudioPlayer
 
     private static final int REFRESH_INTERVAL = 250;
     private static final Object LOCK = new Object();
+    private static final float[] PLAYBACK_SPEEDS = {1.0f, 1.5f, 2.0f};
     private static MediaPlayer player = null;
     private static Message currentlyPlayingMessage = null;
     private static PowerManager.WakeLock wakeLock;
     private final MessageAdapter messageAdapter;
+    private final AppSettings appSettings;
     private final WeakReferenceSet<RelativeLayout> audioPlayerLayouts = new WeakReferenceSet<>();
     private final SensorManager sensorManager;
     private final Sensor proximitySensor;
@@ -60,6 +67,7 @@ public class AudioPlayer
     public AudioPlayer(MessageAdapter adapter) {
         final Context context = adapter.getContext();
         this.messageAdapter = adapter;
+        this.appSettings = new AppSettings(context);
         this.sensorManager = (SensorManager) context.getSystemService(Context.SENSOR_SERVICE);
         this.proximitySensor =
                 this.sensorManager == null
@@ -100,7 +108,7 @@ public class AudioPlayer
     public void init(RelativeLayout audioPlayer, Message message) {
         synchronized (AudioPlayer.LOCK) {
             audioPlayer.setTag(message);
-            if (init(ViewHolder.get(audioPlayer), message)) {
+            if (init(audioPlayer, ViewHolder.get(audioPlayer), message)) {
                 this.audioPlayerLayouts.addWeakReferenceTo(audioPlayer);
                 executor.execute(() -> this.stopRefresher(true));
             } else {
@@ -109,7 +117,8 @@ public class AudioPlayer
         }
     }
 
-    private boolean init(final ViewHolder viewHolder, final Message message) {
+    private boolean init(
+            final RelativeLayout audioPlayer, final ViewHolder viewHolder, final Message message) {
         MessageAdapter.setTextColor(viewHolder.runtime, viewHolder.bubbleColor);
         viewHolder.progress.setOnSeekBarChangeListener(this);
         final ColorStateList color =
@@ -118,6 +127,7 @@ public class AudioPlayer
         viewHolder.progress.setThumbTintList(color);
         viewHolder.progress.setProgressTintList(color);
         viewHolder.playPause.setOnClickListener(this);
+        initVoiceMessageUi(audioPlayer, viewHolder, message);
         final Context context = viewHolder.playPause.getContext();
         if (message == currentlyPlayingMessage) {
             if (AudioPlayer.player != null && AudioPlayer.player.isPlaying()) {
@@ -140,11 +150,115 @@ public class AudioPlayer
         }
     }
 
+    private void initVoiceMessageUi(
+            final RelativeLayout audioPlayer, final ViewHolder viewHolder, final Message message) {
+        final File file;
+        try {
+            file = messageAdapter.getFileBackend().getFile(message);
+        } catch (final Exception e) {
+            viewHolder.speed.setVisibility(View.GONE);
+            viewHolder.progress.setAmplitudes(null);
+            return;
+        }
+        if (file == null || !FileBackend.Cache.isRecordingFilenamePattern(file.getName())) {
+            viewHolder.speed.setVisibility(View.GONE);
+            viewHolder.progress.setAmplitudes(null);
+            return;
+        }
+        viewHolder.speed.setVisibility(View.VISIBLE);
+        viewHolder.speed.setText(speedLabel(appSettings.getVoicePlaybackSpeed()));
+        viewHolder.speed.setOnClickListener(this);
+        MessageAdapter.setTextColor(viewHolder.speed, viewHolder.bubbleColor);
+        loadWaveform(audioPlayer, viewHolder, message, file.getAbsolutePath());
+    }
+
+    private void loadWaveform(
+            final RelativeLayout audioPlayer,
+            final ViewHolder viewHolder,
+            final Message message,
+            final String path) {
+        final float[] cached = WaveformCache.peek(path);
+        if (cached != null) {
+            viewHolder.progress.setAmplitudes(cached);
+            return;
+        }
+        viewHolder.progress.setAmplitudes(null);
+        executor.execute(
+                () -> {
+                    final float[] waveform = WaveformCache.get(path);
+                    if (waveform == null) {
+                        return;
+                    }
+                    handler.post(
+                            () -> {
+                                synchronized (AudioPlayer.LOCK) {
+                                    // the layout may have been recycled for a different message
+                                    if (audioPlayer.getTag() == message) {
+                                        ViewHolder.get(audioPlayer)
+                                                .progress
+                                                .setAmplitudes(waveform);
+                                    }
+                                }
+                            });
+                });
+    }
+
+    private static String speedLabel(final float speed) {
+        if (speed == Math.floor(speed)) {
+            return ((int) speed) + "×";
+        }
+        return speed + "×";
+    }
+
+    private float nextSpeed(final float current) {
+        for (final float speed : PLAYBACK_SPEEDS) {
+            if (speed > current + 0.01f) {
+                return speed;
+            }
+        }
+        return PLAYBACK_SPEEDS[0];
+    }
+
+    private void cyclePlaybackSpeed() {
+        final float speed = nextSpeed(appSettings.getVoicePlaybackSpeed());
+        appSettings.setVoicePlaybackSpeed(speed);
+        applyPlaybackSpeed(speed);
+        final String label = speedLabel(speed);
+        for (final WeakReference<RelativeLayout> audioPlayer : audioPlayerLayouts) {
+            final RelativeLayout layout = audioPlayer.get();
+            if (layout != null) {
+                ViewHolder.get(layout).speed.setText(label);
+            }
+        }
+    }
+
+    private void applyPlaybackSpeed(final float speed) {
+        if (AudioPlayer.player == null) {
+            return;
+        }
+        try {
+            // on some devices setPlaybackParams resets the position of a paused player
+            final boolean wasPlaying = AudioPlayer.player.isPlaying();
+            final int position = AudioPlayer.player.getCurrentPosition();
+            AudioPlayer.player.setPlaybackParams(
+                    AudioPlayer.player.getPlaybackParams().setSpeed(speed));
+            if (!wasPlaying) {
+                AudioPlayer.player.seekTo(position);
+            }
+        } catch (final Exception e) {
+            Log.w(Config.LOGTAG, "could not apply playback speed", e);
+        }
+    }
+
     @Override
     public synchronized void onClick(View v) {
         if (v.getId() == R.id.play_pause) {
             synchronized (LOCK) {
                 startStop((MaterialButton) v);
+            }
+        } else if (v.getId() == R.id.playback_speed) {
+            synchronized (LOCK) {
+                cyclePlaybackSpeed();
             }
         }
     }
@@ -185,6 +299,7 @@ public class AudioPlayer
         } else {
             viewHolder.progress.setEnabled(true);
             player.start();
+            applyPlaybackSpeed(appSettings.getVoicePlaybackSpeed());
             messageAdapter.flagScreenOn();
             acquireProximityWakeLock();
             this.stopRefresher(true);
@@ -211,6 +326,7 @@ public class AudioPlayer
             AudioPlayer.player.setOnCompletionListener(this);
             AudioPlayer.player.prepare();
             AudioPlayer.player.start();
+            applyPlaybackSpeed(appSettings.getVoicePlaybackSpeed());
             messageAdapter.flagScreenOn();
             acquireProximityWakeLock();
             viewHolder.progress.setEnabled(true);
@@ -451,8 +567,9 @@ public class AudioPlayer
 
     public static class ViewHolder {
         private TextView runtime;
-        private SeekBar progress;
+        private WaveformSeekBar progress;
         private MaterialButton playPause;
+        private MaterialButton speed;
         private MessageAdapter.BubbleColor bubbleColor = MessageAdapter.BubbleColor.SURFACE;
 
         public static ViewHolder get(final RelativeLayout audioPlayer) {
@@ -465,6 +582,7 @@ public class AudioPlayer
             viewHolder.runtime = audioPlayer.findViewById(R.id.runtime);
             viewHolder.progress = audioPlayer.findViewById(R.id.progress);
             viewHolder.playPause = audioPlayer.findViewById(R.id.play_pause);
+            viewHolder.speed = audioPlayer.findViewById(R.id.playback_speed);
             audioPlayer.setTag(R.id.TAG_AUDIO_PLAYER_VIEW_HOLDER, viewHolder);
             return viewHolder;
         }

@@ -63,23 +63,43 @@
                 app:icon="@drawable/ic_play_arrow_24dp"
                 app:iconSize="26dp" />
 
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/playback_speed"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:contentDescription="@string/playback_speed"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:paddingHorizontal="6dp"
+                android:visibility="gone"
+                tools:text="1×"
+                tools:visibility="visible" />
+
             <TextView
                 android:id="@+id/runtime"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_alignParentEnd="true"
                 android:layout_marginEnd="16dp"
                 android:layout_marginBottom="16dp"
+                android:layout_toStartOf="@id/playback_speed"
                 android:textAppearance="?textAppearanceBodySmall" />
 
-            <SeekBar
+            <eu.siacs.conversations.ui.widget.WaveformSeekBar
                 android:id="@+id/progress"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_below="@+id/runtime"
                 android:layout_centerVertical="true"
                 android:layout_toEndOf="@+id/play_pause"
-                android:progress="100" />
+                android:layout_toStartOf="@id/playback_speed"
+                android:minHeight="28dp"
+                android:progress="100"
+                android:progressDrawable="@android:color/transparent" />
         </RelativeLayout>
 
     </merge>
