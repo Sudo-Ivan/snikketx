@@ -1,0 +1,10 @@
+    ssl_certificate     /snikket/letsencrypt/live/${SNIKKET_DOMAIN_ASCII}/fullchain.pem;
+    ssl_certificate_key /snikket/letsencrypt/live/${SNIKKET_DOMAIN_ASCII}/privkey.pem;
+
+    ssl_session_cache shared:le_nginx_SSL:1m;
+    ssl_session_timeout 1440m;
+    ssl_prefer_server_ciphers off;
+    ssl_protocols ${SNIKKET_TWEAK_HTTP_TLS_VERSIONS};
+    ssl_ciphers ${SNIKKET_TWEAK_HTTP_TLS_CIPHERS};
+
+    add_header Strict-Transport-Security "max-age=63072000" always;

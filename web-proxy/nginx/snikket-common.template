@@ -21,9 +21,7 @@ location /share {
 }
 
 location /upload {
-	client_max_body_size 104857616; # 100MB + 16 bytes (see Prosody config)
-	proxy_request_buffering off;
-	proxy_http_version 1.1;
+	include "/etc/nginx/snippets/snikket-upload.conf";
 	try_files none @prosody;
 }
 
@@ -45,24 +43,18 @@ location = /.well-known/host-meta.json {
 
 location @portal {
 	proxy_pass http://${SNIKKET_TWEAK_PORTAL_INTERNAL_HTTP_HOST}:${SNIKKET_TWEAK_PORTAL_INTERNAL_HTTP_PORT};
-	proxy_set_header  Host            $host;
-	proxy_set_header  X-Forwarded-For $proxy_add_x_forwarded_for;
-	proxy_set_header  X-Forwarded-Proto https;
+	include "/etc/nginx/snippets/snikket-proxy-headers.conf";
 }
 
 location @prosody {
 	proxy_pass http://${SNIKKET_TWEAK_INTERNAL_HTTP_HOST}:${SNIKKET_TWEAK_INTERNAL_HTTP_PORT};
-	proxy_set_header  Host            $host;
-	proxy_set_header  X-Forwarded-For $proxy_add_x_forwarded_for;
-	proxy_set_header  X-Forwarded-Proto https;
+	include "/etc/nginx/snippets/snikket-proxy-headers.conf";
 }
 
 location @prosodyws {
 	proxy_pass http://${SNIKKET_TWEAK_INTERNAL_HTTP_HOST}:${SNIKKET_TWEAK_INTERNAL_HTTP_PORT};
 	proxy_http_version 1.1;
-	proxy_set_header  Host            $host;
-	proxy_set_header  X-Forwarded-For $proxy_add_x_forwarded_for;
-	proxy_set_header  X-Forwarded-Proto https;
+	include "/etc/nginx/snippets/snikket-proxy-headers.conf";
 	proxy_set_header Connection $http_connection;
 	proxy_set_header Upgrade $http_upgrade;
 
@@ -71,16 +63,12 @@ location @prosodyws {
 
 location /_health/portal {
 	proxy_pass http://${SNIKKET_TWEAK_PORTAL_INTERNAL_HTTP_HOST}:${SNIKKET_TWEAK_PORTAL_INTERNAL_HTTP_PORT}/_health;
-	proxy_set_header  Host            $host;
-	proxy_set_header  X-Forwarded-For $proxy_add_x_forwarded_for;
-	proxy_set_header  X-Forwarded-Proto https;
+	include "/etc/nginx/snippets/snikket-proxy-headers.conf";
 }
 
 location /_health/xmpp {
 	proxy_pass http://${SNIKKET_TWEAK_INTERNAL_HTTP_HOST}:${SNIKKET_TWEAK_INTERNAL_HTTP_PORT}/host_status_check;
-	proxy_set_header  Host            $host;
-	proxy_set_header  X-Forwarded-For $proxy_add_x_forwarded_for;
-	proxy_set_header  X-Forwarded-Proto https;
+	include "/etc/nginx/snippets/snikket-proxy-headers.conf";
 }
 
 error_page 502 /_errors/502.html;

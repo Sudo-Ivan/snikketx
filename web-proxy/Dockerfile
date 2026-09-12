@@ -15,6 +15,9 @@ COPY entrypoint.sh /entrypoint.sh
 COPY render-template.sh /usr/local/bin/render-template.sh
 COPY nginx/nginx.conf /etc/nginx/nginx.conf
 COPY nginx/snikket-common.template /etc/nginx/templates/snikket-common
+COPY nginx/snikket-tls.template /etc/nginx/templates/snikket-tls
+COPY nginx/snikket-proxy-headers.template /etc/nginx/templates/snikket-proxy-headers
+COPY nginx/snikket-upload.template /etc/nginx/templates/snikket-upload
 COPY nginx/startup.template /etc/nginx/templates/startup
 COPY nginx/http.template /etc/nginx/templates/http
 COPY nginx/https.template /etc/nginx/templates/https
