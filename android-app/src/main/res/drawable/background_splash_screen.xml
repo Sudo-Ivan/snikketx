@@ -3,9 +3,7 @@
 
     <item android:drawable="?colorSurfaceContainerHighest" />
 
-    <item>
-        <bitmap
-            android:gravity="center"
-            android:src="@drawable/splash_logo" />
-    </item>
+    <item
+        android:gravity="center"
+        android:drawable="@drawable/splash_logo" />
 </layer-list>
