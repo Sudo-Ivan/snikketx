@@ -109,6 +109,15 @@
             android:name="com.google.android.gms.car.application"
             android:resource="@xml/automotive_app_desc" />
 
+        <!-- DSN for the Bugsink crash reporting backend. auto-init is disabled so that the
+             SDK can be gated on the send_crash_reports preference in SentryHelper.init() -->
+        <meta-data
+            android:name="io.sentry.dsn"
+            android:value="https://953e1bb7b337453aba5a2c338c33e3d9@bugs.quad4.io/1" />
+        <meta-data
+            android:name="io.sentry.auto-init"
+            android:value="false" />
+
         <!-- The warning that systemExempted requires alarm permission is incorrect because doze white list is sufficient -->
         <service
             android:name=".services.XmppConnectionService"

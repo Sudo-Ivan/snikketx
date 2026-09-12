@@ -14,6 +14,7 @@ import eu.siacs.conversations.persistance.DatabaseBackend;
 import eu.siacs.conversations.services.EmojiInitializationService;
 import eu.siacs.conversations.ui.util.SettingsUtils;
 import eu.siacs.conversations.utils.ExceptionHelper;
+import eu.siacs.conversations.utils.SentryHelper;
 import java.security.Security;
 import java.util.Arrays;
 import java.util.Collection;
@@ -72,6 +73,9 @@ public class Conversations extends Application {
         CONTEXT = this.getApplicationContext();
         EmojiInitializationService.execute(getApplicationContext());
         ExceptionHelper.init(getApplicationContext());
+        // register after ExceptionHelper so the Sentry handler wraps it and captures the
+        // crash before the stacktrace file reporter delegates to the system handler
+        SentryHelper.init(getApplicationContext());
         SettingsUtils.applyThemeSettings(this);
     }
 

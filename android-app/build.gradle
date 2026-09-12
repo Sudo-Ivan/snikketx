@@ -68,6 +68,10 @@ dependencies {
     implementation 'com.vanniktech:android-image-cropper:4.7.0'
     implementation 'im.conversations.webrtc:webrtc-android:149.0.0'
     implementation 'io.deepmedia.community:transcoder-android:0.11.2'
+    implementation('io.sentry:sentry-android:8.54.0') {
+        // the replay module can record screen contents; exclude it entirely
+        exclude group: 'io.sentry', module: 'sentry-android-replay'
+    }
     implementation 'me.leolin:ShortcutBadger:1.1.22@aar'
     //noinspection NewerVersionAvailable
     implementation 'net.fellbaum:jemoji:1.7.6' // 2.x pulls in Jackson 3, which needs minSdk 26
