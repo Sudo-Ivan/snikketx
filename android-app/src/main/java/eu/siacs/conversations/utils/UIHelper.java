@@ -1,10 +1,13 @@
 package eu.siacs.conversations.utils;
 
 import android.content.Context;
+import android.os.Build;
 import android.text.SpannableStringBuilder;
 import android.text.format.DateFormat;
 import android.text.format.DateUtils;
 import android.util.Pair;
+import android.view.HapticFeedbackConstants;
+import android.view.View;
 import androidx.annotation.ColorInt;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
@@ -505,5 +508,15 @@ public class UIHelper {
         } else {
             return size + " B";
         }
+    }
+
+    public static void performConfirmHaptic(@Nullable final View view) {
+        if (view == null) {
+            return;
+        }
+        view.performHapticFeedback(
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+                        ? HapticFeedbackConstants.CONFIRM
+                        : HapticFeedbackConstants.KEYBOARD_TAP);
     }
 }

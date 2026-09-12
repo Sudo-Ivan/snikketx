@@ -58,6 +58,7 @@
                     android:id="@+id/call_direction"
                     android:layout_width="18sp"
                     android:layout_height="18sp"
+                    android:importantForAccessibility="no"
                     android:layout_marginEnd="5sp"
                     app:tint="?colorControlNormal"
                     tools:src="@drawable/ic_call_received_24dp" />

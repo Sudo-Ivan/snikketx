@@ -9,6 +9,7 @@
         android:layout_height="72dp"
         android:layout_margin="6dp"
         android:background="?attr/selectableItemBackgroundBorderless"
+        android:focusable="true"
         android:scaleType="fitCenter"
         tools:src="@drawable/ic_image_24dp" />
 </layout>

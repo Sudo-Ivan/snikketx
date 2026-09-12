@@ -1912,6 +1912,7 @@ public class ConversationFragment extends XmppFragment
         } else {
             manager.pin(c, message, pinnedMessagePreviewOf(message));
         }
+        UIHelper.performConfirmHaptic(getView());
         refresh();
     }
 
@@ -4200,6 +4201,7 @@ public class ConversationFragment extends XmppFragment
                                 scheduledAt,
                                 c.getNextEncryption()));
         binding.textInput.setText("");
+        UIHelper.performConfirmHaptic(binding.getRoot());
         Toast.makeText(
                         requireContext(),
                         getString(R.string.message_scheduled_for, formatScheduledTime(scheduledAt)),

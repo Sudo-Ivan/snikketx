@@ -60,6 +60,7 @@ import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.chip.Chip;
+import com.google.android.material.chip.ChipDrawable;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.search.SearchView;
 import com.google.android.material.snackbar.Snackbar;
@@ -88,6 +89,7 @@ import eu.siacs.conversations.ui.util.ScrollState;
 import eu.siacs.conversations.ui.widget.AccountPickerDialog;
 import eu.siacs.conversations.utils.AccountUtils;
 import eu.siacs.conversations.utils.CharSequences;
+import eu.siacs.conversations.utils.UIHelper;
 import eu.siacs.conversations.utils.XmppUriLauncher;
 import eu.siacs.conversations.xmpp.manager.BookmarkManager;
 import eu.siacs.conversations.xmpp.manager.ConversationFolderManager;
@@ -746,20 +748,16 @@ public class ConversationsOverviewFragment extends XmppFragment {
         this.binding.folderScroll.setVisibility(View.VISIBLE);
         chipGroup.setOnCheckedStateChangeListener(null);
         chipGroup.removeAllViews();
-        final var allChip = new Chip(requireContext());
-        allChip.setId(View.generateViewId());
+        final var allChip = newFolderChip();
         allChip.setText(R.string.folder_all);
-        allChip.setCheckable(true);
         chipGroup.addView(allChip);
         for (final var entry : unreadPerFolder.entrySet()) {
-            final var chip = new Chip(requireContext());
-            chip.setId(View.generateViewId());
+            final var chip = newFolderChip();
             final int unread = entry.getValue();
             chip.setText(
                     unread > 0
                             ? getString(R.string.folder_chip_with_unread, entry.getKey(), unread)
                             : entry.getKey());
-            chip.setCheckable(true);
             chip.setTag(entry.getKey());
             chipGroup.addView(chip);
         }
@@ -787,6 +785,21 @@ public class ConversationsOverviewFragment extends XmppFragment {
                             checked instanceof Chip ? (String) checked.getTag() : null;
                     refresh();
                 });
+    }
+
+    private Chip newFolderChip() {
+        final var chip = new Chip(requireContext());
+        // the default chipStyle resolves to an assist chip which has no selected state,
+        // so swap in a filter chip drawable to get the check icon and checked tint
+        chip.setChipDrawable(
+                ChipDrawable.createFromAttributes(
+                        requireContext(),
+                        null,
+                        0,
+                        com.google.android.material.R.style.Widget_Material3_Chip_Filter));
+        chip.setCheckable(true);
+        chip.setId(View.generateViewId());
+        return chip;
     }
 
     private void applyFolderFilter() {
@@ -876,6 +889,7 @@ public class ConversationsOverviewFragment extends XmppFragment {
         if (connection != null) {
             connection.getManager(ConversationFolderManager.class).schedulePublish();
         }
+        UIHelper.performConfirmHaptic(getView());
         refresh();
     }
 }

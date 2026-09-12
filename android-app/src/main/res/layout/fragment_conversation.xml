@@ -30,6 +30,7 @@
             android:background="?colorSurfaceContainerHigh"
             android:clickable="true"
             android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
             android:gravity="center_vertical"
             android:orientation="horizontal"
             android:paddingHorizontal="16dp"
@@ -40,7 +41,7 @@
             <ImageView
                 android:layout_width="20dp"
                 android:layout_height="20dp"
-                android:contentDescription="@string/pinned_message"
+                android:importantForAccessibility="no"
                 android:src="@drawable/ic_push_pin_24dp" />
 
             <TextView
@@ -93,6 +94,7 @@
                 android:layout_height="wrap_content"
                 android:layout_alignBottom="@+id/messages_view"
                 android:layout_alignParentEnd="true"
+                android:contentDescription="@string/scroll_to_bottom"
                 android:src="@drawable/ic_keyboard_double_arrow_down_24dp"
                 android:visibility="visible"
                 app:useCompatPadding="true" />
@@ -195,6 +197,7 @@
                         android:layout_centerVertical="true"
                         android:checkable="true"
                         android:checked="false"
+                        android:contentDescription="@string/attach"
                         app:icon="@drawable/ic_attach_file_24dp"
                         app:iconSize="24dp"
                         app:iconTint="?colorOnTertiaryContainer" />
