@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="calls">Calls</string>
+    <string name="call_history_empty">No calls yet</string>
+    <string name="call_back">Call back</string>
+    <string name="group_call">Group call</string>
+</resources>

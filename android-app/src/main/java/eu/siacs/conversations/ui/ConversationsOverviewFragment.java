@@ -250,6 +250,9 @@ public class ConversationsOverviewFragment extends XmppFragment {
                     } else if (id == R.id.action_privacy_policy) {
                         openPrivacyPolicy();
                         return true;
+                    } else if (id == R.id.action_calls) {
+                        startActivity(new Intent(requireContext(), CallHistoryActivity.class));
+                        return true;
                     } else {
                         return false;
                     }

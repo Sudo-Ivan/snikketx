@@ -186,6 +186,10 @@
             android:name=".ui.SearchActivity"
             android:label="@string/search_messages" />
         <activity
+            android:name=".ui.CallHistoryActivity"
+            android:exported="false"
+            android:label="@string/calls" />
+        <activity
             android:name=".ui.EditHistoryActivity"
             android:label="@string/edit_history" />
         <activity

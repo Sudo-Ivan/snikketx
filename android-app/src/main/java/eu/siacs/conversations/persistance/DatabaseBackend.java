@@ -1383,6 +1383,31 @@ public class DatabaseBackend extends SQLiteOpenHelper {
         return list;
     }
 
+    public List<Message> getRtpSessionMessages() {
+        final ArrayList<Message> list = new ArrayList<>();
+        final SQLiteDatabase db = this.getReadableDatabase();
+        final String[] selectionArgs = {String.valueOf(Message.TYPE_RTP_SESSION)};
+        final Cursor cursor =
+                db.query(
+                        Message.TABLENAME,
+                        null,
+                        Message.TYPE + "=?",
+                        selectionArgs,
+                        null,
+                        null,
+                        Message.TIME_SENT + " DESC");
+        CursorUtils.upgradeCursorWindowSize(cursor);
+        while (cursor.moveToNext()) {
+            try {
+                list.add(Message.fromCursor(context, cursor, null));
+            } catch (final Exception e) {
+                Log.e(Config.LOGTAG, "unable to restore rtp session message", e);
+            }
+        }
+        cursor.close();
+        return list;
+    }
+
     public Cursor getMessageSearchCursor(final List<String> term, final String uuid) {
         final SQLiteDatabase db = this.getReadableDatabase();
         final StringBuilder SQL = new StringBuilder();
