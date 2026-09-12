@@ -7,7 +7,7 @@ ENV LANG=C.UTF-8
 
 RUN apk upgrade --no-cache \
     && apk add --no-cache \
-      certbot tini idn2-utils jq bash coreutils shadow python3 \
+      certbot tini idn2-utils jq bash coreutils shadow python3 py3-requests \
     && adduser -S -D -H -h /snikket/letsencrypt -s /sbin/nologin letsencrypt \
     && install -d -m 755 /etc/cron.daily \
     && rm -rf /var/cache/apk/*
