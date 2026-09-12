@@ -97,9 +97,15 @@ services:
       dockerfile: Dockerfile
     environment:
       SNIKKET_UPDATER_TOKEN: ${SNIKKET_UPDATER_TOKEN:-snikket-updater-local}
-      SNIKKET_UPDATER_IMAGE_PREFIX: ghcr.io/sudo-ivan/snikketx
-      SNIKKET_UPDATER_VERIFY_SIGNATURES: "true"
+      SNIKKET_UPDATER_COMPOSE_DIR: /work
+      SNIKKET_UPDATER_STATE_DIR: /var/lib/snikket-updater
+      SNIKKET_UPDATER_LISTEN: 0.0.0.0:9191
+      SNIKKET_UPDATER_IMAGE_PREFIX: ${SNIKKET_UPDATER_IMAGE_PREFIX:-ghcr.io/sudo-ivan/snikketx}
+      SNIKKET_UPDATER_VERIFY_SIGNATURES: ${SNIKKET_UPDATER_VERIFY_SIGNATURES:-true}
+      # Local :dev tags are unsigned, so require stays off in dev.
       SNIKKET_UPDATER_REQUIRE_SIGNATURES: "false"
+      SNIKKET_UPDATER_COSIGN_IDENTITY_REGEXP: ${SNIKKET_UPDATER_COSIGN_IDENTITY_REGEXP:-https://github.com/Sudo-Ivan/snikketx/.*}
+      SNIKKET_UPDATER_COSIGN_OIDC_ISSUER: ${SNIKKET_UPDATER_COSIGN_OIDC_ISSUER:-https://token.actions.githubusercontent.com}
 
   snikket_backup:
     image: snikketx/backup:dev

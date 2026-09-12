@@ -13,21 +13,37 @@ volumes:
   updater_data:
   backup_data:
 
+# Shared service fragments applied below via YAML merge keys.
+x-defaults: &defaults
+  restart: unless-stopped
+  security_opt:
+    - no-new-privileges:true
+  networks:
+    - snikketx
+
+x-cap-drop: &cap-drop
+  cap_drop:
+    - ALL
+
+x-read-only: &read-only
+  read_only: true
+
+x-env-file: &env-file
+  env_file:
+    - snikket.conf
+
+x-tmpfs: &tmpfs
+  tmpfs:
+    - /tmp:size=64m,mode=1777
+
 services:
   ravenguard:
+    <<: [*defaults, *cap-drop, *read-only, *tmpfs]
     image: ghcr.io/quad4-software/ravenguard:edge@sha256:36e9df0c1812cb015443d6e5690e6e487b73ee02e281e83b6036d5475ecf0365
     container_name: snikketx-ravenguard
-    restart: unless-stopped
     user: "65532:65532"
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
     cap_add:
       - NET_BIND_SERVICE
-    read_only: true
-    tmpfs:
-      - /tmp:size=64m,mode=1777
     env_file:
       - .env
       - snikket.conf
@@ -54,8 +70,6 @@ services:
       - ./deploy/ravenguard/blocklists:/blocklists:ro
       - ravenguard_data:/data
     command: ["-config", "/config/ravenguard.toml"]
-    networks:
-      - snikketx
     depends_on:
       bootstrap_ravenguard:
         condition: service_completed_successfully
@@ -63,15 +77,12 @@ services:
         condition: service_started
 
   bootstrap_ravenguard:
+    <<: *defaults
     image: docker.io/library/alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
     container_name: snikketx-bootstrap-ravenguard
-    security_opt:
-      - no-new-privileges:true
+    restart: "no"
     volumes:
       - ravenguard_data:/data
-    networks:
-      - snikketx
-    restart: "no"
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -81,57 +92,35 @@ services:
         echo "ravenguard data owned by 65532"
 
   acme_webroot:
+    <<: [*defaults, *cap-drop, *read-only]
     image: docker.io/library/busybox:1.38.0@sha256:dc2d74b28e4cf8984fa52af1f39bc7c3d9c73760b41a74d629f5d11b1ab28616
     container_name: snikketx-acme-webroot
-    restart: unless-stopped
     user: "65534:65534"
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    read_only: true
     tmpfs:
       - /tmp:size=8m,mode=1777
     command: ["httpd", "-f", "-v", "-p", "8080", "-h", "/www"]
     volumes:
       - acme_challenges:/www/.well-known/acme-challenge:ro
-    networks:
-      - snikketx
 
   snikket_certs:
-    image: ghcr.io/sudo-ivan/snikketx/cert-manager:latest
+    <<: [*defaults, *cap-drop, *env-file]
+    image: ghcr.io/sudo-ivan/snikketx/cert-manager:${SNIKKETX_IMAGE_TAG:-latest}
     container_name: snikket-certs
-    restart: unless-stopped
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
     cap_add:
       - CHOWN
       - SETUID
       - SETGID
       - FOWNER
       - DAC_OVERRIDE
-    env_file: snikket.conf
     volumes:
       - snikket_data:/snikket
       - acme_challenges:/var/www/.well-known/acme-challenge
-    networks:
-      - snikketx
 
   snikket_portal:
-    image: ghcr.io/sudo-ivan/snikketx/web-portal:latest
+    <<: [*defaults, *cap-drop, *read-only, *tmpfs, *env-file]
+    image: ghcr.io/sudo-ivan/snikketx/web-portal:${SNIKKETX_IMAGE_TAG:-latest}
     container_name: snikket-portal
-    restart: unless-stopped
     user: "10001:10001"
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    read_only: true
-    tmpfs:
-      - /tmp:size=64m,mode=1777
-    env_file: snikket.conf
     environment:
       SNIKKET_TWEAK_PORTAL_INTERNAL_HTTP_INTERFACE: "0.0.0.0"
       SNIKKET_TWEAK_PORTAL_INTERNAL_HTTP_PORT: "5765"
@@ -142,21 +131,15 @@ services:
       SNIKKET_WEB_BACKUP_TOKEN: ${SNIKKET_BACKUP_TOKEN:-snikket-backup-local}
     volumes:
       - portal_data:/var/lib/snikket-web-portal
-    networks:
-      - snikketx
     depends_on:
       - snikket_server
     expose:
       - "5765"
 
   snikket_server:
-    image: ghcr.io/sudo-ivan/snikketx/server:latest
+    <<: [*defaults, *cap-drop, *env-file]
+    image: ghcr.io/sudo-ivan/snikketx/server:${SNIKKETX_IMAGE_TAG:-latest}
     container_name: snikket
-    restart: unless-stopped
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
     cap_add:
       - CHOWN
       - SETUID
@@ -164,7 +147,6 @@ services:
       - FOWNER
       - DAC_OVERRIDE
       - NET_BIND_SERVICE
-    env_file: snikket.conf
     environment:
       SNIKKET_TWEAK_INTERNAL_HTTP_INTERFACE: "0.0.0.0"
       SNIKKET_TWEAK_INTERNAL_HTTP_PORT: "5280"
@@ -182,18 +164,13 @@ services:
       - "5349:5349/udp"
       - "5350:5350"
       - "5350:5350/udp"
-    networks:
-      - snikketx
     expose:
       - "5280"
 
   snikket_updater:
-    image: ghcr.io/sudo-ivan/snikketx/updater:latest
+    <<: [*defaults, *env-file]
+    image: ghcr.io/sudo-ivan/snikketx/updater:${SNIKKETX_IMAGE_TAG:-latest}
     container_name: snikket-updater
-    restart: unless-stopped
-    security_opt:
-      - no-new-privileges:true
-    env_file: snikket.conf
     environment:
       SNIKKET_UPDATER_TOKEN: ${SNIKKET_UPDATER_TOKEN:-snikket-updater-local}
       SNIKKET_UPDATER_COMPOSE_DIR: /work
@@ -208,18 +185,13 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./:/work:ro
       - updater_data:/var/lib/snikket-updater
-    networks:
-      - snikketx
     expose:
       - "9191"
 
   snikket_backup:
-    image: ghcr.io/sudo-ivan/snikketx/backup:latest
+    <<: [*defaults, *env-file]
+    image: ghcr.io/sudo-ivan/snikketx/backup:${SNIKKETX_IMAGE_TAG:-latest}
     container_name: snikket-backup
-    restart: unless-stopped
-    security_opt:
-      - no-new-privileges:true
-    env_file: snikket.conf
     environment:
       SNIKKET_BACKUP_TOKEN: ${SNIKKET_BACKUP_TOKEN:-snikket-backup-local}
       SNIKKET_BACKUP_COMPOSE_DIR: /work
@@ -235,8 +207,6 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./:/work:ro
       - backup_data:/var/lib/snikket-backup
-    networks:
-      - snikketx
     ports:
       - "127.0.0.1:9292:9292"
     expose:
