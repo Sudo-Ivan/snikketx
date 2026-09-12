@@ -118,7 +118,7 @@ public class WelcomeActivity extends QrCodeProcessingActivity
         binding.learnMore.setOnClickListener(
                 v -> {
                     final Intent intent = new Intent(Intent.ACTION_VIEW);
-                    intent.setData(Uri.parse("https://snikket.org/app/learn/?ref=app"));
+                    intent.setData(Uri.parse("https://chat.quad4.io/"));
                     try {
                         startActivity(intent);
                     } catch (ActivityNotFoundException e) {

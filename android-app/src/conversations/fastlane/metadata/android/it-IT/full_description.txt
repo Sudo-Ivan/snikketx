@@ -6,6 +6,6 @@ SnikketX consente di utilizzare un servizio fornito da qualcuno di cui ci si fid
 
 Sia l'applicazione che il servizio sono al 100% software libero e open-source.
 
-Per saperne di più: https://snikket.org/app/learn/
+Per saperne di più: https://chat.quad4.io/
 
 Questa applicazione si basa sul fantastico client XMPP: Conversations.

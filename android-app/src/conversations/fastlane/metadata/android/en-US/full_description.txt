@@ -6,6 +6,6 @@ SnikketX allows you to use a service provided by someone you trust. This could b
 
 Both the app and service are 100% free and open-source software.
 
-Learn more at https://snikket.org/app/learn/
+Learn more at https://chat.quad4.io/
 
 This app is based on the awesome XMPP client, Conversations.

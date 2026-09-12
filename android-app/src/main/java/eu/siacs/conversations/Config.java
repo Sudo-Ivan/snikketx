@@ -12,10 +12,10 @@ public final class Config {
 
     public static final boolean QUICK_LOG = false;
 
-    public static final Jid BUG_REPORTS = Jid.of("bugs@snikket.org");
-    public static final Uri HELP = Uri.parse("https://snikket.org/faq/?ref=app");
+    public static final Jid BUG_REPORTS = Jid.of("bugs@chat.quad4.io");
+    public static final Uri HELP = Uri.parse("https://chat.quad4.io/");
 
-    public static final String MAGIC_CREATE_DOMAIN = "snikket.im";
+    public static final String MAGIC_CREATE_DOMAIN = "chat.quad4.io";
 
     public static final Jid QUICKSY_DOMAIN = Jid.of("quicksy.im");
 
