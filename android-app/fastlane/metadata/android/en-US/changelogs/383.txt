@@ -1,0 +1,12 @@
+Voice and video calls are here! Now you can communicate with your friends
+and family like it's 2019 again... face to (virtual) face.
+
+For the calling feature to work, both you and your contact must be using
+the latest version of the SnikketX app (or other compatible software) and
+you'll need the latest version of the SnikketX service running.
+
+Also included in this release:
+
+  - Add PDF preview support (available on Android 5+)
+  - Support for theme switching on Android 10
+  - Fix profile picture selection on some Android 10 devices

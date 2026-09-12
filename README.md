@@ -1,7 +1,7 @@
 # snikketx
 
-My Sloppulus fork of the Snikket stack as SnikketX in one repo: Prosody server image, web
-portal, cert manager, plus RavenGuard on the HTTP edge.
+Fork of the Snikket stack as SnikketX in one repo: Prosody server image, web
+portal, cert manager, Android client, plus RavenGuard on the HTTP edge.
 
 Upstream lives at [snikket-im](https://github.com/snikket-im). This fork
 publishes SnikketX images to GHCR under `ghcr.io/sudo-ivan/snikketx/`.
@@ -111,6 +111,7 @@ Classic Snikket used the same `/snikket` layout and container name `snikket`, so
 
 - `server/` - Prosody-based SnikketX server image
 - `web-portal/` - account and admin web UI
+- `android-app/` - SnikketX Android client (forked from snikket-android / Conversations)
 - `updater/` - container update service with Cosign verify
 - `backup/` - scheduled backup / retention / Restic sidecar
 - `web-proxy/` - legacy nginx front door (archive only, not published)

@@ -1,0 +1,15 @@
+SnikketX is a personal messaging app designed for groups such as family, friends, clubs or small organizations. It can be used to text and call with contacts without handing over your data to large corporations. This works because, instead of a centralized server, each group has their own private SnikketX server under their control.
+
+To get started you can choose:
+
+- Self-host your own SnikketX instance using the open-source SnikketX server software on any Linux server,
+- Use the simple hosting service provided by the SnikketX not-for-profit organization,
+- Or join an existing instance of someone you know (they can send you an invitation).
+
+Guides are available at the snikket.org website.
+
+ℹ️ Important note: Unlike many other messaging apps, there is no centralized SnikketX service. The app requires a SnikketX instance or invitation to get started.
+
+Both the app and the server are 100% free and open source software.
+
+The SnikketX Android app is based on the excellent Conversations project by Daniel Gultsch.

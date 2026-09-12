@@ -1,0 +1,11 @@
+L'applicazione SnikketX vi permette di entrare in una rete di comunicazione mondiale. Utilizzate l'app per comunicare con amici, familiari e colleghi senza cedere i vostri dati a grandi aziende.
+
+ℹ️ Nota importante: per iniziare a utilizzare l'app è necessario ricevere un invito a un servizio SnikketX, oppure gestirne uno in proprio. L'applicazione non funziona se non si dispone di un invito a partecipare a un servizio SnikketX.
+
+SnikketX consente di utilizzare un servizio fornito da qualcuno di cui ci si fida. Può trattarsi di un'organizzazione, semplicemente di un amico tecnico o di un familiare.
+
+Sia l'applicazione che il servizio sono al 100% software libero e open-source.
+
+Per saperne di più: https://snikket.org/app/learn/
+
+Questa applicazione si basa sul fantastico client XMPP: Conversations.

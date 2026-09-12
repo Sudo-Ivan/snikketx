@@ -1,0 +1,32 @@
+This new release brings an updated visual design, many reliability,
+performance and security enhancements.
+
+The new design brings a new default color palette, but can optionally follow
+the system theme colours (aka "Material You" or "Dynamic Colors") for a more
+personalized experience. A new larger font setting is available for people who
+prefer a boost to the system's default font size for their messages. Many
+other customizations can be made in the settings.
+
+Speaking of which, the settings page has been simplified and restructured, to
+make it easier to find options that you are looking for.
+
+Some other highlights include:
+
+Reading messages will now synchronize the read status to your other devices
+automatically. Previously reading a message on one device would leave it
+"unread" on your other device(s).
+
+Audio/video calls are now more closely integrated into the Android, which
+brings various benefits including improved call notification handling.
+
+Custom per-contact notification settings are now easily accessible from the
+chat menu.
+
+The app's backup mechanism has been improved (you can find it in the
+settings). You can now schedule automatic backups to a chosen location on your
+device. Using other apps, these backups can be uploaded to a secure location
+off your device.
+
+Recording of audio messages can be paused by tapping the timer.
+
+Enjoy!

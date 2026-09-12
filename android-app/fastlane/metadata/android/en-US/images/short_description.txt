@@ -1,0 +1,1 @@
+Personal messaging app for groups, with a self-hostable open-source server

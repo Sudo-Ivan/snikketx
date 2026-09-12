@@ -1,0 +1,49 @@
+name: Android
+
+on:
+  push:
+    branches: [main]
+    paths: ["android-app/**", ".github/workflows/android.yml"]
+  pull_request:
+    branches: [main]
+    paths: ["android-app/**", ".github/workflows/android.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: "android: build + test"
+    defaults:
+      run:
+        working-directory: android-app
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+        with:
+          validate-wrappers: true
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+      - name: Install Android SDK platform
+        run: |
+          set -euo pipefail
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.0"
+      - name: Unit tests
+        run: ./gradlew --no-daemon testConversationsFreeDebugUnitTest
+      - name: Assemble debug APK
+        run: ./gradlew --no-daemon assembleConversationsFreeDebug
+      - name: Upload APK
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: snikketx-conversations-free-debug
+          path: android-app/build/outputs/apk/**/*.apk
+          retention-days: 14
