@@ -70,7 +70,7 @@ dependencies {
     implementation 'io.deepmedia.community:transcoder-android:0.11.2'
     implementation 'me.leolin:ShortcutBadger:1.1.22@aar'
     //noinspection NewerVersionAvailable
-    implementation 'net.fellbaum:jemoji:1.7.6' // 2.x pulls in Jackson 3, which needs minSdk 26
+    implementation 'net.fellbaum:jemoji:2.0.0' // 2.x pulls in Jackson 3, which needs minSdk 26
     implementation 'org.bouncycastle:bcmail-jdk18on:1.86'
     implementation 'org.conscrypt:conscrypt-android:2.7.0'
     implementation 'org.hsluv:hsluv:1.0.2'
