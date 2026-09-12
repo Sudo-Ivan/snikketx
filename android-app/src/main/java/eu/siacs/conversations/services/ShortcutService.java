@@ -163,15 +163,18 @@ public class ShortcutService {
      * share target and stays eligible for bubbles.
      */
     public void push(final Conversation conversation) {
-        final var shortcut = getShortcutInfo(conversation);
-        if (shortcut == null) {
-            return;
-        }
-        push(shortcut);
+        // building the shortcut involves decoding an avatar from disk and generating an
+        // adaptive icon. keep that off the calling (usually main) thread
         pushExecutor.execute(
-                () ->
-                        ShortcutManagerCompat.reportShortcutUsed(
-                                xmppConnectionService, shortcut.getId()));
+                () -> {
+                    final var shortcut = getShortcutInfo(conversation);
+                    if (shortcut == null) {
+                        return;
+                    }
+                    push(shortcut);
+                    ShortcutManagerCompat.reportShortcutUsed(
+                            xmppConnectionService, shortcut.getId());
+                });
     }
 
     public void push(final ShortcutInfoCompat shortcut) {

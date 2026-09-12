@@ -77,7 +77,7 @@ import org.whispersystems.libsignal.state.SignedPreKeyRecord;
 public class DatabaseBackend extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "history";
-    private static final int DATABASE_VERSION = 56;
+    private static final int DATABASE_VERSION = 57;
 
     private static boolean requiresMessageIndexRebuild = false;
     private static DatabaseBackend instance = null;
@@ -320,6 +320,22 @@ public class DatabaseBackend extends SQLiteOpenHelper {
                     + "("
                     + Message.CONVERSATION
                     + ")";
+    private static final String CREATE_MESSAGE_CONVERSATION_TIME_INDEX =
+            "CREATE INDEX message_conversation_time_index ON "
+                    + Message.TABLENAME
+                    + "("
+                    + Message.CONVERSATION
+                    + ","
+                    + Message.TIME_SENT
+                    + ")";
+    private static final String CREATE_IDENTITIES_FINGERPRINT_INDEX =
+            "CREATE INDEX identities_fingerprint_index ON "
+                    + SQLiteAxolotlStore.IDENTITIES_TABLENAME
+                    + "("
+                    + SQLiteAxolotlStore.ACCOUNT
+                    + ","
+                    + SQLiteAxolotlStore.FINGERPRINT
+                    + ")";
     private static final String CREATE_MESSAGE_DELETED_INDEX =
             "CREATE INDEX message_deleted_index ON "
                     + Message.TABLENAME
@@ -528,6 +544,7 @@ public class DatabaseBackend extends SQLiteOpenHelper {
                         + ") ON DELETE CASCADE);");
         db.execSQL(CREATE_MESSAGE_TIME_INDEX);
         db.execSQL(CREATE_MESSAGE_CONVERSATION_INDEX);
+        db.execSQL(CREATE_MESSAGE_CONVERSATION_TIME_INDEX);
         db.execSQL(CREATE_MESSAGE_DELETED_INDEX);
         db.execSQL(CREATE_MESSAGE_RELATIVE_FILE_PATH_INDEX);
         db.execSQL(CREATE_MESSAGE_TYPE_INDEX);
@@ -536,6 +553,7 @@ public class DatabaseBackend extends SQLiteOpenHelper {
         db.execSQL(CREATE_PREKEYS_STATEMENT);
         db.execSQL(CREATE_SIGNED_PREKEYS_STATEMENT);
         db.execSQL(CREATE_IDENTITIES_STATEMENT);
+        db.execSQL(CREATE_IDENTITIES_FINGERPRINT_INDEX);
         db.execSQL(CREATE_PRESENCE_TEMPLATES_STATEMENT);
         db.execSQL(CREATE_RESOLVER_RESULTS_TABLE);
         db.execSQL(CREATE_MESSAGE_INDEX_TABLE);
@@ -1131,6 +1149,10 @@ public class DatabaseBackend extends SQLiteOpenHelper {
         }
         if (oldVersion < 56 && newVersion >= 56) {
             db.execSQL(CREATE_SCHEDULED_MESSAGES_STATEMENT);
+        }
+        if (oldVersion < 57 && newVersion >= 57) {
+            db.execSQL(CREATE_MESSAGE_CONVERSATION_TIME_INDEX);
+            db.execSQL(CREATE_IDENTITIES_FINGERPRINT_INDEX);
         }
     }
 

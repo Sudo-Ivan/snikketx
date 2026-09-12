@@ -1958,9 +1958,21 @@ public class XmppConnectionService extends Service {
                                             + diffMessageRestore
                                             + "ms");
                         }
-                        for (Conversation conversation : this.conversations) {
-                            if (quickLoad != conversation) {
-                                restoreMessages(conversation);
+                        // restore remaining conversations. re-check QuickLoader on every
+                        // iteration so a conversation the user just opened gets restored
+                        // next instead of waiting for the entire backlog
+                        final var pending = new ArrayList<>(this.conversations);
+                        pending.remove(quickLoad);
+                        while (!pending.isEmpty()) {
+                            final Conversation requested = QuickLoader.get(pending);
+                            final Conversation next =
+                                    requested == null ? pending.get(0) : requested;
+                            restoreMessages(next);
+                            pending.remove(next);
+                            if (requested != null) {
+                                // the conversation is likely open right now. refresh the UI
+                                // immediately rather than at the end of the entire restore
+                                updateConversationUi();
                             }
                         }
                         mNotificationService.finishBacklog();
@@ -1978,10 +1990,38 @@ public class XmppConnectionService extends Service {
     }
 
     private void restoreMessages(Conversation conversation) {
-        conversation.addAll(0, databaseBackend.getMessages(conversation, Config.PAGE_SIZE));
+        final var messages = databaseBackend.getMessages(conversation, Config.PAGE_SIZE);
+        conversation.addAll(0, messages);
+        warmFingerprintTrustCache(conversation.getAccount(), messages);
+        warmMucOptions(conversation);
         conversation.findUnsentTextMessages(
                 message -> markMessage(message, Message.STATUS_WAITING));
         conversation.findUnreadMessagesAndCalls(mNotificationService::pushFromBacklog);
+    }
+
+    // looking up the trust of a fingerprint is a database query. doing it here, on the
+    // database reader thread, fills the trust cache so the message adapter does not hit
+    // the database once per fingerprint on the UI thread when a conversation is opened
+    private void warmFingerprintTrustCache(final Account account, final List<Message> messages) {
+        final var axolotlService = account.getAxolotlService();
+        if (axolotlService == null) {
+            return;
+        }
+        for (final var message : messages) {
+            final var fingerprint = message.getFingerprint();
+            if (message.getEncryption() == Message.ENCRYPTION_AXOLOTL && fingerprint != null) {
+                axolotlService.getFingerprintTrust(fingerprint);
+            }
+        }
+    }
+
+    // creating MucOptions lazily on first access reads the disco info cache from the
+    // database on the calling thread. doing it here keeps that off the UI thread when a
+    // group chat is opened for the first time
+    private void warmMucOptions(final Conversation conversation) {
+        if (conversation.getMode() == Conversation.MODE_MULTI) {
+            conversation.getMucOptions();
+        }
     }
 
     public void loadPhoneContacts() {
