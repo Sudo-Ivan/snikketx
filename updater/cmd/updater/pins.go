@@ -25,7 +25,7 @@ func (s *server) writePinOverride(pins map[string]string) error {
 	for _, name := range names {
 		fmt.Fprintf(&b, "  %s:\n    image: %s\n", name, pins[name])
 	}
-	return os.WriteFile(s.overridePath, []byte(b.String()), 0o644)
+	return os.WriteFile(s.overridePath, []byte(b.String()), overrideFileMode)
 }
 
 func (s *server) snapshot() statusResponse {
@@ -89,7 +89,7 @@ func (s *server) saveSettings() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(s.statePath, data, 0o600)
+	return os.WriteFile(s.statePath, data, stateFileMode)
 }
 
 func (s *server) loadPins() {
@@ -112,5 +112,5 @@ func (s *server) savePins() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(s.pinsPath, data, 0o600)
+	return os.WriteFile(s.pinsPath, data, stateFileMode)
 }

@@ -35,11 +35,11 @@ func (s *server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	if next.IntervalHours < 1 {
-		next.IntervalHours = 1
+	if next.IntervalHours < minIntervalHours {
+		next.IntervalHours = minIntervalHours
 	}
-	if next.IntervalHours > 168 {
-		next.IntervalHours = 168
+	if next.IntervalHours > maxIntervalHours {
+		next.IntervalHours = maxIntervalHours
 	}
 	s.mu.Lock()
 	s.settings = next
@@ -115,6 +115,12 @@ func (s *server) handleApply(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, s.snapshot())
 }
 
+// handleServices serves the log-service registry so the portal does not
+// duplicate the list. GET /services returns [{"id":...,"label":...}, ...].
+func (s *server) handleServices(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, allowedLogServices)
+}
+
 func (s *server) handleLogs(w http.ResponseWriter, r *http.Request) {
 	serviceID := strings.TrimSpace(r.URL.Query().Get("service"))
 	tail := clampTail(r.URL.Query().Get("tail"))
@@ -132,7 +138,7 @@ func (s *server) handleLogs(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	}
-	rawLines, truncated := splitLogLines(raw, 512<<10)
+	rawLines, truncated := splitLogLines(raw, logMaxBytes)
 	entries, lines := buildLogEntries(rawLines)
 	writeJSON(w, logsResponse{
 		Service:   svc.ID,

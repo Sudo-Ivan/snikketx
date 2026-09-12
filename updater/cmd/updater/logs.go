@@ -31,15 +31,6 @@ type logsResponse struct {
 	Services  []logService `json:"services"`
 }
 
-var allowedLogServices = []logService{
-	{ID: "snikket_server", Label: "Chat server (Prosody)"},
-	{ID: "snikket_portal", Label: "Web portal"},
-	{ID: "ravenguard", Label: "Edge (RavenGuard)"},
-	{ID: "snikket_updater", Label: "Updater"},
-	{ID: "snikket_backup", Label: "Backup"},
-	{ID: "snikket_certs", Label: "Cert manager"},
-}
-
 func resolveLogService(id string) (logService, bool) {
 	id = strings.TrimSpace(id)
 	for _, svc := range allowedLogServices {
@@ -53,16 +44,16 @@ func resolveLogService(id string) (logService, bool) {
 func clampTail(raw string) int {
 	n, err := strconv.Atoi(strings.TrimSpace(raw))
 	if err != nil || n <= 0 {
-		return 200
+		return logDefaultTail
 	}
-	if n > 500 {
-		return 500
+	if n > logMaxTail {
+		return logMaxTail
 	}
 	return n
 }
 
 func (s *server) fetchComposeLogs(ctx context.Context, service string, tail int) (string, error) {
-	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, logFetchTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "docker", "compose", "logs", "--no-color", "--timestamps", "--tail", strconv.Itoa(tail), service)
 	cmd.Dir = s.composeDir

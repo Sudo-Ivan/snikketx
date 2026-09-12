@@ -65,7 +65,7 @@ func (s *server) startJob(kind string, fn func(context.Context) error) error {
 	s.mu.Unlock()
 
 	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		ctx, cancel := context.WithTimeout(context.Background(), jobTimeout)
 		defer cancel()
 		err := fn(ctx)
 		s.mu.Lock()
@@ -94,8 +94,8 @@ func (s *server) logf(format string, args ...any) {
 	defer s.mu.Unlock()
 	if s.job != nil {
 		s.job.Log = append(s.job.Log, time.Now().UTC().Format(time.RFC3339)+" "+line)
-		if len(s.job.Log) > 200 {
-			s.job.Log = s.job.Log[len(s.job.Log)-200:]
+		if len(s.job.Log) > jobLogMaxLines {
+			s.job.Log = s.job.Log[len(s.job.Log)-jobLogMaxLines:]
 		}
 	}
 	s.detail = line

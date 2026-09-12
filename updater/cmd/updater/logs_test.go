@@ -96,10 +96,10 @@ func BenchmarkCompactLogTextHot(b *testing.B) {
 
 func TestImageRefBase(t *testing.T) {
 	cases := map[string]string{
-		"ghcr.io/sudo-ivan/snikketx/server:latest":          "ghcr.io/sudo-ivan/snikketx/server",
-		"ghcr.io/sudo-ivan/snikketx/server@sha256:abc":      "ghcr.io/sudo-ivan/snikketx/server",
-		"localhost:5000/snikketx/server:dev":                "localhost:5000/snikketx/server",
-		"alpine:3.24":                                       "alpine",
+		"ghcr.io/sudo-ivan/snikketx/server:latest":     "ghcr.io/sudo-ivan/snikketx/server",
+		"ghcr.io/sudo-ivan/snikketx/server@sha256:abc": "ghcr.io/sudo-ivan/snikketx/server",
+		"localhost:5000/snikketx/server:dev":           "localhost:5000/snikketx/server",
+		"alpine:3.24":                                  "alpine",
 	}
 	for in, want := range cases {
 		if got := imageRefBase(in); got != want {

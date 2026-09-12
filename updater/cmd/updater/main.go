@@ -2,23 +2,26 @@ package main
 
 import (
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 )
 
 func main() {
-	addr := envOr("SNIKKET_UPDATER_LISTEN", "0.0.0.0:9191")
-	token := strings.TrimSpace(os.Getenv("SNIKKET_UPDATER_TOKEN"))
+	addr := envOr(envListenAddr, defaultListenAddr)
+	token := strings.TrimSpace(os.Getenv(envToken))
 	if token == "" {
-		token = "snikket-updater-local"
-		log.Printf("SNIKKET_UPDATER_TOKEN unset, using built-in local default")
+		token = defaultToken
+		log.Printf("%s unset, using built-in local default", envToken)
 	}
-	composeDir := envOr("SNIKKET_UPDATER_COMPOSE_DIR", "/work")
-	stateDir := envOr("SNIKKET_UPDATER_STATE_DIR", "/var/lib/snikket-updater")
-	if err := os.MkdirAll(stateDir, 0o755); err != nil {
+	if token == defaultToken {
+		slog.Warn(envToken + " is the well-known default; set a random token in .env")
+	}
+	composeDir := envOr(envComposeDir, defaultComposeDir)
+	stateDir := envOr(envStateDir, defaultStateDir)
+	if err := os.MkdirAll(stateDir, stateDirMode); err != nil {
 		log.Fatal(err)
 	}
 
@@ -26,17 +29,17 @@ func main() {
 		token:            token,
 		tokenBytes:       []byte(token),
 		composeDir:       composeDir,
-		statePath:        filepath.Join(stateDir, "settings.json"),
-		pinsPath:         filepath.Join(stateDir, "pins.json"),
-		overridePath:     filepath.Join(composeDir, "docker-compose.pins.yml"),
-		imagePrefix:      strings.TrimRight(envOr("SNIKKET_UPDATER_IMAGE_PREFIX", "ghcr.io/sudo-ivan/snikketx"), "/"),
-		verifyEnabled:    envBool("SNIKKET_UPDATER_VERIFY_SIGNATURES", true),
-		requireVerify:    envBool("SNIKKET_UPDATER_REQUIRE_SIGNATURES", false),
-		cosignIdentity:   envOr("SNIKKET_UPDATER_COSIGN_IDENTITY_REGEXP", "https://github.com/Sudo-Ivan/snikketx/.*"),
-		cosignOIDCIssuer: envOr("SNIKKET_UPDATER_COSIGN_OIDC_ISSUER", "https://token.actions.githubusercontent.com"),
-		cosignBin:        envOr("SNIKKET_UPDATER_COSIGN_BIN", "cosign"),
+		statePath:        filepath.Join(stateDir, settingsFileName),
+		pinsPath:         filepath.Join(stateDir, pinsFileName),
+		overridePath:     filepath.Join(composeDir, overrideFileName),
+		imagePrefix:      strings.TrimRight(envOr(envImagePrefix, defaultImagePrefix), "/"),
+		verifyEnabled:    envBool(envVerifySignatures, defaultVerifySignatures),
+		requireVerify:    envBool(envRequireSignatures, defaultRequireSignatures),
+		cosignIdentity:   envOr(envCosignIdentity, defaultCosignIdentity),
+		cosignOIDCIssuer: envOr(envCosignOIDCIssuer, defaultCosignOIDCIssuer),
+		cosignBin:        envOr(envCosignBin, defaultCosignBin),
 		settings: settings{
-			IntervalHours: 24,
+			IntervalHours: defaultIntervalHours,
 			AutoUpdate:    false,
 			PinDigests:    true,
 		},
@@ -55,6 +58,7 @@ func main() {
 	mux.HandleFunc("PUT /v1/pins", s.auth(s.handlePutPins))
 	mux.HandleFunc("DELETE /v1/pins", s.auth(s.handleClearPins))
 	mux.HandleFunc("GET /v1/logs", s.auth(s.handleLogs))
+	mux.HandleFunc("GET /services", s.auth(s.handleServices))
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.Header().Set("Content-Length", "2")
@@ -66,11 +70,11 @@ func main() {
 	srv := &http.Server{
 		Addr:              addr,
 		Handler:           mux,
-		ReadHeaderTimeout: 10 * time.Second,
-		ReadTimeout:       30 * time.Second,
-		WriteTimeout:      2 * time.Minute,
-		IdleTimeout:       90 * time.Second,
-		MaxHeaderBytes:    16 << 10,
+		ReadHeaderTimeout: httpReadHeaderTimeout,
+		ReadTimeout:       httpReadTimeout,
+		WriteTimeout:      httpWriteTimeout,
+		IdleTimeout:       httpIdleTimeout,
+		MaxHeaderBytes:    httpMaxHeaderBytes,
 	}
 	log.Printf("snikket updater listening on %s prefix=%s verify=%v", addr, s.imagePrefix, s.verifyEnabled)
 	log.Fatal(srv.ListenAndServe())
