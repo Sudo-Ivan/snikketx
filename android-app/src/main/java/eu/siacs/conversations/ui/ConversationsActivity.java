@@ -72,6 +72,7 @@ import eu.siacs.conversations.ui.interfaces.OnConversationsListItemUpdated;
 import eu.siacs.conversations.ui.util.ActivityResult;
 import eu.siacs.conversations.ui.util.PendingItem;
 import eu.siacs.conversations.utils.ExceptionHelper;
+import eu.siacs.conversations.utils.UpdateChecker;
 import eu.siacs.conversations.xmpp.OnUpdateBlocklist;
 import java.util.Arrays;
 import java.util.List;
@@ -157,6 +158,7 @@ public class ConversationsActivity extends QrCodeProcessingActivity
         if (activityResult != null) {
             handleActivityResult(activityResult);
         }
+        UpdateChecker.checkIfDue(this);
 
         if (binding.secondaryFragment != null
                 && ConversationFragment.getConversation(this) == null) {

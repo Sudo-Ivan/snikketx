@@ -761,6 +761,9 @@
     <string name="conference_destroyed">This group chat has been destroyed</string>
     <string name="unable_to_save_recording">Could not save recording</string>
     <string name="foreground_service_channel_name">Foreground service</string>
+    <string name="app_updates_channel_name">App updates</string>
+    <string name="update_available_title">Update available</string>
+    <string name="update_available_text">Version %1$s is available. Tap to download.</string>
     <string name="foreground_service_channel_description">This notification category is used to display a permanent notification indicating that %1$s is running.</string>
     <string name="notification_group_status_information">Status Information</string>
     <string name="error_channel_name">Connectivity Problems</string>
