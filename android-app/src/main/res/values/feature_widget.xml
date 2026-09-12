@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Home screen widget: recent chats -->
+    <string name="widget_recent_chats_label">Recent chats</string>
+    <string name="widget_recent_chats_description">Quick access to recent conversations</string>
+    <string name="widget_no_conversations">No conversations</string>
+    <string name="pref_widget_show_message_preview">Widget message previews</string>
+    <string name="pref_widget_show_message_preview_summary">Show the last message of each conversation in the home screen widget</string>
+    <plurals name="widget_unread_total">
+        <item quantity="one">%d unread</item>
+        <item quantity="other">%d unread</item>
+    </plurals>
+    <bool name="widget_show_message_preview">true</bool>
+    <color name="widget_background">#fcfcfd</color>
+    <color name="widget_text_primary">#1b1c1e</color>
+    <color name="widget_text_secondary">#44464b</color>
+    <color name="widget_badge_background">#eaebef</color>
+    <color name="widget_badge_text">#222429</color>
+</resources>

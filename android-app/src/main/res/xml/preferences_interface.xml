@@ -32,6 +32,12 @@
     </PreferenceCategory>
     <PreferenceCategory android:title="@string/pref_category_operating_system">
         <SwitchPreferenceCompat
+            android:defaultValue="@bool/widget_show_message_preview"
+            android:icon="@drawable/ic_visibility_24dp"
+            android:key="widget_show_message_preview"
+            android:summary="@string/pref_widget_show_message_preview_summary"
+            android:title="@string/pref_widget_show_message_preview" />
+        <SwitchPreferenceCompat
             android:defaultValue="@bool/allow_screenshots"
             android:icon="@drawable/ic_screenshot_24dp"
             android:key="allow_screenshots"
