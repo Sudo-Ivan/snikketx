@@ -88,6 +88,36 @@ snikketx_random() {
 	head -c "$n" /dev/urandom | base64 | tr -d '\n=/+' | head -c "$n"
 }
 
+# docker compose plugin with a docker-compose v1 binary fallback.
+snikketx_docker_compose() {
+	if docker compose version >/dev/null 2>&1; then
+		docker compose "$@"
+	elif command -v docker-compose >/dev/null 2>&1; then
+		docker-compose "$@"
+	else
+		echo "docker compose plugin (or docker-compose binary) is required" >&2
+		return 1
+	fi
+}
+
+# Set KEY=VALUE in a dotenv file, replacing an existing KEY line in place.
+snikketx_env_set() {
+	local key="$1" value="$2" file="${3:-.env}"
+	if grep -qE "^${key}=" "$file" 2>/dev/null; then
+		sed -i "s|^${key}=.*|${key}=${value}|" "$file"
+	else
+		printf '%s=%s\n' "$key" "$value" >>"$file"
+	fi
+}
+
+# Write KEY=VALUE only when KEY is not already present.
+snikketx_env_ensure() {
+	local key="$1" value="$2" file="${3:-.env}"
+	if ! grep -qE "^${key}=" "$file" 2>/dev/null; then
+		printf '%s=%s\n' "$key" "$value" >>"$file"
+	fi
+}
+
 # Ensure .env exists for compose interpolation.
 snikketx_ensure_env() {
 	local domain email secret admin_pw
@@ -125,7 +155,7 @@ snikketx_export_build_meta() {
 }
 
 snikketx_compose() {
-	docker compose "${COMPOSE_ARGS[@]}" "$@"
+	snikketx_docker_compose "${COMPOSE_ARGS[@]}" "$@"
 }
 
 snikketx_require_conf() {

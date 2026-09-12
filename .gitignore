@@ -9,5 +9,6 @@ venv/
 web-portal/.env
 backups/
 deploy/migrate/docker-compose.migrate.yml
+deploy/migrate/state.env
 updater/updater
 backup/backup

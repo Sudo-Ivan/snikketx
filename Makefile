@@ -13,6 +13,8 @@ DEST ?=
 ARCHIVE ?=
 FROM ?= /etc/snikket
 BACKUP_DIR ?= $(CURDIR)/backups
+MIGRATE_FLAGS ?=
+ROLLBACK_FLAGS ?=
 
 BUILD_ARGS = \
 	--build-arg BUILD_SERIES=$(BUILD_SERIES) \
@@ -90,10 +92,10 @@ restore:
 	./scripts/restore.sh "$(ARCHIVE)" $(RESTORE_FLAGS)
 
 migrate:
-	./scripts/migrate-from-snikket.sh --from "$(FROM)" --backup-dir "$(BACKUP_DIR)"
+	./scripts/migrate-from-snikket.sh --from "$(FROM)" --backup-dir "$(BACKUP_DIR)" $(MIGRATE_FLAGS)
 
 rollback:
-	./scripts/rollback-to-snikket.sh --from "$(FROM)" --backup-dir "$(BACKUP_DIR)"
+	./scripts/rollback-to-snikket.sh --from "$(FROM)" --backup-dir "$(BACKUP_DIR)" $(ROLLBACK_FLAGS)
 
 screenshot:
 	./scripts/screenshot-dashboard.sh

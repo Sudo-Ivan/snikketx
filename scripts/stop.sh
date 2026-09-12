@@ -7,4 +7,4 @@ source "$(cd "$(dirname "$0")" && pwd)/lib/compose.sh"
 
 snikketx_cd_root
 snikketx_parse_mode "$@"
-exec docker compose "${COMPOSE_ARGS[@]}" down "${COMPOSE_EXTRA_ARGS[@]}"
+snikketx_docker_compose "${COMPOSE_ARGS[@]}" down "${COMPOSE_EXTRA_ARGS[@]}"

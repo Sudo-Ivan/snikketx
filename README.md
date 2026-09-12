@@ -33,17 +33,47 @@ DNS must point the domain plus `share.` and `groups.` at this host. Ports **80/4
 
 ### Migrate from classic Snikket
 
-Keeps Prosody data (accounts, MAM chats, MUCs, uploads). Always backups first.
+Works with the stock docker compose install from
+<https://snikket.org/service/quickstart/> — a directory like `/etc/snikket`
+holding `docker-compose.yml` and `snikket.conf`. Keeps Prosody data
+(accounts, MAM chats, MUCs, uploads). A full backup runs first, always.
 
 ```
 make migrate FROM=/etc/snikket BACKUP_DIR=/var/backups/snikketx
 ```
 
+What it does:
+
+1. Tars `/snikket` out of the running classic `snikket` container and stores
+   the classic `snikket.conf` and compose file in the backup dir.
+2. Detects the classic data volume from the container's mounts (named volume
+   or bind mount), before `docker compose down` removes the containers.
+   Directory name and `COMPOSE_PROJECT_NAME` do not matter.
+3. Stops the classic stack and removes leftover classic containers so the
+   shared `snikket` container name is free.
+4. Writes `deploy/migrate/docker-compose.migrate.yml` so the `snikket_data`
+   volume points at the classic data, copies `snikket.conf`, and merges the
+   required keys into `.env` (existing keys like `SNIKKETX_IMAGE_TAG` or
+   Restic credentials are preserved).
+5. Runs preflight and starts SnikketX.
+6. Records rollback state in `deploy/migrate/state.env`.
+
+Both `docker compose` (plugin) and `docker-compose` (v1 binary) are
+supported. Add `MIGRATE_FLAGS=--yes` to skip the confirmation prompt.
+
+After start, log in at `https://<domain>/` with your existing admin XMPP
+account. The first HTTPS request can take a minute while RavenGuard finishes
+ACME issuance. `make invite` still works for new users.
+
 Keep the classic directory until you trust the new stack. If migration fails:
 
 ```
-make rollback FROM=/etc/snikket BACKUP_DIR=/var/backups/snikketx/snikketx-backup-TIMESTAMP
+make rollback FROM=/etc/snikket BACKUP_DIR=/var/backups/snikketx
 ```
+
+`BACKUP_DIR` may point at a `snikketx-backup-*` dir or its parent; the newest
+usable backup is picked automatically. Without flags, rollback falls back to
+`deploy/migrate/state.env`.
 
 ## Day-2 commands
 
@@ -117,7 +147,7 @@ Classic Snikket used the same `/snikket` layout and container name `snikket`, so
 - `web-proxy/` - legacy nginx front door (archive only, not published)
 - `cert-manager/` - Let's Encrypt for XMPP TLS (prod)
 - `deploy/ravenguard/` - RavenGuard TOML and blocklists
-- `deploy/migrate/` - volume override written by migrate script
+- `deploy/migrate/` - volume override + rollback state written by migrate script
 - `scripts/` - install and ops helpers
 - `docker-compose.yml` - production stack (pull GHCR + RavenGuard edge)
 - `docker-compose.dev.yml` - local builds, no certs package

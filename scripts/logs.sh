@@ -9,4 +9,4 @@ snikketx_cd_root
 snikketx_parse_mode "$@"
 snikketx_require_conf
 
-exec docker compose "${COMPOSE_ARGS[@]}" logs -f "${COMPOSE_EXTRA_ARGS[@]}"
+snikketx_docker_compose "${COMPOSE_ARGS[@]}" logs -f "${COMPOSE_EXTRA_ARGS[@]}"
