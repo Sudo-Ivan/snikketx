@@ -12,6 +12,7 @@ import eu.siacs.conversations.services.PushManagementService;
 import eu.siacs.conversations.services.XmppConnectionService;
 import eu.siacs.conversations.xmpp.XmppConnection;
 import eu.siacs.conversations.xmpp.manager.BookmarkManager;
+import eu.siacs.conversations.xmpp.manager.ConversationFolderManager;
 import eu.siacs.conversations.xmpp.manager.HttpUploadManager;
 import eu.siacs.conversations.xmpp.manager.JingleManager;
 import eu.siacs.conversations.xmpp.manager.MessageArchiveManager;
@@ -77,6 +78,14 @@ public class BindProcessor extends XmppConnection.Delegate implements Runnable {
             mdsManager.fetch();
         } else {
             Log.d(Config.LOGTAG, account.getJid() + ": server has no support for mds");
+        }
+        final var folderManager = getManager(ConversationFolderManager.class);
+        if (folderManager.hasFeature()) {
+            folderManager.fetchAndMerge();
+        } else {
+            Log.d(
+                    Config.LOGTAG,
+                    account.getJid() + ": server has no support for pep conversation folders");
         }
         final var archiveManager = getManager(MessageArchiveManager.class);
         final var offlineManager = getManager(OfflineMessagesManager.class);

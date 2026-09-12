@@ -187,6 +187,10 @@ public class PubSubManager extends AbstractManager {
             getManager(MessageDisplayedSynchronizationManager.class).handleItems(items);
             return;
         }
+        if (connection.fromAccount(message) && Namespace.SNIKKETX_FOLDERS.equals(node)) {
+            getManager(ConversationFolderManager.class).handleItems(items);
+            return;
+        }
         if (isFromBare && Namespace.AVATAR_METADATA.equals(node)) {
             getManager(AvatarManager.class).handleItems(from, items);
             return;

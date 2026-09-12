@@ -140,4 +140,5 @@ public final class Namespace {
     public static final String FILE_METADATA = "urn:xmpp:file:metadata:0";
     public static final String URL_DATA = "http://jabber.org/protocol/url-data";
     public static final String FASTEN = "urn:xmpp:fasten:0";
+    public static final String SNIKKETX_FOLDERS = "org.snikketx.folders:0";
 }

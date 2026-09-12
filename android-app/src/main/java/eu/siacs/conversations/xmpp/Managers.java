@@ -13,6 +13,7 @@ import eu.siacs.conversations.xmpp.manager.BookmarkManager;
 import eu.siacs.conversations.xmpp.manager.CarbonsManager;
 import eu.siacs.conversations.xmpp.manager.ChatStateManager;
 import eu.siacs.conversations.xmpp.manager.ClientStateIndicationManager;
+import eu.siacs.conversations.xmpp.manager.ConversationFolderManager;
 import eu.siacs.conversations.xmpp.manager.DeliveryReceiptManager;
 import eu.siacs.conversations.xmpp.manager.DiscoManager;
 import eu.siacs.conversations.xmpp.manager.DisplayedManager;
@@ -65,6 +66,9 @@ public class Managers {
                 .put(
                         ClientStateIndicationManager.class,
                         new ClientStateIndicationManager(context, connection))
+                .put(
+                        ConversationFolderManager.class,
+                        new ConversationFolderManager(context, connection))
                 .put(DeliveryReceiptManager.class, new DeliveryReceiptManager(context, connection))
                 .put(DiscoManager.class, new DiscoManager(context, connection))
                 .put(DisplayedManager.class, new DisplayedManager(context, connection))
