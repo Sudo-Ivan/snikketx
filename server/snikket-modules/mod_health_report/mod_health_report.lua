@@ -13,7 +13,7 @@ if not health_report_api or not auth_token then
 	return;
 end
 
-local metric_registry = require "core.statsmanager".get_metric_registry();
+local metric_registry = require "prosody.core.statsmanager".get_metric_registry();
 
 local mod_audit_status = module:depends("audit_status");
 local mod_measure_active_users = module:depends("measure_active_users");

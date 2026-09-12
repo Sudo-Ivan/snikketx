@@ -120,6 +120,7 @@ for m in \
   mod_snikket_server_vcard \
   mod_snikket_billing \
   mod_snikket_version \
+  mod_snikketx_api_util \
   mod_snikket_audit_api \
   mod_snikket_muc_api \
   mod_snikket_ops_api

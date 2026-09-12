@@ -4,89 +4,19 @@
 
 module:depends("http");
 
-local json = require "util.json";
-local array = require "util.array";
-local usermanager = require "core.usermanager";
-local tokens = module:depends("tokenauth");
+local json = require "prosody.util.json";
+local usermanager = require "prosody.core.usermanager";
+local api_util = module:depends("snikketx_api_util");
 
--- Empty Lua tables encode as JSON objects. Wrap lists so Go gets [].
-local function list(t)
-	return array(t or {});
-end
+local list = api_util.list;
+local check_credentials = api_util.check_credentials;
+local session_is_admin = api_util.session_is_admin;
+local decode_query = api_util.decode_query;
+local retention_days = api_util.retention_days;
 
-local www_authenticate_header = ("Bearer realm=%q"):format(module.host.."/"..module.name);
+local www_authenticate_header = api_util.www_authenticate_header(module.host, module.name);
 local share_host = "share." .. module.host;
 local groups_host = module:get_option_string("groups_muc_host") or ("groups." .. module.host);
-
-local function check_credentials(request)
-	local auth_type, auth_data = string.match(request.headers.authorization or "", "^(%S+)%s(.+)$");
-	if not (auth_type and auth_data) then
-		return false;
-	end
-	if auth_type == "Bearer" then
-		return tokens.get_token_session(auth_data);
-	end
-	return nil;
-end
-
-local function grant_has_admin(grants)
-	if type(grants) == "string" then
-		return grants:find("prosody:admin", 1, true) ~= nil;
-	end
-	if type(grants) ~= "table" then
-		return false;
-	end
-	if grants["prosody:admin"] or grants["prosody:operator"] then
-		return true;
-	end
-	for key, value in pairs(grants) do
-		if key == "prosody:admin" and value then
-			return true;
-		end
-		if value == "prosody:admin" then
-			return true;
-		end
-	end
-	return false;
-end
-
-local function session_is_admin(session)
-	if not session then
-		return false;
-	end
-	if grant_has_admin(session.roles) or grant_has_admin(session.grants) or grant_has_admin(session.scopes) or grant_has_admin(session.scope) then
-		return true;
-	end
-	if session.role then
-		local name = session.role;
-		if type(session.role) == "table" then
-			name = session.role.name or session.role.role;
-		end
-		if name == "prosody:admin" or name == "prosody:operator" then
-			return true;
-		end
-	end
-	if session.token_info and (
-		grant_has_admin(session.token_info.grants)
-		or grant_has_admin(session.token_info.scopes)
-		or grant_has_admin(session.token_info.scope)
-	) then
-		return true;
-	end
-	local username = session.username;
-	local host = session.host or module.host;
-	if not username and session.token_info then
-		username = session.token_info.username;
-		host = session.token_info.host or host;
-	end
-	if not username then
-		return false;
-	end
-	if usermanager.user_is_admin then
-		return usermanager.user_is_admin(username, host);
-	end
-	return usermanager.is_admin(username.."@"..host);
-end
 
 local function require_admin(event)
 	local session = check_credentials(event.request);
@@ -127,23 +57,6 @@ end
 local function json_ok(event, payload)
 	event.response.headers["Content-Type"] = "application/json";
 	return json.encode(payload);
-end
-
-local function decode_query(query)
-	local out = {};
-	if not query or query == "" then
-		return out;
-	end
-	for key, value in query:gmatch("([^&=]+)=([^&=]*)") do
-		key = key:gsub("%+", " "):gsub("%%(%x%x)", function (h)
-			return string.char(tonumber(h, 16));
-		end);
-		value = value:gsub("%+", " "):gsub("%%(%x%x)", function (h)
-			return string.char(tonumber(h, 16));
-		end);
-		out[key] = value;
-	end
-	return out;
 end
 
 local function url_decode(s)
@@ -399,7 +312,7 @@ local function handle_uploads(event)
 		stats = upload_stats;
 		global_quota_gb = tonumber(os.getenv("SNIKKET_UPLOAD_STORAGE_GB"));
 		daily_quota_gb = tonumber(os.getenv("SNIKKET_DAILY_UPLOAD_LIMIT_PER_USER_GB"));
-		retention_days = tonumber(os.getenv("SNIKKET_RETENTION_DAYS")) or 7;
+		retention_days = retention_days();
 	});
 end
 
@@ -410,8 +323,7 @@ local function handle_uploads_purge(event)
 	local params = decode_query(event.request.url.query);
 	local mode = params.mode or "orphans";
 	local filter_user = params.user;
-	local retention_days = tonumber(os.getenv("SNIKKET_RETENTION_DAYS")) or 7;
-	local cutoff = os.time() - (retention_days * 86400);
+	local cutoff = os.time() - (retention_days() * 86400);
 	local removed = 0;
 
 	local ok, archive = pcall(function ()
@@ -581,7 +493,7 @@ local function handle_archives(event)
 		offline_total = offline_total;
 		muc_mam_available = muc_mam_available;
 		users = list(slice(users, 1, 100));
-		retention_days = tonumber(os.getenv("SNIKKET_RETENTION_DAYS")) or 7;
+		retention_days = retention_days();
 	});
 end
 
