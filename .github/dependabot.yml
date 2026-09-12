@@ -35,3 +35,18 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+  - package-ecosystem: gomod
+    directory: /web-portal
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+  - package-ecosystem: gomod
+    directory: /updater
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+  - package-ecosystem: gomod
+    directory: /backup
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
