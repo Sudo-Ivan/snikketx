@@ -231,8 +231,7 @@ public class SQLiteAxolotlStore implements SignalProtocolStore {
     @Override
     public IdentityKey getIdentity(SignalProtocolAddress address) {
         Set<IdentityKey> keys =
-                mXmppConnectionService.databaseBackend.loadIdentityKeys(
-                        account, address.getName());
+                mXmppConnectionService.databaseBackend.loadIdentityKeys(account, address.getName());
         return keys.isEmpty() ? null : keys.iterator().next();
     }
 
