@@ -1,12 +1,33 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 
 	"github.com/sudo-ivan/snikketx/web-portal/internal/authlimit"
 )
+
+// handleAndroidVersion returns the cached APK metadata as JSON so installed
+// clients can check for updates without downloading the package.
+func (a *App) handleAndroidVersion(w http.ResponseWriter, r *http.Request) {
+	if a.AppCache == nil || !a.AppCache.Ready() {
+		http.NotFound(w, r)
+		return
+	}
+	meta, err := a.AppCache.PublicMeta()
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "public, max-age=3600")
+	if err := json.NewEncoder(w).Encode(meta); err != nil {
+		slog.Warn("android version encode failed", slog.String("error", err.Error()))
+	}
+}
 
 // handleAndroidAPK serves the cached Android package with per IP rate limiting.
 func (a *App) handleAndroidAPK(w http.ResponseWriter, r *http.Request) {

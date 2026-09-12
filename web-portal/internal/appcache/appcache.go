@@ -295,6 +295,24 @@ func (c *Cache) StoreUpload(r io.Reader, filename string) (Meta, error) {
 	return meta, nil
 }
 
+// PublicMeta returns the fields safe to expose on the public version endpoint.
+func (c *Cache) PublicMeta() (Meta, error) {
+	c.mu.RLock()
+	meta := c.meta
+	enabled := c.settings.Enabled
+	c.mu.RUnlock()
+	if !enabled {
+		return Meta{}, errors.New("android apk hosting is disabled")
+	}
+	return Meta{
+		Version:   meta.Version,
+		Filename:  meta.Filename,
+		Size:      meta.Size,
+		SHA256:    meta.SHA256,
+		FetchedAt: meta.FetchedAt,
+	}, nil
+}
+
 // OpenAPK opens the cached APK for serving. Caller must close the file.
 func (c *Cache) OpenAPK() (*os.File, Meta, error) {
 	c.mu.RLock()
