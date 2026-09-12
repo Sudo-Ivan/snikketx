@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="chat_wallpaper">Chat wallpaper</string>
+    <string name="pref_chat_wallpaper">Default chat wallpaper</string>
+    <string name="wallpaper_none">None</string>
+    <string name="wallpaper_tonal">Tonal</string>
+    <string name="wallpaper_sunbeam">Sunbeam</string>
+    <string name="wallpaper_peach">Peach</string>
+    <string name="wallpaper_ocean">Ocean</string>
+    <string name="wallpaper_bubbles">Bubbles</string>
+    <string name="wallpaper_grid">Grid</string>
+
+    <string name="chat_wallpaper_default" translatable="false">none</string>
+
+    <string-array name="chat_wallpaper_names">
+        <item>@string/wallpaper_none</item>
+        <item>@string/wallpaper_tonal</item>
+        <item>@string/wallpaper_sunbeam</item>
+        <item>@string/wallpaper_peach</item>
+        <item>@string/wallpaper_ocean</item>
+        <item>@string/wallpaper_bubbles</item>
+        <item>@string/wallpaper_grid</item>
+    </string-array>
+
+    <string-array name="chat_wallpaper_values">
+        <item>none</item>
+        <item>tonal</item>
+        <item>sunbeam</item>
+        <item>peach</item>
+        <item>ocean</item>
+        <item>bubbles</item>
+        <item>grid</item>
+    </string-array>
+</resources>

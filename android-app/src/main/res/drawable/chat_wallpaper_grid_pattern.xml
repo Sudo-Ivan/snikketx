@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="360dp"
+    android:height="640dp"
+    android:viewportWidth="360"
+    android:viewportHeight="640">
+    <path
+        android:fillColor="@android:color/transparent"
+        android:pathData="M45,0 L45,640 M135,0 L135,640 M225,0 L225,640 M315,0 L315,640
+                          M0,80 L360,80 M0,160 L360,160 M0,240 L360,240 M0,320 L360,320
+                          M0,400 L360,400 M0,480 L360,480 M0,560 L360,560"
+        android:strokeAlpha="0.05"
+        android:strokeColor="?colorOnSurface"
+        android:strokeWidth="1" />
+    <path
+        android:fillAlpha="0.04"
+        android:fillColor="?colorOnSurface"
+        android:pathData="M45,80 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z
+                          M135,80 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z
+                          M225,80 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z
+                          M315,80 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z
+                          M45,240 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z
+                          M135,240 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z
+                          M225,240 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z
+                          M315,240 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z
+                          M45,400 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z
+                          M135,400 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z
+                          M225,400 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z
+                          M315,400 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z
+                          M45,560 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z
+                          M135,560 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z
+                          M225,560 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z
+                          M315,560 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z" />
+</vector>

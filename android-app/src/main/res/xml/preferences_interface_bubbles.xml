@@ -1,11 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
-<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
     <SwitchPreferenceCompat
         android:defaultValue="@bool/use_green_background"
         android:icon="@drawable/ic_colors_24dp"
         android:key="use_green_background"
         android:summary="@string/pref_use_colorful_bubbles_summary"
         android:title="@string/pref_use_colorful_bubbles" />
+    <ListPreference
+        android:defaultValue="@string/chat_wallpaper_default"
+        android:entries="@array/chat_wallpaper_names"
+        android:entryValues="@array/chat_wallpaper_values"
+        android:icon="@drawable/ic_image_24dp"
+        android:key="chat_wallpaper"
+        android:title="@string/pref_chat_wallpaper"
+        app:useSimpleSummaryProvider="true" />
     <SwitchPreferenceCompat
         android:defaultValue="@bool/large_font"
         android:icon="@drawable/ic_format_size_24dp"
