@@ -13,7 +13,10 @@ FROM golang:1.27-alpine@sha256:cf6fca6641884b8433441b2b0652976f975e1d0fdd26d177e
 # the sha256-verified release binary.
 ARG COSIGN_COMMIT=633e8f4303b7db64c369bdfa315374a8bd511ac6
 # The commit still pins x/crypto and x/mod below the versions fixing published
-# CVEs; lift them to the first fixed releases during the build.
+# CVEs; lift them to fixed releases during the build. The local commit and tag
+# keep the buildvcs stamp at a version scanners recognise as post-3.0.4,
+# otherwise a shallow checkout builds as v3.0.0-<date>-<sha>+dirty and flags
+# already-fixed cosign CVEs.
 ARG COSIGN_XCRYPTO=v0.57.0
 ARG COSIGN_XMOD=v0.41.0
 RUN apk add --no-cache git ca-certificates \
@@ -22,6 +25,8 @@ RUN apk add --no-cache git ca-certificates \
 	&& git fetch --depth 1 origin ${COSIGN_COMMIT} \
 	&& git checkout FETCH_HEAD \
 	&& go get golang.org/x/crypto@${COSIGN_XCRYPTO} golang.org/x/mod@${COSIGN_XMOD} \
+	&& git -c user.name=ci -c user.email=ci@snikketx.local commit -aqm deps \
+	&& git tag v3.1.4-snikketx \
 	&& CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /cosign ./cmd/cosign
 
 FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
