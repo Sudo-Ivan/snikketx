@@ -117,7 +117,6 @@ Classic Snikket used the same `/snikket` layout and container name `snikket`, so
 - `cert-manager/` - Let's Encrypt for XMPP TLS (prod)
 - `deploy/ravenguard/` - RavenGuard TOML and blocklists
 - `deploy/migrate/` - volume override written by migrate script
-- `deploy/legacy/` - unused Traefik configs kept for reference
 - `scripts/` - install and ops helpers
 - `docker-compose.yml` - production stack (pull GHCR + RavenGuard edge)
 - `docker-compose.dev.yml` - local builds, no certs package
