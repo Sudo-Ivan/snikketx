@@ -203,9 +203,9 @@ public class MessageGenerator extends AbstractGenerator {
     }
 
     /**
-     * Adds the small wire-level markers for XEP-0382 spoilers, XEP-0224 attention requests and
-     * the urn:xmpp:voice-message flag. Like the sticker element these are emitted in plain text
-     * on encrypted messages; the actual payload stays protected by the encrypted body.
+     * Adds the small wire-level markers for XEP-0382 spoilers, XEP-0224 attention requests and the
+     * urn:xmpp:voice-message flag. Like the sticker element these are emitted in plain text on
+     * encrypted messages; the actual payload stays protected by the encrypted body.
      */
     private void addWireExtensions(
             final im.conversations.android.xmpp.model.stanza.Message packet,
@@ -235,10 +235,10 @@ public class MessageGenerator extends AbstractGenerator {
     }
 
     /**
-     * Builds a XEP-0447 stateless file sharing element describing an uploaded file. Only used
-     * for unencrypted messages where the http(s) url is safe to publish in clear text. For
-     * OMEMO and PGP the url either carries the key in the fragment or points at an encrypted
-     * blob, so no plaintext file-sharing element is emitted there.
+     * Builds a XEP-0447 stateless file sharing element describing an uploaded file. Only used for
+     * unencrypted messages where the http(s) url is safe to publish in clear text. For OMEMO and
+     * PGP the url either carries the key in the fragment or points at an encrypted blob, so no
+     * plaintext file-sharing element is emitted there.
      */
     private Element fileSharingElement(final Message message, final String url) {
         final var sharing = new Element("file-sharing", Namespace.SFS);
@@ -288,8 +288,7 @@ public class MessageGenerator extends AbstractGenerator {
         if (mime == null || !(mime.startsWith("image/") || mime.startsWith("video/"))) {
             return null;
         }
-        final var thumbnail =
-                mXmppConnectionService.getFileBackend().getInlineThumbnail(message);
+        final var thumbnail = mXmppConnectionService.getFileBackend().getInlineThumbnail(message);
         if (thumbnail == null) {
             return null;
         }

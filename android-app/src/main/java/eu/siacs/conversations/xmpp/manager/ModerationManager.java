@@ -282,8 +282,7 @@ public class ModerationManager extends AbstractManager {
         // once the updated row no longer points at it
         final var storageLocation = message.getRelativeFilePath();
         final var file = storageLocation == null ? null : storageLocation.file();
-        if (message.getEncryption()
-                        == eu.siacs.conversations.entities.Message.ENCRYPTION_PGP
+        if (message.getEncryption() == eu.siacs.conversations.entities.Message.ENCRYPTION_PGP
                 && conversation.getAccount().getPgpDecryptionService() != null) {
             conversation.getAccount().getPgpDecryptionService().discard(message);
         }

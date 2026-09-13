@@ -420,9 +420,7 @@ public class MessageAdapter extends ArrayAdapter<Message> {
         } else {
             viewHolder.replyQuoteAuthor().setVisibility(View.VISIBLE);
             viewHolder.replyQuoteAuthor().setText(author);
-            viewHolder
-                    .replyQuoteAuthor()
-                    .setTextColor(bubbleToOnSurfaceColor(quote, bubbleColor));
+            viewHolder.replyQuoteAuthor().setTextColor(bubbleToOnSurfaceColor(quote, bubbleColor));
         }
         if (TextUtils.isEmpty(snippet)) {
             viewHolder.replyQuoteBody().setVisibility(View.GONE);
@@ -718,9 +716,9 @@ public class MessageAdapter extends ArrayAdapter<Message> {
     }
 
     /**
-     * Renders a XEP-0382 spoiler as the hint plus a tap to reveal link. The actual body is
-     * only shown after the tap; the reveal is tracked in memory and forgotten as soon as the
-     * adapter is recreated.
+     * Renders a XEP-0382 spoiler as the hint plus a tap to reveal link. The actual body is only
+     * shown after the tap; the reveal is tracked in memory and forgotten as soon as the adapter is
+     * recreated.
      */
     private void displayConcealedSpoiler(
             final BubbleMessageItemViewHolder viewHolder,
@@ -763,8 +761,8 @@ public class MessageAdapter extends ArrayAdapter<Message> {
     }
 
     /**
-     * Renders a XEP-0224 attention request as a distinct nudge row. Any body the sender
-     * included is shown below the label.
+     * Renders a XEP-0224 attention request as a distinct nudge row. Any body the sender included is
+     * shown below the label.
      */
     private void displayAttentionMessage(
             final BubbleMessageItemViewHolder viewHolder,

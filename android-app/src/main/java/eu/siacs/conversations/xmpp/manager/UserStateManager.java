@@ -34,8 +34,7 @@ public class UserStateManager extends AbstractManager {
         if (activity == null) {
             setActivity(from, null, null, null);
         } else {
-            setActivity(
-                    from, activity.getGeneral(), activity.getSpecific(), activity.getText());
+            setActivity(from, activity.getGeneral(), activity.getSpecific(), activity.getText());
         }
     }
 
@@ -65,10 +64,7 @@ public class UserStateManager extends AbstractManager {
     }
 
     private void setActivity(
-            final Jid user,
-            final String general,
-            final String specific,
-            final String text) {
+            final Jid user, final String general, final String specific, final String text) {
         final var contact = contact(user);
         if (contact == null) {
             return;
@@ -117,7 +113,8 @@ public class UserStateManager extends AbstractManager {
             return getManager(PepManager.class).delete(Namespace.ACTIVITY);
         }
         return getManager(PepManager.class)
-                .publishSingleton(new Activity(general, specific, text), NodeConfiguration.PRESENCE);
+                .publishSingleton(
+                        new Activity(general, specific, text), NodeConfiguration.PRESENCE);
     }
 
     public ListenableFuture<Void> publishTune(final String artist, final String title) {

@@ -226,8 +226,7 @@ public class UIHelper {
         } else if (message.isAttention()) {
             if (message.getStatus() == Message.STATUS_RECEIVED) {
                 return new Pair<>(
-                        context.getString(
-                                R.string.nudge_received, getMessageDisplayName(message)),
+                        context.getString(R.string.nudge_received, getMessageDisplayName(message)),
                         true);
             } else {
                 return new Pair<>(context.getString(R.string.nudge_sent), true);

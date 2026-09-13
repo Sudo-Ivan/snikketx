@@ -400,9 +400,7 @@ public class MessageParser extends AbstractParser
             bodyContent = body == null ? null : body.content;
         }
         final LocalizedContent effectiveBody =
-                body == null
-                        ? null
-                        : LocalizedContent.of(bodyContent, body.language, body.count);
+                body == null ? null : LocalizedContent.of(bodyContent, body.language, body.count);
 
         if ((body != null && !bodyIsFallback)
                 || pgpEncrypted != null
@@ -468,8 +466,7 @@ public class MessageParser extends AbstractParser
                         return;
                     } else if (remoteMsgId == null || Config.IGNORE_ID_REWRITE_IN_MUC) {
                         if (bodyContent != null) {
-                            Message message =
-                                    conversation.findSentMessageWithBody(bodyContent);
+                            Message message = conversation.findSentMessageWithBody(bodyContent);
                             if (message != null) {
                                 mXmppConnectionService.markMessage(message, status);
                                 return;
@@ -567,8 +564,7 @@ public class MessageParser extends AbstractParser
                 message = new Message(conversation, stickerSource, Message.ENCRYPTION_NONE, status);
                 message.setOob(true);
             } else {
-                message =
-                        new Message(conversation, bodyContent, Message.ENCRYPTION_NONE, status);
+                message = new Message(conversation, bodyContent, Message.ENCRYPTION_NONE, status);
                 if (body.count > 1) {
                     message.setBodyLanguage(body.language);
                 }
@@ -585,9 +581,7 @@ public class MessageParser extends AbstractParser
                         && replyFallbackRange != null
                         && message.getEncryption() == Message.ENCRYPTION_AXOLOTL) {
                     // for omemo the fallback range applies to the decrypted plaintext
-                    preview =
-                            ReplyUtils.unquote(
-                                    replyFallbackRange.substringOf(message.getBody()));
+                    preview = ReplyUtils.unquote(replyFallbackRange.substringOf(message.getBody()));
                     message.setBody(
                             replyFallbackRange.removeFrom(message.getBody()).stripLeading());
                 }
@@ -877,8 +871,7 @@ public class MessageParser extends AbstractParser
                                         query,
                                         false);
                 final var attentionMessage =
-                        new Message(
-                                attentionConversation, "", Message.ENCRYPTION_NONE, status);
+                        new Message(attentionConversation, "", Message.ENCRYPTION_NONE, status);
                 attentionMessage.setCounterpart(counterpart);
                 attentionMessage.setRemoteMsgId(remoteMsgId);
                 attentionMessage.setServerMsgId(serverMsgId);
@@ -1008,8 +1001,7 @@ public class MessageParser extends AbstractParser
             return;
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            vibrator.vibrate(
-                    VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE));
+            vibrator.vibrate(VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE));
         } else {
             vibrator.vibrate(500);
         }
@@ -1091,10 +1083,10 @@ public class MessageParser extends AbstractParser
     private static final int MAX_SFS_THUMBNAIL_URI_LENGTH = 64 * 1024;
 
     /**
-     * Applies XEP-0447 stateless file sharing metadata to a freshly received file message.
-     * Stores a known size and image dimensions in the file params so the bubble can be sized
-     * before the download starts and remembers a data uri thumbnail (XEP-0264) for the
-     * placeholder. Malformed values are ignored.
+     * Applies XEP-0447 stateless file sharing metadata to a freshly received file message. Stores a
+     * known size and image dimensions in the file params so the bubble can be sized before the
+     * download starts and remembers a data uri thumbnail (XEP-0264) for the placeholder. Malformed
+     * values are ignored.
      */
     private static void applyFileSharingMetadata(
             final Message message,
@@ -1137,9 +1129,7 @@ public class MessageParser extends AbstractParser
         }
         if (dimensions != null) {
             message.setType(
-                    message.isPrivateMessage()
-                            ? Message.TYPE_PRIVATE_FILE
-                            : Message.TYPE_FILE);
+                    message.isPrivateMessage() ? Message.TYPE_PRIVATE_FILE : Message.TYPE_FILE);
         }
         final var thumbnail = findThumbnailDataUri(file);
         if (thumbnail != null) {

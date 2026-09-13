@@ -2034,8 +2034,7 @@ public class XmppConnectionService extends Service {
     // conversation overview from flashing placeholder avatars right after a cold start
     private void warmAvatars() {
         final int size =
-                Math.round(
-                        getResources().getDimension(R.dimen.avatar_on_conversation_overview));
+                Math.round(getResources().getDimension(R.dimen.avatar_on_conversation_overview));
         int warmed = 0;
         for (final Conversation conversation : this.conversations) {
             if (warmed >= AVATAR_WARM_UP_LIMIT) {

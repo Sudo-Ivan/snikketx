@@ -812,8 +812,7 @@ public class EditAccountActivity extends OmemoActivity
             changePresence.setVisible(!mInitMode);
             setMood.setVisible(
                     !mInitMode
-                            && mAccount
-                                    .getXmppConnection()
+                            && mAccount.getXmppConnection()
                                     .getManager(PepManager.class)
                                     .isAvailable());
         } else {

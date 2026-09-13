@@ -620,8 +620,8 @@ public class Message extends AbstractEntity
 
     /**
      * Remembers a XEP-0264 data uri thumbnail received via stateless file sharing so the media
-     * bubble can show a blurry placeholder before the actual file is downloaded. Transient like
-     * the sticker flags and intentionally not persisted.
+     * bubble can show a blurry placeholder before the actual file is downloaded. Transient like the
+     * sticker flags and intentionally not persisted.
      */
     public void setInlineThumbnail(final String dataUri) {
         this.inlineThumbnail = dataUri;

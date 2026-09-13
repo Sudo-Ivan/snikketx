@@ -1009,9 +1009,9 @@ public class FileBackend {
     private static final int[] INLINE_THUMBNAIL_QUALITIES = {50, 30};
 
     /**
-     * Builds a tiny, heavily downscaled JPEG preview of an outgoing image or video. Used as
-     * data uri for the thumbnail element (XEP-0264) in file sharing metadata. Returns null
-     * when the file can not be rendered or the encoded thumbnail exceeds the size budget.
+     * Builds a tiny, heavily downscaled JPEG preview of an outgoing image or video. Used as data
+     * uri for the thumbnail element (XEP-0264) in file sharing metadata. Returns null when the file
+     * can not be rendered or the encoded thumbnail exceeds the size budget.
      */
     public InlineThumbnail getInlineThumbnail(final Message message) {
         final var file = getFile(message);
@@ -1090,8 +1090,7 @@ public class FileBackend {
             return bitmap;
         }
         final var flattened =
-                Bitmap.createBitmap(
-                        bitmap.getWidth(), bitmap.getHeight(), Bitmap.Config.ARGB_8888);
+                Bitmap.createBitmap(bitmap.getWidth(), bitmap.getHeight(), Bitmap.Config.ARGB_8888);
         flattened.eraseColor(Color.WHITE);
         new Canvas(flattened).drawBitmap(bitmap, 0f, 0f, null);
         bitmap.recycle();
