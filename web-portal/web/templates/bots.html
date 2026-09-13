@@ -18,6 +18,12 @@
 </section>
 {{end}}
 
+{{if not .Open}}
+<section class="card card-accent-warn" role="status">
+	<p class="muted">{{template "icon" "lock"}} New bot registrations are currently locked down by the operator. Your existing bots keep working.</p>
+</section>
+{{end}}
+
 <section class="card">
 	<div class="section-head">
 		<div>
@@ -55,7 +61,7 @@
 		<div class="bot-head">
 			<span class="icon-tile{{if .Disabled}} icon-tile-muted{{end}}" aria-hidden="true">{{template "icon" "cpu"}}</span>
 			<div class="bot-head-text">
-				<h2>{{if .Label}}{{.Label}} <span class="muted bot-name-suffix">({{$bot.Name}})</span>{{else}}{{$bot.Name}}{{end}}</h2>
+				<h2><a href="/user/bots/{{$bot.Name}}" class="bot-link">{{if .Label}}{{.Label}} <span class="muted bot-name-suffix">({{$bot.Name}})</span>{{else}}{{$bot.Name}}{{end}}</a></h2>
 				<p class="muted"><span class="mono">{{.JID}}</span></p>
 				<p class="bot-meta">
 					{{if .Disabled}}<span class="badge badge-warn">Disabled</span>{{else}}<span class="badge badge-ok">Active</span>{{end}}

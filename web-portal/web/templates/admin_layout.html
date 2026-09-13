@@ -24,10 +24,12 @@
 			<a href="/admin/limits/" class="sidenav-link{{if eq .Nav "limits"}} is-active{{end}}">{{template "icon" "lock"}}<span>{{t "nav.limits"}}</span></a>
 			<a href="/admin/updates" class="sidenav-link{{if eq .Nav "updates"}} is-active{{end}}">{{template "icon" "refresh"}}<span>{{t "nav.updates"}}</span></a>
 			<a href="/admin/apps" class="sidenav-link{{if eq .Nav "apps"}} is-active{{end}}">{{template "icon" "smartphone"}}<span>{{t "nav.apps"}}</span></a>
+			<a href="/admin/bots" class="sidenav-link{{if eq .Nav "bots"}} is-active{{end}}">{{template "icon" "cpu"}}<span>Bots</span></a>
 			<a href="/admin/backup/" class="sidenav-link{{if eq .Nav "backup"}} is-active{{end}}">{{template "icon" "download"}}<span>{{t "nav.backup"}}</span></a>
 		</nav>
 		<nav class="sidenav" aria-label="System">
 			<p class="sidenav-label">System</p>
+			<a href="/admin/auth" class="sidenav-link{{if eq .Nav "auth"}} is-active{{end}}">{{template "icon" "key"}}<span>Authentication</span></a>
 			<a href="/admin/system/" class="sidenav-link{{if eq .Nav "system"}} is-active{{end}}">{{template "icon" "server"}}<span>{{t "nav.system"}}</span></a>
 			<a href="/admin/logs/" class="sidenav-link{{if eq .Nav "logs"}} is-active{{end}}">{{template "icon" "activity"}}<span>{{t "nav.logs"}}</span></a>
 			<a href="/admin/health/" class="sidenav-link{{if eq .Nav "health"}} is-active{{end}}">{{template "icon" "heart-pulse"}}<span>{{t "nav.health"}}</span></a>

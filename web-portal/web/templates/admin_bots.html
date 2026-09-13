@@ -1,0 +1,136 @@
+{{define "content"}}
+<div class="page-head">
+	<div class="page-head-copy">
+		<h1>Bots</h1>
+		<p class="muted">Every bot on the deployment, who owns it, and what it did. Bots live on <span class="mono">bots.{{.Domain}}</span>.</p>
+	</div>
+</div>
+
+<section class="card">
+	<div class="section-head">
+		<div>
+			<h2>{{template "icon" "lock"}}<span>Registration</span></h2>
+			<p class="muted">Locking down stops new bots from being created. Existing bots and their tokens keep working.</p>
+		</div>
+		<div class="section-actions">
+			{{if .ServiceUp}}
+			<form method="post" action="/admin/bots/lockdown" class="inline-form">
+				{{csrf .CSRF}}
+				{{if .Open}}
+				<input type="hidden" name="lock" value="1">
+				<button type="submit" class="btn btn-danger-ghost" onclick="return confirm('Lock down new bot registrations?');">{{template "icon" "lock"}}<span>Lock down</span></button>
+				{{else}}
+				<button type="submit" class="btn btn-primary">{{template "icon" "check"}}<span>Reopen</span></button>
+				{{end}}
+			</form>
+			{{end}}
+		</div>
+	</div>
+	{{if .ServiceUp}}
+	<p>{{if .Open}}<span class="badge badge-ok">Registrations open</span>{{else}}<span class="badge badge-warn">Locked down</span>{{end}} <span class="muted">{{len .Bots}} bot{{if ne (len .Bots) 1}}s{{end}} registered</span></p>
+	{{end}}
+</section>
+
+{{if .ServiceUp}}
+<section class="card">
+	<div class="section-head">
+		<div>
+			<h2>{{template "icon" "cpu"}}<span>Registered bots</span></h2>
+		</div>
+	</div>
+	{{with .Bots}}
+	<div class="table-wrap">
+		<table class="table">
+			<thead>
+				<tr>
+					<th scope="col">Bot</th>
+					<th scope="col">Owner</th>
+					<th scope="col">Status</th>
+					<th scope="col">Created</th>
+					<th scope="col">Webhook</th>
+					<th scope="col" class="col-icon"><span class="sr-only">Actions</span></th>
+				</tr>
+			</thead>
+			<tbody>
+				{{range .}}
+				<tr>
+					<td>
+						<strong>{{orDefault .Label .Name}}</strong>
+						<div class="hint mono">{{.JID}}</div>
+					</td>
+					<td class="muted mono">{{.Owner}}</td>
+					<td>{{if .Disabled}}<span class="badge badge-warn">Disabled</span>{{else}}<span class="badge badge-ok">Active</span>{{end}}</td>
+					<td class="muted">{{formatUnixInt .Created}}</td>
+					<td class="muted">{{if .WebhookConfigured}}{{if .WebhookDisabled}}<span class="badge badge-warn">Failing</span>{{else}}<span class="badge badge-ok">On</span>{{end}}{{else}}-{{end}}</td>
+					<td class="col-icon">
+						<div class="inline-form">
+							<a href="/admin/bots?bot={{.Name}}" class="btn btn-ghost btn-icon btn-small" title="Audit trail" aria-label="Audit trail for {{.Name}}">{{template "icon" "scroll-text"}}</a>
+							<form method="post" action="/admin/bots/{{.Name}}/toggle" class="inline-form">
+								{{csrf $.CSRF}}
+								{{if .Disabled}}
+								<button type="submit" class="btn btn-ghost btn-icon btn-small" title="Enable" aria-label="Enable bot {{.Name}}">{{template "icon" "check"}}</button>
+								{{else}}
+								<button type="submit" class="btn btn-ghost btn-icon btn-small" title="Disable" aria-label="Disable bot {{.Name}}">{{template "icon" "pause"}}</button>
+								{{end}}
+							</form>
+							<form method="post" action="/admin/bots/{{.Name}}/delete" class="inline-form">
+								{{csrf $.CSRF}}
+								<button type="submit" class="btn btn-ghost btn-icon btn-small btn-danger-ghost" title="Delete" aria-label="Delete bot {{.Name}}" onclick="return confirm('Delete bot {{.Name}}? This cannot be undone.');">{{template "icon" "trash"}}</button>
+							</form>
+						</div>
+					</td>
+				</tr>
+				{{end}}
+			</tbody>
+		</table>
+	</div>
+	{{else}}
+	{{template "empty_state" "No bots registered yet. Users create them under Apps &gt; Bots."}}
+	{{end}}
+</section>
+
+<section class="card">
+	<div class="section-head">
+		<div>
+			<h2>{{template "icon" "scroll-text"}}<span>Audit log{{if .AuditBot}}: {{.AuditBot}}{{end}}</span></h2>
+			<p class="muted">Security events across the bot service: creations, token lifecycle, auth failures, joins and sends.</p>
+		</div>
+		{{if .AuditBot}}
+		<div class="section-actions">
+			<a href="/admin/bots" class="btn btn-ghost">{{template "icon" "x"}}<span>Clear filter</span></a>
+		</div>
+		{{end}}
+	</div>
+	{{with .Audit}}
+	<div class="table-wrap">
+		<table class="table">
+			<thead>
+				<tr>
+					<th scope="col">When</th>
+					<th scope="col">Action</th>
+					<th scope="col">Bot</th>
+					<th scope="col">Actor</th>
+					<th scope="col">Detail</th>
+					<th scope="col">IP</th>
+				</tr>
+			</thead>
+			<tbody>
+				{{range .}}
+				<tr>
+					<td class="muted">{{formatUnixInt .TS}}</td>
+					<td><span class="mono">{{.Action}}</span></td>
+					<td class="muted">{{orDefault .Bot "-"}}</td>
+					<td class="muted">{{orDefault .Actor "-"}}</td>
+					<td class="muted">{{orDefault .Detail "-"}}</td>
+					<td class="muted mono">{{orDefault .IP "-"}}</td>
+				</tr>
+				{{end}}
+			</tbody>
+		</table>
+	</div>
+	{{else}}
+	{{template "empty_state" "No audit events recorded yet."}}
+	{{end}}
+</section>
+{{end}}
+{{end}}

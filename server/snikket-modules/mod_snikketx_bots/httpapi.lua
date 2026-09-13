@@ -233,7 +233,7 @@ local function handle_list(event)
 			out[#out + 1] = registry.public(bot);
 		end
 	end
-	return json_response(event, { bots = out });
+	return json_response(event, { bots = out; registration_open = not registry.lockdown() });
 end
 
 local function handle_create(event)
@@ -258,7 +258,8 @@ local function handle_create(event)
 		events = type(payload.events) == "table" and payload.events or nil;
 	});
 	if not bot then
-		return json_error(event, berr == "conflict" and 409 or 400, berr);
+		local code = (berr == "conflict" and 409) or (berr == "bots-closed" and 403) or 400;
+		return json_error(event, code, berr);
 	end
 	if type(payload.webhook) == "table" and payload.webhook.url then
 		webhook.validate(payload.webhook.url, function (ok, reason)
@@ -427,10 +428,15 @@ local function handle_tokens_list(event, bot, principal)
 	for tid, tok in pairs(bot.tokens) do
 		out[#out + 1] = {
 			id = tid;
+			name = tok.name;
 			scopes = tok.scopes;
 			created = tok.created;
 			expires = tok.expires;
 			last_used = tok.last_used;
+			last_ip = tok.last_ip;
+			last_ua = tok.last_ua;
+			bound_ips = tok.bind_ips;
+			bound_ua = tok.bind_ua;
 		};
 	end
 	return json_response(event, { tokens = out });
@@ -629,12 +635,54 @@ local function handle_audit(event)
 	});
 end
 
+-- Admin-only access log read: GET /bots/access?bot=x&ip=y&since=ts&limit=n
+local function handle_access(event)
+	local principal, resp = require_auth(event);
+	if not principal then return resp; end
+	if principal.kind ~= "admin" then
+		return json_error(event, 403, "forbidden");
+	end
+	local query = decode_query(event.request.url and event.request.url.query);
+	local limit = tonumber(query.limit or "") or 100;
+	if limit > 500 then limit = 500; end
+	return json_response(event, {
+		entries = audit.list_access({
+			bot = query.bot;
+			ip = query.ip;
+			since = tonumber(query.since or "");
+			limit = limit;
+		});
+	});
+end
+
+-- Admin-only registration lockdown: POST /bots/lockdown {open=false}
+local function handle_lockdown(event)
+	local principal, resp = require_auth(event);
+	if not principal then return resp; end
+	if principal.kind ~= "admin" then
+		return json_error(event, 403, "forbidden");
+	end
+	local payload, code, err = parse_body(event);
+	if not payload then return json_error(event, code, err); end
+	local locked = payload.open == false or payload.locked == true;
+	registry.set_lockdown(locked);
+	audit.record({
+		action = locked and "service.lockdown" or "service.unlock";
+		actor = audit_actor(principal);
+		ip = event.request.ip;
+	});
+	return json_response(event, { registration_open = not locked });
+end
+
 local function get_wildcard(event)
 	local parts = split_tail(event.request.path);
 	local name = parts[1];
 	if not name then return handle_list(event); end
 	if name == "audit" then
 		return handle_audit(event);
+	end
+	if name == "access" then
+		return handle_access(event);
 	end
 	local sub = parts[2];
 	if sub == nil then
@@ -678,6 +726,9 @@ local function post_wildcard(event)
 	local parts = split_tail(event.request.path);
 	local name, sub = parts[1], parts[2];
 	if not name then return json_error(event, 404, "not-found"); end
+	if name == "lockdown" and not sub then
+		return handle_lockdown(event);
+	end
 	if sub == "tokens" then
 		local bot, principal, resp = resolve_bot(event, name);
 		if not bot then return resp; end
@@ -724,9 +775,18 @@ end
 local function access_log(handler)
 	return function (event)
 		local result = handler(event);
+		local path = event.request.path or "";
+		local status = event.response.status_code or 200;
+		audit.access({
+			ip = event.request.ip;
+			method = event.request.method;
+			path = path;
+			status = status;
+			bot = path:match("^/bots/([^/]+)");
+		});
 		module:log("info", "bots-api: %s %s -> %s from %s",
 			event.request.method, event.request.path,
-			tostring(event.response.status_code or 200),
+			tostring(status),
 			tostring(event.request.ip));
 		return result;
 	end;

@@ -14,11 +14,14 @@ import (
 // adminSystemPage is the data behind the system page.
 type adminSystemPage struct {
 	webui.PageData
-	ProsodyVersion string
-	Metrics        serverMetrics
-	Host           hostmetrics.Stats
-	Uptime         string
-	Announcement   string
+	ProsodyVersion    string
+	Metrics           serverMetrics
+	Host              hostmetrics.Stats
+	Uptime            string
+	Announcement      string
+	LinkPreviewOn     bool
+	LinkPreviewMeta   int
+	LinkPreviewImages int
 }
 
 // handleSystemForm shows the system page with the announcement form and the
@@ -34,9 +37,13 @@ func (a *App) handleSystemForm(w http.ResponseWriter, r *http.Request) {
 // renderSystem draws the system page, keeping any typed announcement in place.
 func (a *App) renderSystem(w http.ResponseWriter, r *http.Request, sess session.Data, announcement string, status int) {
 	data := adminSystemPage{
-		Host:         hostmetrics.Collect(),
-		Uptime:       time.Since(a.Started).Round(time.Second).String(),
-		Announcement: announcement,
+		Host:          hostmetrics.Collect(),
+		Uptime:        time.Since(a.Started).Round(time.Second).String(),
+		Announcement:  announcement,
+		LinkPreviewOn: a.Cfg != nil && a.Cfg.LinkPreviewEnabled,
+	}
+	if a.LinkPreview != nil {
+		data.LinkPreviewMeta, data.LinkPreviewImages = a.LinkPreview.Stats()
 	}
 
 	if a.Cfg.ShowMetrics {

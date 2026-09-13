@@ -31,6 +31,20 @@
 </section>
 
 <section class="card">
+	<h2>{{template "icon" "link"}}<span>Link previews</span></h2>
+	{{if .LinkPreviewOn}}
+	<p><span class="badge badge-ok">Enabled</span> <span class="muted">The proxy serves <span class="mono">/api/link-preview</span> and <span class="mono">/api/link-preview/image</span> for authenticated accounts.</span></p>
+	<div class="stats">
+		<div class="stat"><span class="stat-label">Cached previews</span><span class="stat-value">{{.LinkPreviewMeta}}</span></div>
+		<div class="stat"><span class="stat-label">Cached images</span><span class="stat-value">{{.LinkPreviewImages}}</span></div>
+		<div class="stat"><span class="stat-label">Per user limit</span><span class="stat-value">30/hour</span></div>
+	</div>
+	{{else}}
+	<p><span class="badge">Disabled</span> <span class="muted">Set SNIKKET_WEB_LINK_PREVIEW=1 to turn the preview proxy on.</span></p>
+	{{end}}
+</section>
+
+<section class="card">
 	<h2>{{template "icon" "server"}}<span>This deployment</span></h2>
 	<dl class="details">
 		<dt>Domain</dt><dd class="mono">{{.Domain}}</dd>

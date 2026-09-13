@@ -69,7 +69,7 @@ func TestClientListFiltersByOwner(t *testing.T) {
 		},
 	}, http.StatusOK)
 
-	got, err := stub.client().List(context.Background(), "alice@x")
+	got, open, err := stub.client().List(context.Background(), "alice@x")
 	if err != nil {
 		t.Fatalf("List error: %v", err)
 	}
@@ -79,6 +79,58 @@ func TestClientListFiltersByOwner(t *testing.T) {
 	}
 	if len(got) != 1 || got[0].Name != "mine" {
 		t.Fatalf("List = %+v, want only the owned bot", got)
+	}
+	if open {
+		t.Fatal("List open flag should default false when omitted")
+	}
+}
+
+func TestClientListReportsLockdown(t *testing.T) {
+	stub := newStub(t, map[string]any{
+		"bots":              []map[string]any{},
+		"registration_open": false,
+	}, http.StatusOK)
+
+	_, open, err := stub.client().List(context.Background(), "")
+	if err != nil {
+		t.Fatalf("List error: %v", err)
+	}
+	if open {
+		t.Fatal("expected lockdown state")
+	}
+}
+
+func TestClientAuditAndAccess(t *testing.T) {
+	stub := newStub(t, map[string]any{
+		"entries": []map[string]any{
+			{"id": 1, "ts": 1700000000, "action": "bot.create", "actor": "a@x", "bot": "echo"},
+		},
+	}, http.StatusOK)
+
+	entries, err := stub.client().Audit(context.Background(), "echo", 50)
+	if err != nil {
+		t.Fatalf("Audit error: %v", err)
+	}
+	if stub.method != http.MethodGet || stub.path != "/bots/audit" {
+		t.Fatalf("%s %s, want GET /bots/audit", stub.method, stub.path)
+	}
+	if len(entries) != 1 || entries[0].Action != "bot.create" {
+		t.Fatalf("Audit = %+v", entries)
+	}
+}
+
+func TestClientSetLockdown(t *testing.T) {
+	stub := newStub(t, map[string]any{"registration_open": false}, http.StatusOK)
+
+	open, err := stub.client().SetLockdown(context.Background(), true)
+	if err != nil {
+		t.Fatalf("SetLockdown error: %v", err)
+	}
+	if stub.method != http.MethodPost || stub.path != "/bots/lockdown" {
+		t.Fatalf("%s %s, want POST /bots/lockdown", stub.method, stub.path)
+	}
+	if open {
+		t.Fatal("expected locked state")
 	}
 }
 
@@ -158,7 +210,7 @@ func TestClientTokenLifecycle(t *testing.T) {
 func TestClientErrorMapping(t *testing.T) {
 	stub := newStub(t, map[string]any{"error": "owner-quota"}, http.StatusForbidden)
 
-	_, err := stub.client().List(context.Background(), "alice@x")
+	_, _, err := stub.client().List(context.Background(), "alice@x")
 	var apiErr *APIError
 	if !errors.As(err, &apiErr) {
 		t.Fatalf("err = %v, want APIError", err)

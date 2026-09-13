@@ -85,6 +85,8 @@ func (a *App) mountAdmin(mux *http.ServeMux) {
 	mux.HandleFunc("GET /admin/muc/{localpart}", a.handleMUCDetail)
 	mux.HandleFunc("POST /admin/muc/{localpart}", a.handleMUCDetailSubmit)
 
+	a.mountAdminBots(mux)
+	a.mountAdminAuth(mux)
 	a.mountAdminOps(mux)
 }
 

@@ -612,6 +612,48 @@ local function handle_account_import(event)
 	return json_ok(event, { username = username, written = list(written) });
 end
 
+-- Reports the effective authentication configuration so the portal can
+-- render an admin overview. Secrets are never returned, only whether
+-- they are set.
+local function handle_auth_config(event)
+	local _, code = require_admin(event);
+	if code then return code; end
+	local env = os.getenv;
+	local present = function (k)
+		local v = env(k);
+		return v ~= nil and v ~= "";
+	end
+	return json_ok(event, {
+		authentication = module:get_option_string("authentication") or "internal_hashed";
+		scram = {
+			hash = env("SNIKKET_TWEAK_PASSWORD_HASH") or "scram_sha_256";
+			iterations = tonumber(env("SNIKKET_TWEAK_ITERATION_COUNT") or "");
+		};
+		ldap = {
+			enabled = env("SNIKKET_TWEAK_LDAP") == "1";
+			host = env("SNIKKET_LDAP_HOST");
+			port = env("SNIKKET_LDAP_PORT");
+			tls = env("SNIKKET_LDAP_USE_TLS") or "starttls";
+			base_dn = env("SNIKKET_LDAP_USER_BASE_DN");
+			username_field = env("SNIKKET_LDAP_USERNAME_FIELD");
+			name_field = env("SNIKKET_LDAP_NAME_FIELD");
+			user_filter = env("SNIKKET_LDAP_USER_FILTER");
+			group_base_dn = env("SNIKKET_LDAP_GROUP_BASE_DN");
+			bind_dn_set = present("SNIKKET_LDAP_BIND_DN");
+			bind_password_set = present("SNIKKET_LDAP_BIND_PASSWORD") or present("SNIKKET_LDAP_BIND_PASSWORD_FILE");
+		};
+		oauth = {
+			enabled = env("SNIKKET_TWEAK_OAUTH") == "1";
+			discovery_url = env("SNIKKET_OAUTH_DISCOVERY_URL");
+			validation_endpoint = env("SNIKKET_OAUTH_VALIDATION_ENDPOINT");
+			username_field = env("SNIKKET_OAUTH_USERNAME_FIELD");
+			scope = env("SNIKKET_OAUTH_SCOPE");
+		};
+		bots_enabled = env("SNIKKET_TWEAK_BOTS") == "1";
+		registration = module:get_option_string("allow_registration") or "unknown";
+	});
+end
+
 local function handle_server_restart(event)
 	local session, code = require_admin(event);
 	if code then return code; end
@@ -628,6 +670,7 @@ end
 module:provides("http", {
 	route = {
 		["POST /server/restart"] = handle_server_restart;
+		["GET /server/auth-config"] = handle_auth_config;
 		["GET /clients"] = handle_clients;
 		["DELETE /clients/*"] = handle_revoke_client;
 		["GET /me/clients"] = handle_me_clients;

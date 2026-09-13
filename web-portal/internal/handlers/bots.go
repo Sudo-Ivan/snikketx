@@ -25,6 +25,7 @@ func (a *App) mountBots(mux *http.ServeMux) {
 	}
 	mux.HandleFunc("GET "+pathUserBots, a.handleBotsPage)
 	mux.HandleFunc("POST "+pathUserBots, a.handleBotsCreate)
+	mux.HandleFunc("GET "+pathUserBots+"/{name}", a.handleBotDetail)
 	mux.HandleFunc("POST "+pathUserBots+"/{name}/delete", a.handleBotsDelete)
 	mux.HandleFunc("POST "+pathUserBots+"/{name}/toggle", a.handleBotsToggle)
 	mux.HandleFunc("POST "+pathUserBots+"/{name}/tokens", a.handleBotsTokenMint)
@@ -40,19 +41,21 @@ type botsPageData struct {
 	NewToken string
 	NewBot   string
 	MaxBots  int
+	Open     bool
 }
 
 // renderBotsPage lists the caller's bots with their token metadata.
 func (a *App) renderBotsPage(w http.ResponseWriter, r *http.Request, sess session.Data, newToken, newBot string) {
 	jid := sess.JID()
-	data := botsPageData{MaxBots: 10}
+	data := botsPageData{MaxBots: 10, Open: true}
 
-	list, err := a.Bots.List(r.Context(), jid)
+	list, open, err := a.Bots.List(r.Context(), jid)
 	if err != nil {
 		a.recordError(r, err)
 		data.Errors = append(data.Errors, "The bot service could not be reached. Try again later.")
 	} else {
 		data.Bots = list
+		data.Open = open
 		data.Tokens = make(map[string][]bots.Token, len(list))
 		for i := range list {
 			if toks, terr := a.Bots.ListTokens(r.Context(), list[i].Name); terr == nil {
@@ -65,6 +68,44 @@ func (a *App) renderBotsPage(w http.ResponseWriter, r *http.Request, sess sessio
 	page := a.newPage(w, r, sess, "Bots", "bots", webui.ShellApp)
 	data.PageData = page
 	a.render(w, r, http.StatusOK, "bots.html", data)
+}
+
+// botDetailData carries everything the per-bot page needs: the record,
+// its tokens with bindings, and the filtered audit and access trails.
+type botDetailData struct {
+	webui.PageData
+	Bot    bots.Bot
+	Tokens []bots.Token
+	Audit  []bots.AuditEntry
+	Access []bots.AccessEntry
+}
+
+// handleBotDetail shows one bot: token bindings, audit trail and the
+// HTTP access log. The audit and access endpoints are admin only, so the
+// portal runs them under the management token after its own ownership
+// check.
+func (a *App) handleBotDetail(w http.ResponseWriter, r *http.Request) {
+	sess, ok := a.requireSession(w, r)
+	if !ok {
+		return
+	}
+	name := r.PathValue("name")
+	bot, ok := a.botOwnedBy(w, r, sess, name)
+	if !ok {
+		return
+	}
+	data := botDetailData{Bot: *bot}
+	if toks, err := a.Bots.ListTokens(r.Context(), name); err == nil {
+		data.Tokens = toks
+	}
+	if entries, err := a.Bots.Audit(r.Context(), name, 200); err == nil {
+		data.Audit = entries
+	}
+	if entries, err := a.Bots.AccessLog(r.Context(), name, 200); err == nil {
+		data.Access = entries
+	}
+	data.PageData = a.newPage(w, r, sess, "Bot "+name, "bots", webui.ShellApp)
+	a.render(w, r, http.StatusOK, "bot_detail.html", data)
 }
 
 // handleBotsPage shows the bot list.
@@ -194,7 +235,7 @@ func (a *App) handleBotsTokenRevoke(w http.ResponseWriter, r *http.Request) {
 // botOwnedBy verifies the caller owns the named bot. It returns the bot
 // record on success and has already written the response on failure.
 func (a *App) botOwnedBy(w http.ResponseWriter, r *http.Request, sess session.Data, name string) (*bots.Bot, bool) {
-	list, err := a.Bots.List(r.Context(), sess.JID())
+	list, _, err := a.Bots.List(r.Context(), sess.JID())
 	if err != nil {
 		a.recordError(r, err)
 		a.flashRedirect(w, r, sess, "The bot service could not be reached. Try again later.", "alert", pathUserBots)
@@ -222,6 +263,8 @@ func botErrorMessage(err error) string {
 			return "You have reached the maximum number of bots."
 		case "global-quota":
 			return "The bot service is at capacity. Contact the operator."
+		case "bots-closed":
+			return "New bot registrations are locked down by the operator."
 		case "owner-unknown", "owner-not-local", "invalid-owner":
 			return "Your account is not known to the bot service."
 		case "token-quota":

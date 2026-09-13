@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -31,6 +32,7 @@ type Bot struct {
 	Disabled          bool   `json:"disabled"`
 	Created           int64  `json:"created"`
 	WebhookConfigured bool   `json:"webhook_configured"`
+	WebhookDisabled   bool   `json:"webhook_disabled"`
 	// Token is only populated on create and on token mint. It is a
 	// secret shown to the owner exactly once.
 	Token string `json:"token,omitempty"`
@@ -40,10 +42,37 @@ type Bot struct {
 // itself is never returned after minting.
 type Token struct {
 	ID       string   `json:"id"`
+	Name     string   `json:"name,omitempty"`
 	Scopes   []string `json:"scopes"`
 	Created  int64    `json:"created"`
 	Expires  int64    `json:"expires"`
 	LastUsed int64    `json:"last_used"`
+	LastIP   string   `json:"last_ip,omitempty"`
+	LastUA   string   `json:"last_ua,omitempty"`
+	BoundIPs []string `json:"bound_ips,omitempty"`
+	BoundUA  string   `json:"bound_ua,omitempty"`
+}
+
+// AuditEntry is one security relevant record: creations, token
+// lifecycle, authentication failures and room joins.
+type AuditEntry struct {
+	ID     int64  `json:"id"`
+	TS     int64  `json:"ts"`
+	Action string `json:"action"`
+	Actor  string `json:"actor,omitempty"`
+	Bot    string `json:"bot,omitempty"`
+	Detail string `json:"detail,omitempty"`
+	IP     string `json:"ip,omitempty"`
+}
+
+// AccessEntry is one HTTP request seen by the management API.
+type AccessEntry struct {
+	TS     int64  `json:"ts"`
+	IP     string `json:"ip"`
+	Method string `json:"method"`
+	Path   string `json:"path"`
+	Status int    `json:"status"`
+	Bot    string `json:"bot,omitempty"`
 }
 
 // APIError is the structured error the module returns.
@@ -58,9 +87,12 @@ func (e *APIError) Error() string {
 
 var nameRE = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]*$`)
 
+// reservedNames are words claimed by the management API itself.
+var reservedNames = map[string]bool{"audit": true, "access": true, "lockdown": true}
+
 // ValidName mirrors the server side bot name rules.
 func ValidName(name string) bool {
-	return nameRE.MatchString(name) && len(name) <= maxBotName && name != "audit"
+	return nameRE.MatchString(name) && len(name) <= maxBotName && !reservedNames[name]
 }
 
 // Client calls the management API with a static admin token.
@@ -127,22 +159,75 @@ func (c *Client) call(ctx context.Context, method, path string, payload, out any
 	return json.Unmarshal(raw, out)
 }
 
-// List returns the bots owned by jid. The admin token can see every bot,
-// so the filter is applied here to keep the API surface per user.
-func (c *Client) List(ctx context.Context, owner string) ([]Bot, error) {
+// List returns the bots owned by jid and whether new registrations are
+// open. The admin token can see every bot, so the owner filter is
+// applied here to keep the API surface per user. An empty owner returns
+// the full list.
+func (c *Client) List(ctx context.Context, owner string) ([]Bot, bool, error) {
 	var reply struct {
-		Bots []Bot `json:"bots"`
+		Bots             []Bot `json:"bots"`
+		RegistrationOpen bool  `json:"registration_open"`
 	}
 	if err := c.call(ctx, http.MethodGet, "/", nil, &reply); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	out := make([]Bot, 0, len(reply.Bots))
 	for _, b := range reply.Bots {
-		if b.Owner == owner {
+		if owner == "" || b.Owner == owner {
 			out = append(out, b)
 		}
 	}
-	return out, nil
+	return out, reply.RegistrationOpen, nil
+}
+
+// Audit returns the security audit entries, optionally filtered to one
+// bot. Requires an admin principal: the portal calls it with the
+// management token and applies its own ownership checks.
+func (c *Client) Audit(ctx context.Context, bot string, limit int) ([]AuditEntry, error) {
+	if limit <= 0 || limit > 1000 {
+		limit = 100
+	}
+	path := "/audit?limit=" + strconv.Itoa(limit)
+	if bot != "" {
+		path += "&bot=" + url.QueryEscape(bot)
+	}
+	var reply struct {
+		Entries []AuditEntry `json:"entries"`
+	}
+	if err := c.call(ctx, http.MethodGet, path, nil, &reply); err != nil {
+		return nil, err
+	}
+	return reply.Entries, nil
+}
+
+// AccessLog returns the HTTP access entries, optionally filtered to one
+// bot. Admin only, like Audit.
+func (c *Client) AccessLog(ctx context.Context, bot string, limit int) ([]AccessEntry, error) {
+	if limit <= 0 || limit > 500 {
+		limit = 100
+	}
+	path := "/access?limit=" + strconv.Itoa(limit)
+	if bot != "" {
+		path += "&bot=" + url.QueryEscape(bot)
+	}
+	var reply struct {
+		Entries []AccessEntry `json:"entries"`
+	}
+	if err := c.call(ctx, http.MethodGet, path, nil, &reply); err != nil {
+		return nil, err
+	}
+	return reply.Entries, nil
+}
+
+// SetLockdown opens or closes new bot registrations and reports the
+// resulting state. Existing bots keep working either way.
+func (c *Client) SetLockdown(ctx context.Context, locked bool) (bool, error) {
+	var reply struct {
+		RegistrationOpen bool `json:"registration_open"`
+	}
+	err := c.call(ctx, http.MethodPost, "/lockdown",
+		map[string]any{"open": !locked}, &reply)
+	return reply.RegistrationOpen, err
 }
 
 // Create registers a new bot for owner and returns the record including

@@ -51,6 +51,37 @@ function M.list(filter)
 	return out;
 end
 
+-- Access log: one in-memory row per HTTP request (method, path, status,
+-- source IP). Not persisted; the audit ring above holds the durable
+-- security record.
+local access_entries = {};
+local access_max = 500;
+
+function M.access(entry)
+	entry.ts = os.time();
+	access_entries[#access_entries + 1] = entry;
+	if #access_entries > access_max then
+		table.remove(access_entries, 1);
+	end
+end
+
+-- filter: { bot = name, ip = x, since = ts, limit = n }
+function M.list_access(filter)
+	filter = filter or {};
+	local out = {};
+	local limit = filter.limit or 100;
+	for i = #access_entries, 1, -1 do
+		local e = access_entries[i];
+		if (not filter.bot or e.bot == filter.bot)
+			and (not filter.ip or e.ip == filter.ip)
+			and (not filter.since or e.ts >= filter.since) then
+			out[#out + 1] = e;
+			if #out >= limit then break; end
+		end
+	end
+	return out;
+end
+
 function M.init(cfg, store_handle)
 	config = cfg;
 	store = store_handle;

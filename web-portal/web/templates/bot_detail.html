@@ -1,0 +1,157 @@
+{{define "content"}}
+<div class="page-head">
+	<div class="page-head-copy">
+		<h1>{{if .Bot.Label}}{{.Bot.Label}} <span class="muted bot-name-suffix">({{.Bot.Name}})</span>{{else}}{{.Bot.Name}}{{end}}</h1>
+		<p class="muted"><span class="mono">{{.Bot.JID}}</span></p>
+	</div>
+	<div class="page-head-actions">
+		<a href="/user/bots" class="btn btn-secondary">{{template "icon" "arrow-left"}}<span>All bots</span></a>
+	</div>
+</div>
+
+<section class="card">
+	<div class="section-head">
+		<div class="bot-head">
+			<span class="icon-tile{{if .Bot.Disabled}} icon-tile-muted{{end}}" aria-hidden="true">{{template "icon" "cpu"}}</span>
+			<div class="bot-head-text">
+				<h2>Overview</h2>
+				<p class="bot-meta">
+					{{if .Bot.Disabled}}<span class="badge badge-warn">Disabled</span>{{else}}<span class="badge badge-ok">Active</span>{{end}}
+					<span class="muted">Created {{formatUnixInt .Bot.Created}}</span>
+					{{if .Bot.WebhookConfigured}}<span class="badge">Webhook</span>{{end}}
+				</p>
+			</div>
+		</div>
+	</div>
+	<dl class="details">
+		<dt>Name</dt><dd class="mono">{{.Bot.Name}}</dd>
+		<dt>Address</dt><dd class="mono">{{.Bot.JID}}</dd>
+		{{if .Bot.Label}}<dt>Label</dt><dd>{{.Bot.Label}}</dd>{{end}}
+		<dt>Owner</dt><dd class="mono">{{.Bot.Owner}}</dd>
+	</dl>
+</section>
+
+<section class="card">
+	<div class="section-head">
+		<div>
+			<h2>{{template "icon" "key"}}<span>Tokens</span></h2>
+			<p class="muted">Bound IP ranges lock a token to specific networks. A token seen from an unbound address is rejected.</p>
+		</div>
+	</div>
+	{{with .Tokens}}
+	<div class="table-wrap">
+		<table class="table">
+			<thead>
+				<tr>
+					<th scope="col">ID</th>
+					<th scope="col">Name</th>
+					<th scope="col">Scopes</th>
+					<th scope="col">Bound to</th>
+					<th scope="col">Last used</th>
+					<th scope="col" class="col-icon"><span class="sr-only">Actions</span></th>
+				</tr>
+			</thead>
+			<tbody>
+				{{range .}}
+				<tr>
+					<td><span class="mono">{{.ID}}</span></td>
+					<td>{{orDefault .Name "-"}}</td>
+					<td class="muted">{{range $i, $s := .Scopes}}{{if $i}}, {{end}}{{$s}}{{end}}</td>
+					<td class="muted">
+						{{if .BoundIPs}}{{range $i, $ip := .BoundIPs}}{{if $i}}, {{end}}<span class="mono">{{$ip}}</span>{{end}}{{else}}<span class="badge badge-ok">Any IP</span>{{end}}
+						{{if .BoundUA}}<div class="hint">UA: {{.BoundUA}}</div>{{end}}
+					</td>
+					<td class="muted">
+						{{if .LastUsed}}{{formatUnixInt .LastUsed}}{{else}}Never{{end}}
+						{{if .LastIP}}<div class="hint mono">{{.LastIP}}</div>{{end}}
+					</td>
+					<td class="col-icon">
+						<form method="post" action="/user/bots/{{$.Bot.Name}}/tokens/{{.ID}}/delete" class="inline-form">
+							{{csrf $.CSRF}}
+							<button type="submit" class="btn btn-ghost btn-icon btn-small btn-danger-ghost" title="Revoke token" aria-label="Revoke token {{.ID}}" onclick="return confirm('Revoke this token?');">{{template "icon" "x"}}</button>
+						</form>
+					</td>
+				</tr>
+				{{end}}
+			</tbody>
+		</table>
+	</div>
+	{{else}}
+	{{template "empty_state" "No tokens yet. Mint one from the bots list."}}
+	{{end}}
+</section>
+
+<section class="card">
+	<div class="section-head">
+		<div>
+			<h2>{{template "icon" "scroll-text"}}<span>Audit log</span></h2>
+			<p class="muted">Security events for this bot: token lifecycle, joins, sends and authentication failures.</p>
+		</div>
+	</div>
+	{{with .Audit}}
+	<div class="table-wrap">
+		<table class="table">
+			<thead>
+				<tr>
+					<th scope="col">When</th>
+					<th scope="col">Action</th>
+					<th scope="col">Actor</th>
+					<th scope="col">Detail</th>
+					<th scope="col">IP</th>
+				</tr>
+			</thead>
+			<tbody>
+				{{range .}}
+				<tr>
+					<td class="muted">{{formatUnixInt .TS}}</td>
+					<td><span class="mono">{{.Action}}</span></td>
+					<td class="muted">{{orDefault .Actor "-"}}</td>
+					<td class="muted">{{orDefault .Detail "-"}}</td>
+					<td class="muted mono">{{orDefault .IP "-"}}</td>
+				</tr>
+				{{end}}
+			</tbody>
+		</table>
+	</div>
+	{{else}}
+	{{template "empty_state" "No audit events recorded for this bot yet."}}
+	{{end}}
+</section>
+
+<section class="card">
+	<div class="section-head">
+		<div>
+			<h2>{{template "icon" "activity"}}<span>Access log</span></h2>
+			<p class="muted">Recent HTTP requests against this bot's endpoints. Held in memory, cleared on restart.</p>
+		</div>
+	</div>
+	{{with .Access}}
+	<div class="table-wrap">
+		<table class="table">
+			<thead>
+				<tr>
+					<th scope="col">When</th>
+					<th scope="col">Method</th>
+					<th scope="col">Path</th>
+					<th scope="col">Status</th>
+					<th scope="col">IP</th>
+				</tr>
+			</thead>
+			<tbody>
+				{{range .}}
+				<tr>
+					<td class="muted">{{formatUnixInt .TS}}</td>
+					<td><span class="mono">{{.Method}}</span></td>
+					<td class="muted mono">{{.Path}}</td>
+					<td class="muted">{{.Status}}</td>
+					<td class="muted mono">{{.IP}}</td>
+				</tr>
+				{{end}}
+			</tbody>
+		</table>
+	</div>
+	{{else}}
+	{{template "empty_state" "No requests recorded for this bot yet."}}
+	{{end}}
+</section>
+{{end}}

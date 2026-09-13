@@ -37,6 +37,8 @@ const (
 	pathAdminLimits      = "/admin/limits/"
 	pathAdminBackup      = "/admin/backup/"
 	pathAdminApps        = "/admin/apps"
+	pathAdminBots        = "/admin/bots"
+	pathAdminAuth        = "/admin/auth"
 	pathAdminCircleNew   = "/admin/circle/-/new"
 	pathAdminInviteNew   = "/admin/invitation/-/new"
 	pathAdminMUCNew      = "/admin/muc/-/new"

@@ -28,6 +28,7 @@ local store;
 local config;
 
 local bots = {}; -- name -> bot record (in-memory cache, store is source of truth)
+local locked = false; -- operator lockdown, blocks new registrations
 local token_index = {}; -- token_id -> bot name
 
 local valid_scopes = {
@@ -41,7 +42,7 @@ local valid_scopes = {
 local default_scopes = { "read", "write", "rooms" };
 
 -- Names that collide with API paths must never become bots.
-local reserved_names = { audit = true };
+local reserved_names = { audit = true; access = true; lockdown = true };
 
 local function valid_bot_name(name)
 	return type(name) == "string"
@@ -112,7 +113,21 @@ function M.init(cfg, store_handle)
 			end
 		end
 	end
+	local meta = store:get("__meta");
+	locked = type(meta) == "table" and meta.locked or false;
 	return bots;
+end
+
+-- Operator lockdown: when set, no new bots can be registered. Existing
+-- bots and their tokens keep working.
+function M.set_lockdown(v)
+	locked = v and true or false;
+	store:set("__meta", { locked = locked });
+	return locked;
+end
+
+function M.lockdown()
+	return locked;
 end
 
 function M.get(name)
@@ -141,6 +156,9 @@ function M.create(opts)
 	local name = opts.name;
 	if not valid_bot_name(name) then
 		return nil, "invalid-name";
+	end
+	if locked then
+		return nil, "bots-closed";
 	end
 	if bots[name] then
 		return nil, "conflict";
@@ -331,6 +349,10 @@ function M.verify_token(token, ctx)
 		return nil, nil, reason;
 	end
 	tok.last_used = os.time();
+	if ctx then
+		tok.last_ip = ctx.ip;
+		tok.last_ua = ctx.ua;
+	end
 	return bot, tok;
 end
 

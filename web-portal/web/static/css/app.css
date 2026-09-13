@@ -2727,3 +2727,26 @@ table.data .col-icon {
 .table .col-icon .inline-form {
 	justify-content: flex-end;
 }
+
+.card-accent-warn {
+	border-color: color-mix(in srgb, var(--warn) 45%, var(--border));
+	background: color-mix(in srgb, var(--warn-bg) 60%, var(--panel));
+}
+
+.bot-link {
+	color: inherit;
+	text-decoration: none;
+}
+
+.bot-link:hover {
+	text-decoration: underline;
+}
+
+fieldset.field {
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	padding: var(--space-3) var(--space-3) var(--space-2);
+	margin: 0;
+	display: grid;
+	gap: var(--space-3);
+}

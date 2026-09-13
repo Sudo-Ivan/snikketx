@@ -209,6 +209,56 @@ func (c *Client) RestartServer(ctx context.Context, token string) error {
 	return errorFromResponse(resp)
 }
 
+// AuthConfig is the effective authentication setup reported by
+// mod_snikket_ops_api. Secrets are never returned, only whether they
+// are configured.
+type AuthConfig struct {
+	Authentication string `json:"authentication"`
+	Registration   string `json:"registration"`
+	BotsEnabled    bool   `json:"bots_enabled"`
+	SCRAM          struct {
+		Hash       string `json:"hash"`
+		Iterations int    `json:"iterations"`
+	} `json:"scram"`
+	LDAP struct {
+		Enabled         bool   `json:"enabled"`
+		Host            string `json:"host"`
+		Port            string `json:"port"`
+		TLS             string `json:"tls"`
+		BaseDN          string `json:"base_dn"`
+		UsernameField   string `json:"username_field"`
+		NameField       string `json:"name_field"`
+		UserFilter      string `json:"user_filter"`
+		GroupBaseDN     string `json:"group_base_dn"`
+		BindDNSet       bool   `json:"bind_dn_set"`
+		BindPasswordSet bool   `json:"bind_password_set"`
+	} `json:"ldap"`
+	OAuth struct {
+		Enabled            bool   `json:"enabled"`
+		DiscoveryURL       string `json:"discovery_url"`
+		ValidationEndpoint string `json:"validation_endpoint"`
+		UsernameField      string `json:"username_field"`
+		Scope              string `json:"scope"`
+	} `json:"oauth"`
+}
+
+// GetAuthConfig reads the authentication overview from the ops API.
+func (c *Client) GetAuthConfig(ctx context.Context, token string) (*AuthConfig, error) {
+	resp, err := c.requestJSON(ctx, http.MethodGet, c.opsEndpoint("server", "auth-config"), token, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer closeBody(resp)
+	if err := errorFromResponse(resp); err != nil {
+		return nil, err
+	}
+	var cfg AuthConfig
+	if err := decodeJSONBody(resp, &cfg); err != nil {
+		return nil, err
+	}
+	return &cfg, nil
+}
+
 // ListClientDevices returns registered clients across accounts.
 func (c *Client) ListClientDevices(ctx context.Context, token, user string) ([]ClientDevice, error) {
 	endpoint := c.opsEndpoint("clients")

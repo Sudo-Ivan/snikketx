@@ -1,0 +1,168 @@
+{{define "content"}}
+<div class="page-head">
+	<div class="page-head-copy">
+		<h1>Authentication</h1>
+		<p class="muted">How accounts sign in: the server side backend, LDAP and OAuth, plus portal single sign-on.</p>
+	</div>
+</div>
+
+{{if .Server}}
+<section class="card">
+	<div class="section-head">
+		<div>
+			<h2>{{template "icon" "key"}}<span>Server authentication</span></h2>
+			<p class="muted">The active backend for XMPP account passwords.</p>
+		</div>
+		<div class="section-actions">
+			<span class="badge {{if eq .Server.Authentication "ldap2"}}badge-warn{{else}}badge-ok{{end}}">{{.Server.Authentication}}</span>
+		</div>
+	</div>
+	<dl class="details">
+		<dt>Password hashing</dt><dd class="mono">{{.Server.SCRAM.Hash}}{{with .Server.SCRAM.Iterations}}, {{.}} iterations{{end}}</dd>
+		<dt>Registration</dt><dd class="mono">{{.Server.Registration}}</dd>
+		<dt>Bots</dt><dd>{{if .Server.BotsEnabled}}<span class="badge badge-ok">Enabled</span>{{else}}<span class="badge">Disabled</span>{{end}}</dd>
+	</dl>
+</section>
+
+<section class="card">
+	<div class="section-head">
+		<div>
+			<h2>{{template "icon" "server"}}<span>LDAP directory</span></h2>
+			<p class="muted">External directory binding. Set the variables below in snikket.conf and restart.</p>
+		</div>
+		<div class="section-actions">
+			{{if .Server.LDAP.Enabled}}<span class="badge badge-ok">Enabled</span>{{else}}<span class="badge">Off</span>{{end}}
+		</div>
+	</div>
+	{{if .Server.LDAP.Enabled}}
+	<dl class="details">
+		<dt>Host</dt><dd class="mono">{{orDefault .Server.LDAP.Host "-"}}{{with .Server.LDAP.Port}}:{{.}}{{end}}</dd>
+		<dt>TLS</dt><dd class="mono">{{orDefault .Server.LDAP.TLS "-"}}</dd>
+		<dt>User base DN</dt><dd class="mono">{{orDefault .Server.LDAP.BaseDN "-"}}</dd>
+		<dt>Username field</dt><dd class="mono">{{orDefault .Server.LDAP.UsernameField "-"}}</dd>
+		{{with .Server.LDAP.UserFilter}}<dt>User filter</dt><dd class="mono">{{.}}</dd>{{end}}
+		{{with .Server.LDAP.GroupBaseDN}}<dt>Group base DN</dt><dd class="mono">{{.}}</dd>{{end}}
+		<dt>Bind DN</dt><dd>{{if .Server.LDAP.BindDNSet}}<span class="badge badge-ok">Set</span>{{else}}<span class="badge">Not set</span>{{end}}</dd>
+		<dt>Bind password</dt><dd>{{if .Server.LDAP.BindPasswordSet}}<span class="badge badge-ok">Set</span>{{else}}<span class="badge badge-warn">Missing</span>{{end}}</dd>
+	</dl>
+	{{else}}
+	<p class="muted">LDAP is off. The form below generates the snikket.conf block that turns it on.</p>
+	{{end}}
+</section>
+
+<section class="card">
+	<div class="section-head">
+		<div>
+			<h2>{{template "icon" "key"}}<span>OAuth bearer auth</span></h2>
+			<p class="muted">XEP-0493 style login: clients authenticate with bearer tokens issued by an external provider.</p>
+		</div>
+		<div class="section-actions">
+			{{if .Server.OAuth.Enabled}}<span class="badge badge-ok">Enabled</span>{{else}}<span class="badge">Off</span>{{end}}
+		</div>
+	</div>
+	{{if .Server.OAuth.Enabled}}
+	<dl class="details">
+		<dt>Discovery URL</dt><dd class="mono">{{orDefault .Server.OAuth.DiscoveryURL "-"}}</dd>
+		<dt>Validation endpoint</dt><dd class="mono">{{orDefault .Server.OAuth.ValidationEndpoint "-"}}</dd>
+		<dt>Username field</dt><dd class="mono">{{orDefault .Server.OAuth.UsernameField "-"}}</dd>
+		{{with .Server.OAuth.Scope}}<dt>Scope</dt><dd class="mono">{{.}}</dd>{{end}}
+	</dl>
+	{{else}}
+	<p class="muted">External bearer validation is off. Prosody issued OAuth2 tokens keep working regardless.</p>
+	{{end}}
+</section>
+{{else}}
+<section class="card">
+	<p class="muted">The chat server did not report its authentication setup. Check that mod_snikket_ops_api is loaded.</p>
+</section>
+{{end}}
+
+<section class="card">
+	<div class="section-head">
+		<div>
+			<h2>{{template "icon" "log-in"}}<span>Portal single sign-on</span></h2>
+			<p class="muted">OIDC login to this portal. Users can then bootstrap XMPP accounts without a separate password.</p>
+		</div>
+		<div class="section-actions">
+			{{if .OIDCOn}}<span class="badge badge-ok">Enabled</span>{{else}}<span class="badge">Off</span>{{end}}
+		</div>
+	</div>
+	{{if .OIDCOn}}
+	<dl class="details">
+		<dt>Issuer</dt><dd class="mono">{{.Issuer}}</dd>
+		<dt>Client ID</dt><dd class="mono">{{.Client}}</dd>
+		<dt>Username claim</dt><dd class="mono">{{.Claim}}</dd>
+		<dt>Scopes</dt><dd class="mono">{{.Scopes}}</dd>
+	</dl>
+	{{else}}
+	<p class="muted">No OIDC issuer configured. Pick OIDC below to generate the portal side variables.</p>
+	{{end}}
+</section>
+
+<section class="card">
+	<div class="section-head">
+		<div>
+			<h2>{{template "icon" "plus"}}<span>Generate configuration</span></h2>
+			<p class="muted">Produces a block for snikket.conf. Apply it in the deployment config and restart the stack. Secrets are never written here; fill them in on the server.</p>
+		</div>
+	</div>
+	<form method="post" action="/admin/auth" class="form">
+		{{csrf .CSRF}}
+		<div class="field">
+			<label for="mode">Mode</label>
+			<select id="mode" name="mode">
+				<option value="ldap">LDAP directory</option>
+				<option value="oauth">OAuth bearer auth</option>
+				<option value="oidc">Portal OIDC sign-on</option>
+			</select>
+		</div>
+
+		<fieldset class="field">
+			<legend>LDAP</legend>
+			<div class="field-row">
+				<div class="field"><label for="ldap_host">Host</label><input id="ldap_host" name="ldap_host" type="text" placeholder="ldap.example.org"></div>
+				<div class="field"><label for="ldap_port">Port</label><input id="ldap_port" name="ldap_port" type="text" placeholder="389"></div>
+				<div class="field"><label for="ldap_tls">TLS mode</label>
+					<select id="ldap_tls" name="ldap_tls"><option value="starttls">StartTLS</option><option value="tls">TLS</option><option value="none">None</option></select>
+				</div>
+				<div class="field"><label for="ldap_username_field">Username field</label><input id="ldap_username_field" name="ldap_username_field" type="text" placeholder="uid"></div>
+			</div>
+			<div class="field"><label for="ldap_base_dn">User base DN</label><input id="ldap_base_dn" name="ldap_base_dn" type="text" placeholder="ou=people,dc=example,dc=org"></div>
+			<div class="field-row">
+				<div class="field"><label for="ldap_bind_dn">Bind DN <span class="muted">(optional)</span></label><input id="ldap_bind_dn" name="ldap_bind_dn" type="text"></div>
+				<div class="field"><label for="ldap_user_filter">User filter <span class="muted">(optional)</span></label><input id="ldap_user_filter" name="ldap_user_filter" type="text" placeholder="(&(objectClass=person)(uid=%s))"></div>
+			</div>
+		</fieldset>
+
+		<fieldset class="field">
+			<legend>OAuth bearer</legend>
+			<div class="field-row">
+				<div class="field"><label for="oauth_discovery">Discovery URL</label><input id="oauth_discovery" name="oauth_discovery" type="url" placeholder="https://idp.example.org/.well-known/openid-configuration"></div>
+				<div class="field"><label for="oauth_endpoint">Validation endpoint</label><input id="oauth_endpoint" name="oauth_endpoint" type="url" placeholder="https://idp.example.org/oauth2/introspect"></div>
+				<div class="field"><label for="oauth_username_field">Username field</label><input id="oauth_username_field" name="oauth_username_field" type="text" placeholder="sub"></div>
+				<div class="field"><label for="oauth_scope">Scope <span class="muted">(optional)</span></label><input id="oauth_scope" name="oauth_scope" type="text" placeholder="xmpp"></div>
+			</div>
+		</fieldset>
+
+		<fieldset class="field">
+			<legend>Portal OIDC</legend>
+			<div class="field-row">
+				<div class="field"><label for="oidc_issuer">Issuer</label><input id="oidc_issuer" name="oidc_issuer" type="url" placeholder="https://idp.example.org"></div>
+				<div class="field"><label for="oidc_client_id">Client ID</label><input id="oidc_client_id" name="oidc_client_id" type="text"></div>
+				<div class="field"><label for="oidc_claim">Username claim</label><input id="oidc_claim" name="oidc_claim" type="text" placeholder="preferred_username"></div>
+				<div class="field"><label for="oidc_scopes">Scopes</label><input id="oidc_scopes" name="oidc_scopes" type="text" placeholder="openid profile email"></div>
+			</div>
+		</fieldset>
+
+		<div class="actions">
+			<button type="submit" class="btn btn-primary">{{template "icon" "plus"}}<span>Generate snippet</span></button>
+		</div>
+	</form>
+
+	{{if .Snippet}}
+	<h3>Generated snikket.conf block</h3>
+	<p class="muted">Paste this into your deployment snikket.conf, fill in the secrets marked change-me, and restart the stack.</p>
+	{{template "copy_field" dict "ID" "auth-snippet" "Label" "snikket.conf snippet" "Value" .Snippet}}
+	{{end}}
+</section>
+{{end}}

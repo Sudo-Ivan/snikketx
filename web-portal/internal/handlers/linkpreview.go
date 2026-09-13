@@ -20,6 +20,7 @@ import (
 type LinkPreviewer interface {
 	FetchMetadata(ctx context.Context, rawURL string) (*linkpreview.Metadata, error)
 	FetchImage(ctx context.Context, rawURL string) (data []byte, contentType string, err error)
+	Stats() (meta, images int)
 }
 
 // mountLinkPreview registers the link preview API used by the Android app.

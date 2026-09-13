@@ -27,6 +27,8 @@ func (f *fakePreview) FetchImage(ctx context.Context, rawURL string) ([]byte, st
 	return f.image(ctx, rawURL)
 }
 
+func (f *fakePreview) Stats() (int, int) { return 0, 0 }
+
 // newLinkPreviewApp builds the app with a fake fetcher and a login stub that
 // accepts only alice with password "correct-horse".
 func newLinkPreviewApp(t *testing.T) (*App, *fakePreview, *int) {

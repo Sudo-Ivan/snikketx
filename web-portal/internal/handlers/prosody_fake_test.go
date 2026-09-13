@@ -26,6 +26,22 @@ type fakeProsody struct {
 	createAccountInvite func(ctx context.Context, token string, opts prosody.AccountInviteOptions) (*prosody.AdminInviteInfo, error)
 	createPasswordReset func(ctx context.Context, token, localpart string, ttl int) (*prosody.AdminInviteInfo, error)
 	registerWithToken   func(ctx context.Context, inviteToken, username, password string) (string, error)
+	restartServer       func(ctx context.Context, token string) error
+	getAuthConfig       func(ctx context.Context, token string) (*prosody.AuthConfig, error)
+}
+
+func (f *fakeProsody) RestartServer(ctx context.Context, token string) error {
+	if f.restartServer == nil {
+		return nil
+	}
+	return f.restartServer(ctx, token)
+}
+
+func (f *fakeProsody) GetAuthConfig(ctx context.Context, token string) (*prosody.AuthConfig, error) {
+	if f.getAuthConfig == nil {
+		return &prosody.AuthConfig{}, nil
+	}
+	return f.getAuthConfig(ctx, token)
 }
 
 func (f *fakeProsody) IsClientRegistered() bool { return true }

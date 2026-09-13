@@ -110,6 +110,18 @@ type Metadata struct {
 	Favicon     string `json:"favicon,omitempty"`
 }
 
+// Stats reports the number of live entries in the metadata and image
+// caches, for the admin status view.
+func (f *Fetcher) Stats() (meta, images int) {
+	f.metaCache.mu.Lock()
+	meta = len(f.metaCache.items)
+	f.metaCache.mu.Unlock()
+	f.imageCache.mu.Lock()
+	images = len(f.imageCache.items)
+	f.imageCache.mu.Unlock()
+	return meta, images
+}
+
 // FetchMetadata retrieves the page at rawURL and extracts its preview data.
 // Results and failures are cached briefly keyed by the normalized URL.
 func (f *Fetcher) FetchMetadata(ctx context.Context, rawURL string) (*Metadata, error) {
