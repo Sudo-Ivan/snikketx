@@ -68,14 +68,17 @@ base="$(snikketx_http_base)"
 echo ""
 echo "== HTTP edge =="
 code="000"
-for _ in $(seq 1 30); do
+for i in $(seq 1 30); do
 	code=$(curl -sS -o /dev/null -w '%{http_code}' -H "Host: ${domain}" \
 		--connect-timeout 3 "${base}/login" 2>/dev/null || echo "000")
 	[[ "$code" =~ ^(200|302|303)$ ]] && break
+	echo "  waiting for edge... attempt ${i}/30, last=${code}"
 	sleep 3
 done
 if [[ "$code" =~ ^(200|302|303)$ ]]; then
 	ok "GET ${base}/login -> ${code}"
+elif [[ "$code" == "502" || "$code" == "503" ]]; then
+	fail "GET ${base}/login -> ${code} (edge is up but the portal upstream is not answering; check: docker logs snikket-portal)"
 else
 	fail "GET ${base}/login -> ${code} (edge not ready; first ACME issuance can take a minute)"
 fi

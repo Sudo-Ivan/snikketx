@@ -208,12 +208,14 @@ def fetch_xmpp_cert(domain, port, namespace, timeout):
             b" version='1.0'>")
         banner = raw.recv(65536)
         if b"<starttls" not in banner:
-            raise OSError("server did not offer STARTTLS")
+            hint = banner[:200].decode("utf-8", "replace").strip()
+            raise OSError(f"server did not offer STARTTLS ({hint or 'no banner'})")
         raw.sendall(
             b"<starttls xmlns='urn:ietf:params:xml:tls:xmpp-tls'/>")
         reply = raw.recv(4096)
         if b"<proceed" not in reply:
-            raise OSError("server refused STARTTLS")
+            hint = reply[:200].decode("utf-8", "replace").strip()
+            raise OSError(f"server refused STARTTLS ({hint or 'empty reply'})")
         ctx = ssl.create_default_context()
         with ctx.wrap_socket(raw, server_hostname=domain) as tls:
             return tls.getpeercert(), tls.getpeercert(binary_form=True)
