@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="disappearing_messages">Disappearing messages</string>
+    <string name="disappearing_messages_x">Disappearing messages (%1$s)</string>
+    <string name="disappearing_messages_enabled">New messages will disappear %1$s after they have been read</string>
+    <string name="disappearing_messages_disabled">Disappearing messages are turned off</string>
+    <string name="message_disappeared">This message has disappeared</string>
+    <string name="off">Off</string>
+</resources>

@@ -99,6 +99,7 @@ import eu.siacs.conversations.utils.QuickLoader;
 import eu.siacs.conversations.utils.ReplacingSerialSingleThreadExecutor;
 import eu.siacs.conversations.utils.Resolver;
 import eu.siacs.conversations.utils.SerialSingleThreadExecutor;
+import eu.siacs.conversations.utils.TimeFrameUtils;
 import eu.siacs.conversations.utils.TorServiceUtils;
 import eu.siacs.conversations.utils.WakeLockHelper;
 import eu.siacs.conversations.widget.RecentChatsWidgetProvider;
@@ -1055,6 +1056,78 @@ public class XmppConnectionService extends Service {
         }
     }
 
+    /**
+     * Periodic XEP-0466 sweep: messages whose expiry timestamp has passed are turned into
+     * tombstones (the same placeholder a XEP-0424 retraction produces) and their associated files
+     * are deleted when no other message references them.
+     */
+    private void expireEphemeralMessages() {
+        if (destroyed || restoredFromDatabaseLatch.getCount() != 0) {
+            return;
+        }
+        mDatabaseWriterExecutor.execute(
+                () -> {
+                    final var expired =
+                            databaseBackend.getExpiredMessages(System.currentTimeMillis());
+                    if (expired.isEmpty()) {
+                        return;
+                    }
+                    int count = 0;
+                    for (final var info : expired) {
+                        final var conversation = findConversationByUuid(info.conversationUuid);
+                        final var message =
+                                conversation == null
+                                        ? null
+                                        : conversation.findMessageWithUuid(info.uuid);
+                        if (message != null) {
+                            expireEphemeralMessage(conversation, message);
+                        } else {
+                            // the message is not loaded in memory; tombstone the row directly
+                            databaseBackend.markMessageExpired(info.uuid);
+                        }
+                        if (info.path != null) {
+                            deleteFileIfOrphaned(
+                                    info.path.charAt(0) == '/'
+                                            ? new File(info.path)
+                                            : FileBackend.getLegacyFileForFilename(
+                                                    this, info.path));
+                        }
+                        ++count;
+                    }
+                    Log.d(Config.LOGTAG, "discarded " + count + " expired ephemeral message(s)");
+                    updateConversationUi();
+                });
+    }
+
+    private void expireEphemeralMessage(final Conversation conversation, final Message message) {
+        if (message.isRetracted()) {
+            return;
+        }
+        if (message.getEncryption() == Message.ENCRYPTION_PGP
+                && conversation.getAccount().getPgpDecryptionService() != null) {
+            conversation.getAccount().getPgpDecryptionService().discard(message);
+        }
+        message.markRetracted();
+        evictPreview(message.getUuid());
+        mNotificationService.clear(message);
+        databaseBackend.updateMessage(message, true);
+    }
+
+    private void deleteFileIfOrphaned(final File file) {
+        if (file == null || !file.exists()) {
+            return;
+        }
+        if (!databaseBackend.getMessagesWithFile(file).isEmpty()) {
+            return;
+        }
+        synchronized (FILENAMES_TO_IGNORE_DELETION) {
+            FILENAMES_TO_IGNORE_DELETION.add(file.getAbsolutePath());
+        }
+        if (file.delete()) {
+            Log.d(Config.LOGTAG, "deleted file of expired ephemeral message");
+        }
+    }
+
     private void expireOldMessages() {
         expireOldMessages(false);
     }
@@ -1209,6 +1282,10 @@ public class XmppConnectionService extends Service {
         toggleForegroundService();
         internalPingExecutor.scheduleWithFixedDelay(
                 this::manageAccountConnectionStatesInternal, 10, 10, TimeUnit.SECONDS);
+        // XEP-0466: sweep expired ephemeral messages once a minute. the first pass is a
+        // no-op until the database restore has finished
+        internalPingExecutor.scheduleWithFixedDelay(
+                this::expireEphemeralMessages, 60, 60, TimeUnit.SECONDS);
         // scheduled messages are not polled. each pass of processScheduledMessages()
         // arms a one-shot wakeup for the earliest pending entry and disarms itself
         // entirely when the table is empty
@@ -1666,6 +1743,14 @@ public class XmppConnectionService extends Service {
         boolean saveInDb = addToConversation;
         message.setStatus(Message.STATUS_WAITING);
 
+        // XEP-0466: for messages we send the countdown starts at send time. an already
+        // armed timer is kept as is; once sent the timer on a message cannot be changed
+        final Long ephemeralTimer = conversation.getMessageTimer();
+        if (ephemeralTimer != null && ephemeralTimer > 0 && message.getExpire() <= 0) {
+            message.setExpire(
+                    System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(ephemeralTimer));
+        }
+
         if (message.getEncryption() != Message.ENCRYPTION_NONE
                 && conversation.getMode() == Conversation.MODE_MULTI
                 && conversation.isPrivateAndNonAnonymous()) {
@@ -2021,6 +2106,9 @@ public class XmppConnectionService extends Service {
                         // flush scheduled messages that became overdue while the
                         // service was not running and arm the next wakeup
                         scheduleNextScheduledMessageSweep();
+                        // discard ephemeral messages that expired while the service was not
+                        // running
+                        expireEphemeralMessages();
                         final long diffMessageRestore =
                                 SystemClock.elapsedRealtime() - startMessageRestore;
                         Log.d(
@@ -3423,6 +3511,47 @@ public class XmppConnectionService extends Service {
 
     public void updateConversation(final Conversation conversation) {
         mDatabaseWriterExecutor.execute(() -> databaseBackend.updateConversation(conversation));
+    }
+
+    /**
+     * Sets the XEP-0466 ephemeral message timer for a conversation. Persists the new value, leaves
+     * a status line in the history and sends an implicit timer negotiation (a body-less message
+     * carrying only the ephemeral element and a store hint) so the remote side and our other
+     * devices learn about the change. A timer of 0 turns disappearing messages off.
+     */
+    public void setEphemeralMessageTimer(final Conversation conversation, final long timerSeconds) {
+        final Long timer = timerSeconds <= 0 ? null : timerSeconds;
+        if (!conversation.setMessageTimer(timer)) {
+            return;
+        }
+        updateConversation(conversation);
+        final var statusMessage =
+                new Message(
+                        conversation,
+                        timer == null
+                                ? getString(R.string.disappearing_messages_disabled)
+                                : getString(
+                                        R.string.disappearing_messages_enabled,
+                                        TimeFrameUtils.resolve(this, timerSeconds * 1000L)),
+                        Message.ENCRYPTION_NONE,
+                        Message.STATUS_RECEIVED);
+        statusMessage.setType(Message.TYPE_STATUS);
+        statusMessage.setCounterpart(conversation.getAddress().asBareJid());
+        conversation.add(statusMessage);
+        databaseBackend.createMessage(statusMessage);
+        updateConversationUi();
+        sendEphemeralTimerNegotiation(conversation, timerSeconds);
+    }
+
+    private void sendEphemeralTimerNegotiation(
+            final Conversation conversation, final long timerSeconds) {
+        final var account = conversation.getAccount();
+        final var connection = account.getXmppConnection();
+        if (connection == null || !account.isOnlineAndConnected()) {
+            return;
+        }
+        connection.sendMessagePacket(
+                mMessageGenerator.generateEphemeralNegotiation(conversation, timerSeconds));
     }
 
     public void reconnectAccount(final Account account, final boolean interactive) {

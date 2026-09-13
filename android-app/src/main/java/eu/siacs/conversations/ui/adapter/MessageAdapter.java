@@ -1172,7 +1172,12 @@ public class MessageAdapter extends ArrayAdapter<Message> {
         final boolean unInitiatedButKnownSize = MessageUtils.unInitiatedButKnownSize(message);
         if (message.isRetracted()) {
             displayInfoMessage(
-                    viewHolder, activity.getString(R.string.message_retracted), bubbleColor);
+                    viewHolder,
+                    activity.getString(
+                            message.getExpire() > 0
+                                    ? R.string.message_disappeared
+                                    : R.string.message_retracted),
+                    bubbleColor);
         } else if (unInitiatedButKnownSize
                 || message.isDeleted()
                 || (transferable != null

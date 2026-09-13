@@ -77,7 +77,7 @@ import org.whispersystems.libsignal.state.SignedPreKeyRecord;
 public class DatabaseBackend extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "history";
-    private static final int DATABASE_VERSION = 60;
+    private static final int DATABASE_VERSION = 61;
 
     private static boolean requiresMessageIndexRebuild = false;
     private static DatabaseBackend instance = null;
@@ -541,6 +541,8 @@ public class DatabaseBackend extends SQLiteOpenHelper {
                         + Message.SPOILER_HINT
                         + " TEXT,"
                         + Message.WIRE_FLAGS
+                        + " NUMBER DEFAULT 0,"
+                        + Message.EXPIRE
                         + " NUMBER DEFAULT 0,"
                         + Message.REMOTE_MSG_ID
                         + " TEXT, FOREIGN KEY("
@@ -1190,6 +1192,14 @@ public class DatabaseBackend extends SQLiteOpenHelper {
                             + Message.TABLENAME
                             + " ADD COLUMN "
                             + Message.WIRE_FLAGS
+                            + " NUMBER DEFAULT 0");
+        }
+        if (oldVersion < 61 && newVersion >= 61) {
+            db.execSQL(
+                    "ALTER TABLE "
+                            + Message.TABLENAME
+                            + " ADD COLUMN "
+                            + Message.EXPIRE
                             + " NUMBER DEFAULT 0");
         }
     }
@@ -1879,6 +1889,19 @@ public class DatabaseBackend extends SQLiteOpenHelper {
         }
     }
 
+    public static class ExpiredMessageInfo {
+        public final String uuid;
+        public final String conversationUuid;
+        public final String path;
+
+        private ExpiredMessageInfo(
+                final String uuid, final String conversationUuid, final String path) {
+            this.uuid = uuid;
+            this.conversationUuid = conversationUuid;
+            this.path = path;
+        }
+    }
+
     public static class FilePathInfo extends FilePath {
         public boolean deleted;
 
@@ -2142,6 +2165,59 @@ public class DatabaseBackend extends SQLiteOpenHelper {
         db.setTransactionSuccessful();
         db.endTransaction();
         return filterUnusedFiles(files);
+    }
+
+    /**
+     * Returns all messages whose XEP-0466 expiry timestamp has passed and that have not been
+     * tombstoned yet. Messages carrying an armed but not yet started timer (negative expire value)
+     * are not included.
+     */
+    public List<ExpiredMessageInfo> getExpiredMessages(final long now) {
+        final var builder = new ImmutableList.Builder<ExpiredMessageInfo>();
+        final var db = this.getReadableDatabase();
+        try (final var cursor =
+                db.query(
+                        Message.TABLENAME,
+                        new String[] {
+                            Message.UUID, Message.CONVERSATION, Message.RELATIVE_FILE_PATH
+                        },
+                        Message.EXPIRE
+                                + ">0 and "
+                                + Message.EXPIRE
+                                + "<=? and "
+                                + Message.RETRACTED
+                                + "=0",
+                        new String[] {String.valueOf(now)},
+                        null,
+                        null,
+                        null)) {
+            while (cursor.moveToNext()) {
+                builder.add(
+                        new ExpiredMessageInfo(
+                                cursor.getString(0), cursor.getString(1), cursor.getString(2)));
+            }
+        }
+        return builder.build();
+    }
+
+    /**
+     * Turns a message into an expiry tombstone without loading it into memory. Mirrors
+     * Message.markRetracted(): clears the body, edit history, file reference and reactions so that
+     * only a placeholder remains.
+     */
+    public boolean markMessageExpired(final String uuid) {
+        final var db = getWritableDatabase();
+        final var values = new ContentValues();
+        values.put(Message.RETRACTED, 1);
+        values.put(Message.BODY, "");
+        values.put(Message.EDITED, "[]");
+        values.putNull(Message.RELATIVE_FILE_PATH);
+        values.putNull(Message.FINGERPRINT);
+        values.put(Message.OOB, 0);
+        values.putNull(Message.ERROR_MESSAGE);
+        values.putNull(Message.REACTIONS);
+        values.put(Message.READ, 1);
+        return db.update(Message.TABLENAME, values, Message.UUID + "=?", new String[] {uuid}) == 1;
     }
 
     private List<FilePathInfo> filterUnusedFiles(final List<FilePathInfo> filePathInfos) {

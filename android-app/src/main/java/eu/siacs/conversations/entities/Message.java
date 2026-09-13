@@ -101,6 +101,7 @@ public class Message extends AbstractEntity
     public static final String WIRE_FLAGS = "wireFlags";
     public static final int WIRE_FLAG_VOICE_MESSAGE = 1;
     public static final int WIRE_FLAG_ATTENTION = 2;
+    public static final String EXPIRE = "expire";
     public static final String ME_COMMAND = "/me ";
 
     public static final String ERROR_MESSAGE_CANCELLED = "eu.siacs.conversations.cancelled";
@@ -140,6 +141,7 @@ public class Message extends AbstractEntity
     private InReplyTo inReplyTo = null;
     private String spoilerHint = null;
     private int wireFlags = 0;
+    private long expire = 0;
 
     private Boolean isGeoUri = null;
     private Boolean isEmojisOnly = null;
@@ -311,6 +313,7 @@ public class Message extends AbstractEntity
                 InReplyTo.ofString(cursor.getString(cursor.getColumnIndexOrThrow(IN_REPLY_TO)));
         message.spoilerHint = cursor.getString(cursor.getColumnIndexOrThrow(SPOILER_HINT));
         message.wireFlags = cursor.getInt(cursor.getColumnIndexOrThrow(WIRE_FLAGS));
+        message.expire = cursor.getLong(cursor.getColumnIndexOrThrow(EXPIRE));
         return message;
     }
 
@@ -402,6 +405,7 @@ public class Message extends AbstractEntity
         values.put(IN_REPLY_TO, inReplyTo == null ? null : inReplyTo.toJson());
         values.put(SPOILER_HINT, spoilerHint);
         values.put(WIRE_FLAGS, wireFlags);
+        values.put(EXPIRE, expire);
         return values;
     }
 
@@ -566,6 +570,11 @@ public class Message extends AbstractEntity
 
     public void markRead() {
         this.read = true;
+        if (this.expire < 0) {
+            // an armed XEP-0466 timer stores its duration as the negative number of
+            // seconds; reading the message starts the countdown
+            this.expire = System.currentTimeMillis() + (-this.expire) * 1000L;
+        }
     }
 
     public void markUnread() {
@@ -674,6 +683,27 @@ public class Message extends AbstractEntity
 
     public void setWireFlags(final int wireFlags) {
         this.wireFlags = wireFlags;
+    }
+
+    /**
+     * XEP-0466 ephemeral message expiry. A positive value is the absolute time in epoch millis at
+     * which the message must be discarded; 0 means the message never expires; a negative value is
+     * an armed timer whose countdown (of -expire seconds) starts once the message is marked read.
+     */
+    public long getExpire() {
+        return expire;
+    }
+
+    public void setExpire(final long expire) {
+        this.expire = expire;
+    }
+
+    public void setExpireAfterRead(final long seconds) {
+        this.expire = -seconds;
+    }
+
+    public boolean isEphemeral() {
+        return expire != 0;
     }
 
     private void setWireFlag(final int flag, final boolean enabled) {

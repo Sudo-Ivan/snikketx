@@ -199,7 +199,12 @@ public class UIHelper {
                     return new Pair<>("", false);
             }
         } else if (message.isRetracted()) {
-            return new Pair<>(context.getString(R.string.message_retracted), true);
+            return new Pair<>(
+                    context.getString(
+                            message.getExpire() > 0
+                                    ? R.string.message_disappeared
+                                    : R.string.message_retracted),
+                    true);
         } else if (message.isFileOrImage() && message.isDeleted()) {
             return new Pair<>(context.getString(R.string.file_deleted), true);
         } else if (message.getEncryption() == Message.ENCRYPTION_PGP) {

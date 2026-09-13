@@ -60,6 +60,11 @@
         android:title="@string/scheduled_messages"
         app:showAsAction="never" />
     <item
+        android:id="@+id/action_disappearing_messages"
+        android:orderInCategory="49"
+        android:title="@string/disappearing_messages"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/action_export_chat"
         android:orderInCategory="49"
         android:title="@string/export_chat"

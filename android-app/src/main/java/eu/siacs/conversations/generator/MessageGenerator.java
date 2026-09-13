@@ -92,6 +92,26 @@ public class MessageGenerator extends AbstractGenerator {
         return packet;
     }
 
+    /**
+     * Builds the implicit XEP-0466 timer negotiation stanza: a message without a body that carries
+     * only the ephemeral element and a store hint so offline contacts pick it up from their
+     * archive. A timer of 0 signals that disappearing messages are turned off.
+     */
+    public im.conversations.android.xmpp.model.stanza.Message generateEphemeralNegotiation(
+            final Conversation conversation, final long timerSeconds) {
+        final var packet = new im.conversations.android.xmpp.model.stanza.Message();
+        packet.setType(
+                conversation.getMode() == Conversation.MODE_MULTI
+                        ? im.conversations.android.xmpp.model.stanza.Message.Type.GROUPCHAT
+                        : im.conversations.android.xmpp.model.stanza.Message.Type.CHAT);
+        packet.setTo(conversation.getAddress().asBareJid());
+        packet.setFrom(conversation.getAccount().getJid());
+        packet.setId(java.util.UUID.randomUUID().toString());
+        packet.addChild("ephemeral", Namespace.EPHEMERAL).setAttribute("timer", timerSeconds);
+        packet.addExtension(new Store());
+        return packet;
+    }
+
     public im.conversations.android.xmpp.model.stanza.Message generateKeyTransportMessage(
             Jid to, XmppAxolotlMessage axolotlMessage) {
         im.conversations.android.xmpp.model.stanza.Message packet =
@@ -222,6 +242,15 @@ public class MessageGenerator extends AbstractGenerator {
         }
         if (isVoiceMessage(message)) {
             packet.addChild("voice-message", Namespace.VOICE_MESSAGE);
+        }
+        // XEP-0466: the negotiated ephemeral timer is repeated on every outgoing message.
+        // Like the other wire extensions it travels in clear text even on encrypted
+        // stanzas; the payload stays protected by the encrypted body
+        if (message.getConversation() instanceof Conversation conversation) {
+            final var timer = conversation.getMessageTimer();
+            if (timer != null && timer > 0) {
+                packet.addChild("ephemeral", Namespace.EPHEMERAL).setAttribute("timer", timer);
+            }
         }
     }
 

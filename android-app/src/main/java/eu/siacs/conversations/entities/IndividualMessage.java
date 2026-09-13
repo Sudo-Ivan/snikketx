@@ -177,6 +177,7 @@ public class IndividualMessage extends Message {
                                 cursor.getString(cursor.getColumnIndexOrThrow(REACTIONS))));
         message.setSpoilerHint(cursor.getString(cursor.getColumnIndexOrThrow(SPOILER_HINT)));
         message.setWireFlags(cursor.getInt(cursor.getColumnIndexOrThrow(WIRE_FLAGS)));
+        message.setExpire(cursor.getLong(cursor.getColumnIndexOrThrow(EXPIRE)));
         return message;
     }
 }

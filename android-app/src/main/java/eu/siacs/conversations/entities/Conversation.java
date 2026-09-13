@@ -838,6 +838,21 @@ public class Conversation extends AbstractEntity
         return modified;
     }
 
+    /**
+     * The negotiated XEP-0466 ephemeral message timer for this conversation in seconds, or null
+     * when disappearing messages are turned off.
+     */
+    @Nullable
+    public Long getMessageTimer() {
+        return this.attributes.messageTimer;
+    }
+
+    public boolean setMessageTimer(@Nullable final Long timer) {
+        final boolean modified = !Objects.equals(this.attributes.messageTimer, timer);
+        this.attributes.messageTimer = timer;
+        return modified;
+    }
+
     public @Nullable Draft getDraft() {
         return this.attributes.draft;
     }
@@ -1182,6 +1197,9 @@ public class Conversation extends AbstractEntity
 
         @SerializedName("next_encryption")
         private Integer nextEncryption;
+
+        @SerializedName("message_timer")
+        private Long messageTimer;
 
         @SerializedName("correcting_message")
         private String correctingMessage;

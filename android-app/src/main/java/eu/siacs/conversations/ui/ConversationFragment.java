@@ -761,6 +761,15 @@ public class ConversationFragment extends XmppFragment
                     } else {
                         menuTogglePinned.setTitle(R.string.add_to_favorites);
                     }
+                    final Long messageTimer = c.getMessageTimer();
+                    if (messageTimer != null && messageTimer > 0) {
+                        menu.findItem(R.id.action_disappearing_messages)
+                                .setTitle(
+                                        getString(
+                                                R.string.disappearing_messages_x,
+                                                TimeFrameUtils.resolve(
+                                                        requireContext(), messageTimer * 1000L)));
+                    }
                 }
 
                 @Override
@@ -821,6 +830,9 @@ public class ConversationFragment extends XmppFragment
                         return true;
                     } else if (itemId == R.id.action_scheduled_messages) {
                         showScheduledMessagesDialog();
+                        return true;
+                    } else if (itemId == R.id.action_disappearing_messages) {
+                        showDisappearingMessagesDialog();
                         return true;
                     } else if (itemId == R.id.action_export_chat) {
                         exportChat();
@@ -2589,6 +2601,42 @@ public class ConversationFragment extends XmppFragment
                         refresh();
                     }
                 });
+        builder.create().show();
+    }
+
+    protected void showDisappearingMessagesDialog() {
+        final var conversation = this.conversation;
+        if (conversation == null) {
+            return;
+        }
+        final MaterialAlertDialogBuilder builder =
+                new MaterialAlertDialogBuilder(requireActivity());
+        builder.setTitle(R.string.disappearing_messages);
+        final int[] durations = getResources().getIntArray(R.array.ephemeral_timer_durations);
+        final Long current = conversation.getMessageTimer();
+        final CharSequence[] labels = new CharSequence[durations.length];
+        int checked = 0;
+        for (int i = 0; i < durations.length; ++i) {
+            if (durations[i] <= 0) {
+                labels[i] = getString(R.string.off);
+            } else {
+                labels[i] = TimeFrameUtils.resolve(requireContext(), 1000L * durations[i]);
+            }
+            if (current != null && current == durations[i]) {
+                checked = i;
+            }
+        }
+        builder.setSingleChoiceItems(
+                labels,
+                checked,
+                (dialog, which) -> {
+                    dialog.dismiss();
+                    requireXmppActivity()
+                            .xmppConnectionService
+                            .setEphemeralMessageTimer(conversation, durations[which]);
+                    refresh();
+                });
+        builder.setNegativeButton(getString(R.string.cancel), null);
         builder.create().show();
     }
 

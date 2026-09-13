@@ -146,6 +146,7 @@ public final class Namespace {
     public static final String VOICE_MESSAGE = "urn:xmpp:voice-message";
     public static final String ATTENTION = "urn:xmpp:attention:0";
     public static final String REPLY = "urn:xmpp:reply:0";
+    public static final String EPHEMERAL = "urn:xmpp:ephemeral:0";
     public static final String MOOD = "http://jabber.org/protocol/mood";
     public static final String ACTIVITY = "http://jabber.org/protocol/activity";
     public static final String TUNE = "http://jabber.org/protocol/tune";

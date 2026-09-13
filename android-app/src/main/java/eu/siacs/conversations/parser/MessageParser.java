@@ -10,6 +10,7 @@ import com.google.common.base.Strings;
 import com.google.common.primitives.Longs;
 import eu.siacs.conversations.AppSettings;
 import eu.siacs.conversations.Config;
+import eu.siacs.conversations.R;
 import eu.siacs.conversations.crypto.axolotl.AxolotlService;
 import eu.siacs.conversations.crypto.axolotl.BrokenSessionException;
 import eu.siacs.conversations.crypto.axolotl.NotEncryptedForThisDeviceException;
@@ -25,6 +26,7 @@ import eu.siacs.conversations.http.HttpConnectionManager;
 import eu.siacs.conversations.services.XmppConnectionService;
 import eu.siacs.conversations.utils.CryptoHelper;
 import eu.siacs.conversations.utils.ReplyUtils;
+import eu.siacs.conversations.utils.TimeFrameUtils;
 import eu.siacs.conversations.xml.Element;
 import eu.siacs.conversations.xml.LocalizedContent;
 import eu.siacs.conversations.xml.Namespace;
@@ -305,6 +307,8 @@ public class MessageParser extends AbstractParser
         final Element spoilerElement = packet.findChild("spoiler", Namespace.SPOILER);
         final boolean hasVoiceMessage =
                 packet.findChild("voice-message", Namespace.VOICE_MESSAGE) != null;
+        final Long ephemeralTimer =
+                parseEphemeralTimer(packet.findChild("ephemeral", Namespace.EPHEMERAL));
         // XEP-0224 asks for attention requests in delayed or archived stanzas to be ignored
         final boolean liveAttention =
                 packet.findChild("attention", Namespace.ATTENTION) != null
@@ -774,6 +778,20 @@ public class MessageParser extends AbstractParser
                 }
             }
 
+            if (ephemeralTimer != null) {
+                if (ephemeralTimer > 0) {
+                    if (message.isRead()) {
+                        // sent messages, carbons and archive entries that are already marked
+                        // as read count down from the time the message was sent; messages
+                        // the user still has to see start their countdown on markRead
+                        message.setExpire(timestamp + ephemeralTimer * 1000L);
+                    } else {
+                        message.setExpireAfterRead(ephemeralTimer);
+                    }
+                }
+                applyEphemeralTimer(conversation, ephemeralTimer, query == null, counterpart);
+            }
+
             if (message.getEncryption() == Message.ENCRYPTION_PGP) {
                 notify =
                         conversation
@@ -817,6 +835,11 @@ public class MessageParser extends AbstractParser
         } else { // no body
 
             final var conversation = mXmppConnectionService.find(account, counterpart.asBareJid());
+            if (ephemeralTimer != null && conversation != null) {
+                // a message without a body but with an ephemeral element is a pure XEP-0466
+                // timer negotiation; only the conversation timer is updated
+                applyEphemeralTimer(conversation, ephemeralTimer, query == null, counterpart);
+            }
             if (axolotlEncrypted != null) {
                 final Jid origin;
                 if (conversation != null && conversation.getMode() == Conversation.MODE_MULTI) {
@@ -981,6 +1004,58 @@ public class MessageParser extends AbstractParser
                 mXmppConnectionService.getAvatarService().clear(contact);
             }
         }
+    }
+
+    /**
+     * Parses the timer attribute of a XEP-0466 ephemeral element. Returns null when the element is
+     * absent or the attribute is missing or is not a valid xs:unsignedInt.
+     */
+    private static Long parseEphemeralTimer(final Element ephemeral) {
+        if (ephemeral == null) {
+            return null;
+        }
+        final Long timer = Longs.tryParse(Strings.nullToEmpty(ephemeral.getAttribute("timer")));
+        if (timer == null || timer < 0 || timer > 0xFFFFFFFFL) {
+            return null;
+        }
+        return timer;
+    }
+
+    /**
+     * XEP-0466: stores the negotiated ephemeral timer on the conversation and, for live stanzas,
+     * leaves a status line in the history so the change does not go by silently. A timer of 0 turns
+     * disappearing messages off.
+     */
+    private void applyEphemeralTimer(
+            final Conversation conversation,
+            final long timerSeconds,
+            final boolean announce,
+            final Jid counterpart) {
+        final Long timer = timerSeconds <= 0 ? null : timerSeconds;
+        if (!conversation.setMessageTimer(timer)) {
+            return;
+        }
+        mXmppConnectionService.updateConversation(conversation);
+        if (!announce) {
+            return;
+        }
+        final var statusMessage =
+                new Message(
+                        conversation,
+                        timer == null
+                                ? mXmppConnectionService.getString(
+                                        R.string.disappearing_messages_disabled)
+                                : mXmppConnectionService.getString(
+                                        R.string.disappearing_messages_enabled,
+                                        TimeFrameUtils.resolve(
+                                                mXmppConnectionService, timer * 1000L)),
+                        Message.ENCRYPTION_NONE,
+                        Message.STATUS_RECEIVED);
+        statusMessage.setType(Message.TYPE_STATUS);
+        statusMessage.setCounterpart(counterpart);
+        conversation.add(statusMessage);
+        mXmppConnectionService.databaseBackend.createMessage(statusMessage);
+        mXmppConnectionService.updateConversationUi();
     }
 
     /**
