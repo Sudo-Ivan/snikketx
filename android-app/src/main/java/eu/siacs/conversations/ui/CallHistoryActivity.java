@@ -1,6 +1,7 @@
 package eu.siacs.conversations.ui;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
@@ -66,6 +67,7 @@ public class CallHistoryActivity extends XmppActivity {
         }
     }
 
+    @SuppressLint("NotifyDataSetChanged")
     private void loadCallLog() {
         final XmppConnectionService service = xmppConnectionService;
         if (service == null) {
@@ -158,11 +160,15 @@ public class CallHistoryActivity extends XmppActivity {
         if (account.setOption(Account.OPTION_SOFT_DISABLED, false)) {
             xmppConnectionService.updateAccount(account);
         }
+        if (account.getXmppConnection() == null) {
+            // getContact() would throw an NPE via getRoster() when the account has no
+            // connection, so bail out before resolving it
+            Toast.makeText(this, R.string.rtp_state_contact_offline, Toast.LENGTH_LONG).show();
+            return;
+        }
         final Contact contact = conversation.getContact();
         if (Config.USE_JINGLE_MESSAGE_INIT && RtpCapability.jmiSupport(contact)) {
             placeCall(account, contact.getAddress().asBareJid());
-        } else if (account.getXmppConnection() == null) {
-            Toast.makeText(this, R.string.rtp_state_contact_offline, Toast.LENGTH_LONG).show();
         } else {
             PresenceSelector.selectFullJidForDirectRtpConnection(
                     this,

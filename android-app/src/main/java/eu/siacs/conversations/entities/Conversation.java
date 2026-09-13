@@ -791,21 +791,23 @@ public class Conversation extends AbstractEntity
 
     public boolean isMessagePinned(final String uuid) {
         final var pinnedMessages = this.attributes.pinnedMessages;
+        // p.uuid() may be null when the persisted attributes JSON was hand-edited or
+        // corrupted; keep the non-null side in front
         return pinnedMessages != null
-                && pinnedMessages.stream().anyMatch(p -> p.uuid().equals(uuid));
+                && pinnedMessages.stream().anyMatch(p -> uuid.equals(p.uuid()));
     }
 
     public void pinMessage(final PinnedMessage pinnedMessage) {
         if (this.attributes.pinnedMessages == null) {
             this.attributes.pinnedMessages = new ArrayList<>();
         }
-        this.attributes.pinnedMessages.removeIf(p -> p.uuid().equals(pinnedMessage.uuid()));
+        this.attributes.pinnedMessages.removeIf(p -> pinnedMessage.uuid().equals(p.uuid()));
         this.attributes.pinnedMessages.add(pinnedMessage);
     }
 
     public boolean unpinMessage(final String uuid) {
         final var pinnedMessages = this.attributes.pinnedMessages;
-        return pinnedMessages != null && pinnedMessages.removeIf(p -> p.uuid().equals(uuid));
+        return pinnedMessages != null && pinnedMessages.removeIf(p -> uuid.equals(p.uuid()));
     }
 
     public int getNextEncryption() {

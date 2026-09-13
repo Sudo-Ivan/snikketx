@@ -80,6 +80,9 @@ public class ShortcutService {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
             ShortcutManager shortcutManager =
                     xmppConnectionService.getSystemService(ShortcutManager.class);
+            if (shortcutManager == null) {
+                return;
+            }
             shortcutManager.reportShortcutUsed(getShortcutId(contact));
         }
     }
@@ -94,7 +97,8 @@ public class ShortcutService {
         final var count = new AtomicInteger();
         for (final var frequentContact : frequentContacts) {
             final Account account = accounts.get(frequentContact.account);
-            if (account == null) {
+            if (account == null || account.getXmppConnection() == null) {
+                // without a connection getRoster() would throw an NPE
                 continue;
             }
             final var contact = account.getRoster().getContact(frequentContact.contact);
@@ -254,6 +258,11 @@ public class ShortcutService {
 
     @Nullable
     public ShortcutInfoCompat getShortcutInfo(final Conversation conversation) {
+        if (conversation.getAccount().getXmppConnection() == null) {
+            // getContact()/getMucOptions() reach into roster or disco state that is
+            // unavailable while the account has no connection
+            return null;
+        }
         if (conversation.getMode() == Conversation.MODE_SINGLE) {
             final var contact = conversation.getContact();
             if (contact == null || contact.isSelf()) {
@@ -347,10 +356,12 @@ public class ShortcutService {
     }
 
     private static String getShortcutId(final Conversation conversation) {
-        if (conversation.getMode() == Conversation.MODE_SINGLE) {
-            return getShortcutId(conversation.getContact());
-        }
-        return getShortcutId(conversation.getMucOptions());
+        // equivalent to getShortcutId(contact)/getShortcutId(mucOptions) but does not
+        // touch the roster, which would throw an NPE when the account has no connection
+        return Joiner.on(ID_SEPARATOR)
+                .join(
+                        conversation.getAccount().getJid().asBareJid().toString(),
+                        conversation.getAddress().asBareJid().toString());
     }
 
     private static String getShortcutId(final Contact contact) {

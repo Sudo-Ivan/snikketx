@@ -1,5 +1,6 @@
 package eu.siacs.conversations.ui.widget;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.drawable.Drawable;
@@ -112,6 +113,15 @@ public class MessagesListView extends ListView {
     }
 
     @Override
+    public boolean performClick() {
+        // ListView items handle their own clicks; this override exists so that
+        // accessibility tooling sees a proper click path for the custom touch handling.
+        return super.performClick();
+    }
+
+    // click handling stays in super.onTouchEvent, which routes to performItemClick
+    @SuppressLint("ClickableViewAccessibility")
+    @Override
     public boolean onTouchEvent(final MotionEvent ev) {
         if (swiping && swipingChild != null) {
             switch (ev.getActionMasked()) {
@@ -132,7 +142,9 @@ public class MessagesListView extends ListView {
                     return true;
                 }
                 case MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    releaseSwipingChild();
+                    // a cancelled gesture (parent intercept, incoming call) must not fire
+                    // the reply action even when the threshold was crossed
+                    releaseSwipingChild(ev.getActionMasked() == MotionEvent.ACTION_UP);
                     resetSwipeState();
                     return true;
                 }
@@ -144,13 +156,15 @@ public class MessagesListView extends ListView {
         return super.onTouchEvent(ev);
     }
 
-    private void releaseSwipingChild() {
+    private void releaseSwipingChild(final boolean released) {
         final View child = swipingChild;
         if (child == null) {
             return;
         }
         final boolean triggered =
-                Math.abs(child.getTranslationX()) >= child.getWidth() * SWIPE_REPLY_THRESHOLD;
+                released
+                        && Math.abs(child.getTranslationX())
+                                >= child.getWidth() * SWIPE_REPLY_THRESHOLD;
         child.animate()
                 .translationX(0f)
                 .setDuration(SNAP_BACK_DURATION_MS)

@@ -71,24 +71,30 @@ public class ContactsSyncAdapter extends AbstractThreadedSyncAdapter {
             removeAllSyncedContacts(context, account);
             return;
         }
-        final XmppConnectionService service = bind(context);
-        if (service == null) {
+        final var bound = bind(context);
+        if (bound == null) {
             Log.w(Config.LOGTAG, "contact sync could not bind to XmppConnectionService");
             return;
         }
         try {
-            performSync(context, account, service);
+            performSync(context, account, bound.service());
         } finally {
-            context.unbindService(serviceConnection);
+            try {
+                context.unbindService(bound.connection());
+            } catch (final IllegalArgumentException ignored) {
+                // connection was never registered or already released
+            }
         }
     }
 
-    private ServiceConnection serviceConnection;
+    private record BoundService(XmppConnectionService service, ServiceConnection connection) {}
 
-    private XmppConnectionService bind(final Context context) {
+    private BoundService bind(final Context context) {
         final var latch = new CountDownLatch(1);
         final var serviceReference = new AtomicReference<XmppConnectionService>();
-        this.serviceConnection =
+        // must stay a local: onPerformSync can run on multiple threads concurrently, so a
+        // shared field would race and unbind another sync's connection
+        final var connection =
                 new ServiceConnection() {
                     @Override
                     public void onServiceConnected(
@@ -103,13 +109,24 @@ public class ContactsSyncAdapter extends AbstractThreadedSyncAdapter {
                 };
         final var intent = new Intent(context, XmppConnectionService.class);
         intent.setAction(XmppConnectionService.ACTION_CALL_INTEGRATION_SERVICE_STARTED);
-        context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE);
+        if (!context.bindService(intent, connection, Context.BIND_AUTO_CREATE)) {
+            return null;
+        }
         try {
             latch.await(10, TimeUnit.SECONDS);
         } catch (final InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        final var service = serviceReference.get();
+        if (service == null) {
+            // the bind outlived the timeout; drop it so the service is not held forever
+            try {
+                context.unbindService(connection);
+            } catch (final IllegalArgumentException ignored) {
+            }
             return null;
         }
-        return serviceReference.get();
+        return new BoundService(service, connection);
     }
 
     private void performSync(

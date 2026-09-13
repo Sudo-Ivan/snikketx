@@ -150,6 +150,7 @@ import eu.siacs.conversations.utils.Compatibility;
 import eu.siacs.conversations.utils.GeoHelper;
 import eu.siacs.conversations.utils.MessageUtils;
 import eu.siacs.conversations.utils.NickValidityChecker;
+import eu.siacs.conversations.utils.OutgoingMessageParser;
 import eu.siacs.conversations.utils.PermissionUtils;
 import eu.siacs.conversations.utils.QuickLoader;
 import eu.siacs.conversations.utils.ReplyUtils;
@@ -1091,33 +1092,13 @@ public class ConversationFragment extends XmppFragment
             return;
         }
         final Editable text = this.binding.textInput.getText();
-        String body = text == null ? "" : text.toString();
+        final String body = text == null ? "" : text.toString();
         final Conversation conversation = this.conversation;
         if (body.isEmpty() || conversation == null) {
             return;
         }
-        // the text between the first two pairs of vertical bars becomes the XEP-0382
-        // spoiler hint, everything after the second pair is the hidden body
-        String spoilerHint = null;
-        if (body.startsWith("||")) {
-            final int end = body.indexOf("||", 2);
-            if (end >= 2) {
-                spoilerHint = body.substring(2, end);
-                body = body.substring(end + 2);
-            }
-        }
-        // /nudge or /attention send a XEP-0224 attention request, any trailing text
-        // becomes the message body
-        final boolean attention =
-                body.equals("/nudge")
-                        || body.equals("/attention")
-                        || body.startsWith("/nudge ")
-                        || body.startsWith("/attention ");
-        if (attention) {
-            final int space = body.indexOf(' ');
-            body = space < 0 ? "" : body.substring(space + 1);
-        }
-        if (body.isEmpty() && spoilerHint == null && !attention) {
+        final var parsed = OutgoingMessageParser.parse(body);
+        if (parsed.isEmpty()) {
             return;
         }
         if (trustKeysIfNeeded(conversation, REQUEST_TRUST_KEYS_TEXT)) {
@@ -1125,13 +1106,13 @@ public class ConversationFragment extends XmppFragment
         }
         final Message message;
         if (conversation.getCorrectingMessage() == null) {
-            message = new Message(conversation, body, conversation.getNextEncryption());
+            message = new Message(conversation, parsed.body(), conversation.getNextEncryption());
             Message.configurePrivateMessage(message);
             message.setInReplyTo(ReplyUtils.create(this.replyToMessage));
-            if (spoilerHint != null) {
-                message.setSpoilerHint(spoilerHint);
+            if (parsed.spoilerHint() != null) {
+                message.setSpoilerHint(parsed.spoilerHint());
             }
-            if (attention) {
+            if (parsed.attention()) {
                 message.setAttention(true);
             }
         } else {
@@ -1140,7 +1121,7 @@ public class ConversationFragment extends XmppFragment
             // this resets both encryption and fingerprint; when using axolotl fingerprint will be
             // added again on send
             message.putEdited(
-                    new Message.BodyVersion(body, conversation.getNextEncryption(), null));
+                    new Message.BodyVersion(parsed.body(), conversation.getNextEncryption(), null));
             if (!DatabaseBackend.getInstance(requireContext()).updateMessage(message, uuid)) {
                 throw new IllegalStateException("Could not update message after edit");
             }
@@ -2332,17 +2313,22 @@ public class ConversationFragment extends XmppFragment
 
     private void sendSticker(final StickerPack pack, final StickerPack.Item item) {
         final var file = item.getFile();
-        if (conversation == null || file == null) {
+        final var activity =
+                getActivity() instanceof XmppActivity xmppActivity ? xmppActivity : null;
+        // the fragment may be detached or the service unbound while the picker dialog
+        // was still open
+        if (conversation == null
+                || file == null
+                || activity == null
+                || activity.xmppConnectionService == null) {
             return;
         }
-        requireXmppActivity()
-                .xmppConnectionService
-                .attachStickerToConversation(
-                        conversation,
-                        Uri.fromFile(file),
-                        item.getMimeType(),
-                        pack.getId(),
-                        item.getDescription());
+        activity.xmppConnectionService.attachStickerToConversation(
+                conversation,
+                Uri.fromFile(file),
+                item.getMimeType(),
+                pack.getId(),
+                item.getDescription());
     }
 
     private void handleEncryptionSelection(MenuItem item) {
@@ -4203,7 +4189,9 @@ public class ConversationFragment extends XmppFragment
         final InputMethodManager imm =
                 (InputMethodManager)
                         requireContext().getSystemService(Context.INPUT_METHOD_SERVICE);
-        imm.hideSoftInputFromWindow(binding.textInput.getWindowToken(), 0);
+        if (imm != null) {
+            imm.hideSoftInputFromWindow(binding.textInput.getWindowToken(), 0);
+        }
         popupMenu.show();
         return true;
     }

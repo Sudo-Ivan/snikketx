@@ -108,19 +108,27 @@ public final class StickerPackRepository {
                 if (pack != null && !pack.getItems().isEmpty()) {
                     packs.add(pack);
                 }
-            } catch (final IOException e) {
+            } catch (final IOException | RuntimeException e) {
+                // a malformed pack.json throws a JsonSyntaxException (RuntimeException); it must
+                // not take down the other local packs
                 Log.w(Config.LOGTAG, "skipping sticker pack " + dir.getName(), e);
             }
         }
         return packs.build();
     }
 
-    private static StickerPack parseLocalPack(final File dir) throws IOException {
+    static StickerPack parseLocalPack(final File dir) throws IOException {
         final PackManifest manifest = readManifest(new File(dir, PACK_MANIFEST));
         final ImmutableList.Builder<StickerPack.Item> items = ImmutableList.builder();
         if (manifest != null && manifest.items != null) {
             for (final ItemManifest item : manifest.items) {
                 if (item == null || Strings.isNullOrEmpty(item.file)) {
+                    continue;
+                }
+                // keep manifest filenames inside the pack directory; '..' segments or
+                // absolute paths would let a pack reference arbitrary readable files
+                if (item.file.contains("..") || new File(item.file).isAbsolute()) {
+                    Log.w(Config.LOGTAG, "skipping suspicious sticker filename " + item.file);
                     continue;
                 }
                 final File file = new File(dir, item.file);
@@ -218,6 +226,12 @@ public final class StickerPackRepository {
             final int index,
             final String url,
             @Nullable final String mimeType) {
+        if (!url.startsWith("https://")) {
+            // sticker images are downloaded unattended; plain http would allow a network
+            // attacker to serve arbitrary image payloads
+            Log.d(Config.LOGTAG, "refusing non https sticker source " + url);
+            return null;
+        }
         final String extension = extensionFor(url, mimeType);
         final String fileName = "sticker-" + index + extension;
         final File dir =
@@ -240,14 +254,25 @@ public final class StickerPackRepository {
                     return null;
                 }
                 final var tmp = File.createTempFile("sticker", ".tmp", dir);
-                try (final var out = new FileOutputStream(tmp)) {
-                    ByteStreams.copy(response.body().byteStream(), out);
+                try {
+                    try (final var out = new FileOutputStream(tmp)) {
+                        // contentLength may be unknown (-1). cap the stream so an
+                        // oversized body can not fill the cache partition
+                        ByteStreams.copy(
+                                ByteStreams.limit(
+                                        response.body().byteStream(), MAX_STICKER_BYTES + 1),
+                                out);
+                    }
+                    if (tmp.length() > MAX_STICKER_BYTES) {
+                        return null;
+                    }
+                    if (tmp.renameTo(destination)) {
+                        return destination;
+                    }
+                    return destination.isFile() ? destination : null;
+                } finally {
+                    tmp.delete();
                 }
-                if (tmp.renameTo(destination)) {
-                    return destination;
-                }
-                tmp.delete();
-                return destination.isFile() ? destination : null;
             }
         } catch (final IOException | IllegalArgumentException e) {
             Log.d(Config.LOGTAG, "could not download sticker " + url, e);
@@ -255,9 +280,9 @@ public final class StickerPackRepository {
         }
     }
 
-    private static String extensionFor(final String url, @Nullable final String mimeType) {
+    static String extensionFor(final String url, @Nullable final String mimeType) {
         final int slash = url.lastIndexOf('/');
-        final int dot = slash >= 0 ? url.lastIndexOf('.') : -1;
+        final int dot = url.lastIndexOf('.');
         if (dot > slash + 1 && dot < url.length() - 1 && url.length() - dot <= 5) {
             return url.substring(dot);
         }
@@ -266,7 +291,7 @@ public final class StickerPackRepository {
         return extension == null ? ".img" : "." + extension;
     }
 
-    private static String sanitize(final String id) {
+    static String sanitize(final String id) {
         return id.replaceAll("[^a-zA-Z0-9_-]", "_");
     }
 

@@ -1,12 +1,14 @@
 package eu.siacs.conversations.ui.adapter;
 
 import android.content.res.ColorStateList;
+import android.graphics.drawable.Drawable;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import androidx.annotation.NonNull;
-import androidx.core.widget.ImageViewCompat;
+import androidx.appcompat.content.res.AppCompatResources;
+import androidx.core.graphics.drawable.DrawableCompat;
 import androidx.databinding.DataBindingUtil;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.color.MaterialColors;
@@ -69,27 +71,35 @@ public class CallHistoryAdapter
         final RtpSessionStatus rtpSessionStatus = RtpSessionStatus.of(message.getBody());
         final boolean missed = !rtpSessionStatus.successful;
 
-        viewHolder.binding.callDirection.setImageResource(
-                RtpSessionStatus.getDrawable(received, rtpSessionStatus.successful));
         final int iconTint;
         final int textColor;
         if (missed) {
             iconTint =
                     MaterialColors.getColor(
-                            viewHolder.binding.callDirection, androidx.appcompat.R.attr.colorError);
+                            viewHolder.binding.callDetails, androidx.appcompat.R.attr.colorError);
             textColor = iconTint;
         } else {
             iconTint =
                     MaterialColors.getColor(
-                            viewHolder.binding.callDirection,
+                            viewHolder.binding.callDetails,
                             androidx.appcompat.R.attr.colorControlNormal);
             textColor =
                     MaterialColors.getColor(
                             viewHolder.binding.callDetails,
                             com.google.android.material.R.attr.colorOnSurfaceVariant);
         }
-        ImageViewCompat.setImageTintList(
-                viewHolder.binding.callDirection, ColorStateList.valueOf(iconTint));
+        final Drawable directionIcon =
+                AppCompatResources.getDrawable(
+                        activity,
+                        RtpSessionStatus.getDrawable(received, rtpSessionStatus.successful));
+        if (directionIcon != null) {
+            final int iconSize =
+                    Math.round(18f * activity.getResources().getDisplayMetrics().scaledDensity);
+            directionIcon.setBounds(0, 0, iconSize, iconSize);
+            DrawableCompat.setTintList(directionIcon, ColorStateList.valueOf(iconTint));
+        }
+        viewHolder.binding.callDetails.setCompoundDrawablesRelative(
+                directionIcon, null, null, null);
         viewHolder.binding.callDetails.setTextColor(textColor);
 
         final int label;

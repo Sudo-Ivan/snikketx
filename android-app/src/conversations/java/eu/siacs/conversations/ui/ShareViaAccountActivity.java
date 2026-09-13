@@ -1,5 +1,6 @@
 package eu.siacs.conversations.ui;
 
+import android.annotation.SuppressLint;
 import android.os.Bundle;
 import android.view.View;
 import androidx.databinding.DataBindingUtil;
@@ -58,6 +59,7 @@ public class ShareViaAccountActivity extends XmppActivity
     }
 
     @Override
+    @SuppressLint("NotifyDataSetChanged")
     protected void refreshUiReal() {
         synchronized (this.accountList) {
             accountList.clear();

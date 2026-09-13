@@ -1418,15 +1418,14 @@ public class NotificationService {
             notificationBuilder.setShortcutInfo(info);
             mXmppConnectionService.getShortcutService().push(info);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                applyBubbleMetadata(notificationBuilder, conversation, info);
+                applyBubbleMetadata(notificationBuilder, conversation);
             }
         }
         return notificationBuilder;
     }
 
     @RequiresApi(api = Build.VERSION_CODES.R)
-    private void applyBubbleMetadata(
-            final Builder builder, final Conversation conversation, final ShortcutInfoCompat info) {
+    private void applyBubbleMetadata(final Builder builder, final Conversation conversation) {
         final var notificationManager =
                 mXmppConnectionService.getSystemService(NotificationManager.class);
         if (notificationManager == null || !canBubble(notificationManager)) {
@@ -1444,7 +1443,22 @@ public class NotificationService {
                         s()
                                 ? PendingIntent.FLAG_MUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
                                 : PendingIntent.FLAG_UPDATE_CURRENT);
-        final var icon = info.getIcon();
+        // getContact()/getMucOptions() reach into connection bound state; fall back to
+        // the app icon when the account has no connection (notification rebuilds can
+        // happen while the account is offline)
+        final IconCompat icon;
+        if (conversation.getAccount().getXmppConnection() == null) {
+            icon = null;
+        } else {
+            icon =
+                    conversation.getMode() == Conversation.MODE_SINGLE
+                            ? mXmppConnectionService
+                                    .getAvatarService()
+                                    .getAdaptive(conversation.getContact())
+                            : mXmppConnectionService
+                                    .getAvatarService()
+                                    .getAdaptive(conversation.getMucOptions());
+        }
         builder.setBubbleMetadata(
                 new NotificationCompat.BubbleMetadata.Builder(
                                 bubbleIntent,
@@ -1458,7 +1472,8 @@ public class NotificationService {
 
     @RequiresApi(api = Build.VERSION_CODES.R)
     private static boolean canBubble(final NotificationManager notificationManager) {
-        if (notificationManager.areBubblesEnabled()) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+                && notificationManager.areBubblesEnabled()) {
             return true;
         }
         final var channel =

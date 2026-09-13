@@ -64,7 +64,9 @@ public class Fallback extends Extension {
     private record StartEndRange(int start, int end) implements Range {
         @Override
         public boolean isEntire(final LocalizedContent content) {
-            return start == 0 && end >= content.content.length() - 1;
+            // start and end are code point offsets while length() counts UTF-16 units;
+            // convert before comparing so astral characters do not skew the check
+            return start == 0 && toIndex(content.content, end) >= content.content.length() - 1;
         }
 
         @Override

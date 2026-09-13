@@ -1,6 +1,8 @@
 package eu.siacs.conversations.ui;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
@@ -85,7 +87,10 @@ public class ContactsEntrypointActivity extends AppCompatActivity {
     }
 
     private void placeCall(final Jid jid, final String accountUuid, final Set<Media> media) {
-        if (!CallIntegration.selfManaged(this) || accountUuid == null) {
+        if (!CallIntegration.selfManaged(this)
+                || accountUuid == null
+                || checkSelfPermission(Manifest.permission.MANAGE_OWN_CALLS)
+                        != PackageManager.PERMISSION_GRANTED) {
             openConversation(jid);
             return;
         }
