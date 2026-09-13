@@ -199,19 +199,29 @@ func TestOIDCDisabled(t *testing.T) {
 	handler := app.Routes()
 
 	for _, path := range []string{pathOIDCLogin, pathOIDCCallback, pathUserApp} {
-		req := httptest.NewRequest(http.MethodGet, path, nil)
+		method := http.MethodGet
+		if path == pathOIDCLogin {
+			method = http.MethodPost
+		}
+		req := httptest.NewRequest(method, path, nil)
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
-		// login and callback are 404; the app page needs a session and
-		// redirects to login when there is none.
-		if path == pathUserApp {
+		// The login start rejects requests without a CSRF token; the
+		// callback is 404 and the app page needs a session and redirects
+		// to login when there is none.
+		switch {
+		case path == pathUserApp:
 			if rec.Code != http.StatusSeeOther {
 				t.Fatalf("%s: status %d, want 303", path, rec.Code)
 			}
-			continue
-		}
-		if rec.Code != http.StatusNotFound {
-			t.Fatalf("%s: status %d, want 404", path, rec.Code)
+		case path == pathOIDCLogin:
+			if rec.Code != http.StatusForbidden {
+				t.Fatalf("%s: status %d, want 403", path, rec.Code)
+			}
+		default:
+			if rec.Code != http.StatusNotFound {
+				t.Fatalf("%s: status %d, want 404", path, rec.Code)
+			}
 		}
 	}
 }
@@ -266,6 +276,13 @@ func TestOIDCSessionGuards(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "alice@example.test") {
 		t.Fatal("bootstrap page missing JID")
+	}
+	// The xmpp deep link must survive html/template scheme filtering.
+	if strings.Contains(rec.Body.String(), "#ZgotmplZ") {
+		t.Fatal("bootstrap page rendered a filtered URL")
+	}
+	if !strings.Contains(rec.Body.String(), `href="xmpp:`) {
+		t.Fatal("bootstrap page missing xmpp app link")
 	}
 
 	// Logout must not call the backend for an OIDC session.

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/sudo-ivan/snikketx/web-portal/internal/authlimit"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/linkpreview"
@@ -34,6 +35,9 @@ func (a *App) mountLinkPreview(mux *http.ServeMux) {
 	}
 	if a.LinkPreviewGate == nil {
 		a.LinkPreviewGate = linkpreview.NewLimiter(linkpreview.DefaultUserHourlyLimit)
+	}
+	if a.PreviewAuthGate == nil {
+		a.PreviewAuthGate = authlimit.New()
 	}
 	mux.HandleFunc("GET /api/link-preview", a.handleLinkPreview)
 	mux.HandleFunc("GET /api/link-preview/image", a.handleLinkPreviewImage)
@@ -82,9 +86,11 @@ func (a *App) handleLinkPreviewImage(w http.ResponseWriter, r *http.Request) {
 
 // linkPreviewAuth validates the HTTP Basic credentials against Prosody. The
 // username may be a bare JID or a localpart; non-local domains are rejected.
-// Attempts share the portal login gate so password guessing is throttled the
-// same way as the login form. On success it returns the bare JID.
+// Failures are counted on a dedicated gate so guessing is still throttled,
+// but successful preview traffic never consumes the web login allowance.
+// On success it returns the bare JID.
 func (a *App) linkPreviewAuth(w http.ResponseWriter, r *http.Request) (string, bool) {
+	started := time.Now()
 	username, password, hasBasic := r.BasicAuth()
 	ip := authlimit.ClientIP(r)
 
@@ -94,19 +100,25 @@ func (a *App) linkPreviewAuth(w http.ResponseWriter, r *http.Request) (string, b
 	}
 	localpart = strings.ToLower(strings.TrimSpace(localpart))
 
-	gate := a.LoginGate
+	gate := a.PreviewAuthGate
 	if gate == nil {
 		gate = authlimit.New()
-		a.LoginGate = gate
+		a.PreviewAuthGate = gate
 	}
 
 	deny := func(status int, message string) (string, bool) {
+		a.padLogin(started, gate.MinLatency())
 		w.Header().Set("WWW-Authenticate", `Basic realm="link-preview", charset="UTF-8"`)
 		writeJSONError(w, status, message)
 		return "", false
 	}
+	fail := func(status int, message string) (string, bool) {
+		gate.Failure(ip, localpart)
+		gate.FailureIP(ip)
+		return deny(status, message)
+	}
 
-	decision := gate.Allow(ip, localpart)
+	decision := gate.Check(ip, localpart)
 	if !decision.Allowed {
 		w.Header().Set("Retry-After", strconv.Itoa(int(decision.RetryAfter.Seconds())+1))
 		return deny(http.StatusTooManyRequests, "too many attempts")
@@ -115,16 +127,14 @@ func (a *App) linkPreviewAuth(w http.ResponseWriter, r *http.Request) (string, b
 	if !hasBasic || localpart == "" || password == "" ||
 		len(localpart) > gate.MaxLocalpartLen() || len(password) > gate.MaxPasswordLen() ||
 		!strings.EqualFold(domain, a.Cfg.Domain) {
-		gate.Failure(ip, localpart)
-		return deny(http.StatusUnauthorized, "invalid credentials")
+		return fail(http.StatusUnauthorized, "invalid credentials")
 	}
 
 	jid := localpart + "@" + a.Cfg.Domain
 	tokenInfo, err := a.Prosody.Login(r.Context(), jid, password)
 	if err != nil {
-		gate.Failure(ip, localpart)
 		if errors.Is(err, prosody.ErrInvalidCredentials) || prosody.StatusOf(err) == http.StatusUnauthorized {
-			return deny(http.StatusUnauthorized, "invalid credentials")
+			return fail(http.StatusUnauthorized, "invalid credentials")
 		}
 		a.recordError(r, err)
 		return deny(http.StatusBadGateway, "authentication backend unavailable")
@@ -138,6 +148,7 @@ func (a *App) linkPreviewAuth(w http.ResponseWriter, r *http.Request) (string, b
 			slog.String("error", err.Error()),
 		)
 	}
+	a.padLogin(started, gate.MinLatency())
 	return jid, true
 }
 

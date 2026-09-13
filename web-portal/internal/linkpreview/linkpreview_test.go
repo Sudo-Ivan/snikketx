@@ -436,3 +436,113 @@ func TestLimiter(t *testing.T) {
 		t.Fatal("other account denied")
 	}
 }
+
+func TestFetchImageSniffsBody(t *testing.T) {
+	// A polyglot served as image/png must not be relayed.
+	mux := http.NewServeMux()
+	mux.HandleFunc("/svg.png", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/png")
+		_, _ = w.Write([]byte(`<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>`))
+	})
+	mux.HandleFunc("/real.svg", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/svg+xml")
+		_, _ = w.Write([]byte(`<svg xmlns="http://www.w3.org/2000/svg"></svg>`))
+	})
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	f := newTestFetcher(t, server, publicNames("example.test"))
+	if _, _, err := f.FetchImage(context.Background(), "http://example.test/svg.png"); !errors.Is(err, ErrNotImage) {
+		t.Fatalf("svg.png err = %v, want ErrNotImage", err)
+	}
+	if _, _, err := f.FetchImage(context.Background(), "http://example.test/real.svg"); !errors.Is(err, ErrNotImage) {
+		t.Fatalf("real.svg err = %v, want ErrNotImage", err)
+	}
+}
+
+func TestFetchMetadataNegativeCache(t *testing.T) {
+	var hits int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits++
+		w.Header().Set("Content-Type", "text/plain")
+		_, _ = w.Write([]byte("not html"))
+	}))
+	t.Cleanup(server.Close)
+
+	f := newTestFetcher(t, server, publicNames("example.test"))
+	for i := 0; i < 3; i++ {
+		if _, err := f.FetchMetadata(context.Background(), "http://example.test/x"); !errors.Is(err, ErrNotHTML) {
+			t.Fatalf("err = %v, want ErrNotHTML", err)
+		}
+	}
+	if hits != 1 {
+		t.Fatalf("server hit %d times, want 1 (negative cache)", hits)
+	}
+}
+
+func TestFetchMetadataNormalizesCacheKey(t *testing.T) {
+	var hits int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits++
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte(`<html><head><title>x</title></head></html>`))
+	}))
+	t.Cleanup(server.Close)
+
+	f := newTestFetcher(t, server, publicNames("example.test"))
+	for _, raw := range []string{
+		"http://example.test/x",
+		"HTTP://EXAMPLE.TEST/x",
+		"http://example.test./x",
+		"http://example.test:80/x",
+		"http://example.test/x#frag",
+	} {
+		if _, err := f.FetchMetadata(context.Background(), raw); err != nil {
+			t.Fatalf("FetchMetadata(%q): %v", raw, err)
+		}
+	}
+	if hits != 1 {
+		t.Fatalf("server hit %d times, want 1 (normalized cache key)", hits)
+	}
+}
+
+func TestFetchStopsOnFragmentOnlyRedirect(t *testing.T) {
+	var hits int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits++
+		w.Header().Set("Location", r.URL.String()+"#again")
+		w.WriteHeader(http.StatusFound)
+	}))
+	t.Cleanup(server.Close)
+
+	f := newTestFetcher(t, server, publicNames("example.test"))
+	if _, err := f.FetchMetadata(context.Background(), "http://example.test/x"); err == nil {
+		t.Fatal("fragment redirect loop succeeded")
+	}
+	if hits != 1 {
+		t.Fatalf("server hit %d times, want 1 (loop short circuited)", hits)
+	}
+}
+
+func TestFetchMetadataDropsUnsafeLinkedURLs(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte(`<html><head>
+<meta property="og:image" content="http://user:pw@example.test/x.png">
+<meta property="og:url" content="javascript:alert(1)">
+<link rel="icon" href="http://example.test:22/favicon.ico">
+</head></html>`))
+	}))
+	t.Cleanup(server.Close)
+
+	f := newTestFetcher(t, server, publicNames("example.test"))
+	meta, err := f.FetchMetadata(context.Background(), "http://example.test/x")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// URL falls back to the fetched page, which is already validated; the
+	// attacker supplied image and favicon links must be dropped.
+	if meta.Image != "" || meta.Favicon != "" {
+		t.Fatalf("unsafe linked URLs leaked: %+v", meta)
+	}
+}

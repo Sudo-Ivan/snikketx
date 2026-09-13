@@ -6,6 +6,7 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -42,6 +43,10 @@ const (
 
 // errServiceNotConfigured reports that no portal service account was set.
 var errServiceNotConfigured = errors.New("portal service account is not configured")
+
+// errOIDCNotLinked reports that the XMPP account exists but is not bound to
+// the identity provider subject signing in.
+var errOIDCNotLinked = errors.New("account is not linked to this identity")
 
 // serviceAuth caches the Prosody bearer token of the configured service
 // account. Single sign-on users have no password to trade for a token, so
@@ -99,9 +104,10 @@ func (a *App) serviceCall(ctx context.Context, fn func(token string) error) erro
 }
 
 // mountOIDC registers the single sign-on routes. The handlers no-op to 404
-// when the feature is not configured.
+// when the feature is not configured. Starting a flow requires POST so a
+// cross-site navigation cannot silently begin a sign-in for the visitor.
 func (a *App) mountOIDC(mux *http.ServeMux) {
-	mux.HandleFunc("GET "+pathOIDCLogin, a.handleOIDCLogin)
+	mux.HandleFunc("POST "+pathOIDCLogin, a.handleOIDCLogin)
 	mux.HandleFunc("GET "+pathOIDCCallback, a.handleOIDCCallback)
 	mux.HandleFunc("GET "+pathUserApp, a.handleAppBootstrap)
 }
@@ -192,17 +198,6 @@ func (a *App) handleOIDCCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query := r.URL.Query()
-	if providerErr := query.Get("error"); providerErr != "" {
-		detail := query.Get("error_description")
-		slog.Warn("oidc provider refused sign-in",
-			slog.String("request_id", requestID(r)),
-			slog.String("provider_error", providerErr),
-			slog.String("provider_error_description", detail))
-		fail(http.StatusBadRequest, "Sign-in was not completed",
-			"The identity provider refused the sign-in request. Start again.", "provider_error", nil)
-		return
-	}
-
 	state := query.Get("state")
 	code := query.Get("code")
 	expected := sess[session.KeyOIDCState]
@@ -211,8 +206,10 @@ func (a *App) handleOIDCCallback(w http.ResponseWriter, r *http.Request) {
 	issuedUnix, _ := strconv.ParseInt(sess[session.KeyOIDCAt], 10, 64)
 	age := time.Since(time.Unix(issuedUnix, 0))
 
+	// State is validated before any provider supplied value is shown, so
+	// an attacker cannot use the error parameters as an injection point.
 	switch {
-	case expected == "" || verifier == "" || nonce == "" || state == "" || code == "":
+	case expected == "" || verifier == "" || nonce == "" || state == "":
 		fail(http.StatusBadRequest, "Sign-in could not be verified",
 			"This sign-in was not started on this service, or it expired. Start again.", "missing_flow_state", nil)
 		return
@@ -226,6 +223,22 @@ func (a *App) handleOIDCCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sess.ClearOIDCFlow()
+
+	if providerErr := query.Get("error"); providerErr != "" {
+		detail := query.Get("error_description")
+		slog.Warn("oidc provider refused sign-in",
+			slog.String("request_id", requestID(r)),
+			slog.String("provider_error", providerErr),
+			slog.String("provider_error_description", detail))
+		fail(http.StatusBadRequest, "Sign-in was not completed",
+			"The identity provider refused the sign-in request. Start again.", "provider_error", nil)
+		return
+	}
+	if code == "" {
+		fail(http.StatusBadRequest, "Sign-in could not be verified",
+			"The identity provider returned no authorization code. Start again.", "missing_code", nil)
+		return
+	}
 
 	accessToken, idToken, err := a.OIDC.Exchange(r.Context(), code, verifier)
 	if err != nil {
@@ -259,13 +272,23 @@ func (a *App) handleOIDCCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	jid := localpart + "@" + a.Cfg.Domain
 
-	created, err := a.oidcEnsureAccount(r.Context(), localpart)
+	created, err := a.oidcEnsureAccount(r.Context(), localpart, jid, claims.Subject)
 	if err != nil {
-		if errors.Is(err, errServiceNotConfigured) {
-			slog.Warn("oidc account provisioning unavailable",
+		switch {
+		case errors.Is(err, errServiceNotConfigured):
+			slog.Error("oidc sign-in refused: service account not configured",
+				slog.String("request_id", requestID(r)))
+			fail(http.StatusBadGateway, "Account setup failed",
+				"This service cannot provision single sign-on accounts yet. Contact the operator.", "service_not_configured", nil)
+			return
+		case errors.Is(err, errOIDCNotLinked):
+			slog.Warn("oidc sign-in refused: account not linked",
 				slog.String("request_id", requestID(r)),
-				slog.String("reason", "service_account_not_configured"))
-		} else {
+				slog.String("localpart", localpart))
+			fail(http.StatusForbidden, "Account not linked to single sign-on",
+				"An account with this name already exists and is not linked to your identity. Sign in with your password instead, or ask the operator to link it.", "not_linked", nil)
+			return
+		default:
 			a.recordError(r, err)
 			slog.Error("oidc account provisioning failed",
 				slog.String("request_id", requestID(r)),
@@ -293,31 +316,22 @@ func (a *App) handleOIDCCallback(w http.ResponseWriter, r *http.Request) {
 // does not exist yet. It reports whether the account was created. The new
 // account receives a generated password that is never shown: app bootstrap
 // runs through invitations instead.
-func (a *App) oidcEnsureAccount(ctx context.Context, localpart string) (bool, error) {
+//
+// Takeover guard: an existing account may only be claimed by a subject that
+// was previously bound to it. A password-created or foreign-subject account
+// can never be opened by an OIDC login that happens to resolve to the same
+// localpart.
+func (a *App) oidcEnsureAccount(ctx context.Context, localpart, jid, subject string) (bool, error) {
 	if a.Service == nil {
 		return false, errServiceNotConfigured
 	}
 
-	var found bool
-	err := a.serviceCall(ctx, func(token string) error {
-		_, err := a.Prosody.GetUserByLocalpart(ctx, token, localpart)
-		return err
-	})
-	switch {
-	case err == nil:
-		found = true
-	case prosody.StatusOf(err) == http.StatusNotFound:
-		found = false
-	default:
-		if apiErr, ok := errors.AsType[*prosody.APIError](err); ok &&
-			(apiErr.Condition == "item-not-found" || apiErr.Condition == "user-not-found") {
-			found = false
-		} else {
-			return false, err
-		}
+	found, err := a.oidcAccountExists(ctx, localpart)
+	if err != nil {
+		return false, err
 	}
 	if found {
-		return false, nil
+		return false, a.checkOIDCBinding(jid, subject)
 	}
 
 	var invite *prosody.AdminInviteInfo
@@ -339,10 +353,62 @@ func (a *App) oidcEnsureAccount(ctx context.Context, localpart string) (bool, er
 	if err != nil {
 		return false, err
 	}
-	if _, err := a.Prosody.RegisterWithToken(ctx, invite.Token, localpart, password); err != nil {
+	registeredJID, err := a.Prosody.RegisterWithToken(ctx, invite.Token, localpart, password)
+	if err != nil {
+		// A concurrent first sign-in for the same localpart may have won
+		// the registration race. If the account now exists the binding
+		// check decides whether this subject may use it.
+		exists, lookupErr := a.oidcAccountExists(ctx, localpart)
+		if lookupErr == nil && exists {
+			return false, a.checkOIDCBinding(jid, subject)
+		}
 		return false, err
 	}
+	if regLocalpart, _, _ := xmpp.SplitJID(registeredJID); regLocalpart != localpart {
+		return false, fmt.Errorf("prosody: registration returned unexpected account %q", registeredJID)
+	}
+	if a.Credentials != nil {
+		if err := a.Credentials.BindOIDCSubject(jid, subject); err != nil {
+			return false, err
+		}
+	}
 	return true, nil
+}
+
+// oidcAccountExists reports whether a localpart is registered on the server.
+func (a *App) oidcAccountExists(ctx context.Context, localpart string) (bool, error) {
+	err := a.serviceCall(ctx, func(token string) error {
+		_, err := a.Prosody.GetUserByLocalpart(ctx, token, localpart)
+		return err
+	})
+	switch {
+	case err == nil:
+		return true, nil
+	case prosody.StatusOf(err) == http.StatusNotFound:
+		return false, nil
+	default:
+		if apiErr, ok := errors.AsType[*prosody.APIError](err); ok &&
+			(apiErr.Condition == "item-not-found" || apiErr.Condition == "user-not-found") {
+			return false, nil
+		}
+		return false, err
+	}
+}
+
+// checkOIDCBinding enforces that an existing account only opens for the
+// provider subject it was bound to at provisioning time. Without a
+// credential store the binding cannot be checked, so access is allowed and
+// a warning is logged once per sign-in.
+func (a *App) checkOIDCBinding(jid, subject string) error {
+	if a.Credentials == nil {
+		slog.Warn("oidc binding cannot be enforced: credential store unavailable",
+			slog.String("jid", jid))
+		return nil
+	}
+	if a.Credentials.OIDCSubject(jid) != subject {
+		return errOIDCNotLinked
+	}
+	return nil
 }
 
 // oidcBootstrapInvite mints a password reset invitation whose token doubles

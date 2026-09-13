@@ -196,7 +196,10 @@ type PageData struct {
 	IsOIDC bool
 	// OIDCEnabled reports whether an external identity provider is
 	// configured, so public pages can offer the single sign-on button.
-	OIDCEnabled         bool
+	OIDCEnabled bool
+	// BotsEnabled reports whether bot self service is configured, so
+	// templates can offer the bots page.
+	BotsEnabled         bool
 	ShowMetrics         bool
 	TOSURI              string
 	PrivacyURI          string

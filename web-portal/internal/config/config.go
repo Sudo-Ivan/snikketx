@@ -81,6 +81,18 @@ type Config struct {
 	// certificate, published next to the download so installs can be
 	// verified with tools like AppVerifier.
 	AndroidCertSHA256 string
+
+	// BotsEndpoint is the base URL of the mod_snikketx_bots management
+	// API on the server, usually {ProsodyEndpoint}/bots. BotsAdminToken
+	// is a static admin token from bot_admin_tokens. Bot self service is
+	// disabled unless the token is set.
+	BotsEndpoint   string
+	BotsAdminToken string
+}
+
+// BotsEnabled reports whether the user facing bot management is configured.
+func (c *Config) BotsEnabled() bool {
+	return c != nil && c.BotsEndpoint != "" && c.BotsAdminToken != ""
 }
 
 func Load(version, commit, buildDate string) (*Config, error) {
@@ -276,6 +288,8 @@ func Load(version, commit, buildDate string) (*Config, error) {
 		ServiceAddress:     serviceAddress,
 		ServicePassword:    servicePassword,
 		LinkPreviewEnabled: linkPreview,
+		BotsEndpoint:       strings.TrimRight(envOr("SNIKKET_WEB_BOTS_ENDPOINT", endpoint+"/bots"), "/"),
+		BotsAdminToken:     os.Getenv("SNIKKET_WEB_BOTS_ADMIN_TOKEN"),
 
 		AndroidHostEnabled:       androidEnabled,
 		AndroidAPKSource:         androidSource,
@@ -305,7 +319,7 @@ func loadOIDC(domain string) (*OIDCConfig, error) {
 	if issuer == "" {
 		return nil, nil
 	}
-	if err := validateHTTPURL("SNIKKET_WEB_OIDC_ISSUER", issuer); err != nil {
+	if err := validateOIDCURL("SNIKKET_WEB_OIDC_ISSUER", issuer); err != nil {
 		return nil, err
 	}
 
@@ -322,7 +336,7 @@ func loadOIDC(domain string) (*OIDCConfig, error) {
 	if redirect == "" {
 		redirect = "https://" + domain + "/auth/oidc/callback"
 	}
-	if err := validateHTTPURL("SNIKKET_WEB_OIDC_REDIRECT_URL", redirect); err != nil {
+	if err := validateOIDCURL("SNIKKET_WEB_OIDC_REDIRECT_URL", redirect); err != nil {
 		return nil, err
 	}
 
@@ -363,6 +377,24 @@ func normalizeHexDigest(raw string) string {
 		}
 	}
 	return v
+}
+
+// validateOIDCURL requires https for identity provider endpoints. Plain
+// http is accepted only for loopback hosts so local development and tests
+// can run against a stub provider.
+func validateOIDCURL(name, raw string) error {
+	if err := validateHTTPURL(name, raw); err != nil {
+		return err
+	}
+	u, _ := url.Parse(raw)
+	if u.Scheme == "https" {
+		return nil
+	}
+	if host := u.Hostname(); host == "localhost" || host == "::1" ||
+		strings.HasSuffix(host, ".localhost") || strings.HasPrefix(host, "127.") {
+		return nil
+	}
+	return fmt.Errorf("%s: scheme must be https for non loopback hosts", name)
 }
 
 func validateHTTPURL(name, raw string) error {

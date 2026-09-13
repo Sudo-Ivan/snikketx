@@ -35,6 +35,7 @@ const (
 	maxHTMLBody    = 1536 * 1024
 	maxImageBody   = 768 * 1024
 	cacheTTL       = 15 * time.Minute
+	failureTTL     = time.Minute
 	cacheMax       = 512
 	userAgent      = "SnikketX-LinkPreview/1.0"
 )
@@ -73,6 +74,11 @@ type Fetcher struct {
 	metaCache  *cache
 	imageCache *cache
 
+	// metaFlight and imageFlight coalesce concurrent fetches of the same
+	// URL so a burst of identical requests costs one upstream fetch.
+	metaFlight  flightGroup
+	imageFlight flightGroup
+
 	// resolve maps a hostname to addresses. It is a field so tests can pin
 	// DNS answers without touching the network.
 	resolve func(ctx context.Context, host string) ([]netip.Addr, error)
@@ -105,12 +111,32 @@ type Metadata struct {
 }
 
 // FetchMetadata retrieves the page at rawURL and extracts its preview data.
-// Successful results are cached briefly keyed by the requested URL.
+// Results and failures are cached briefly keyed by the normalized URL.
 func (f *Fetcher) FetchMetadata(ctx context.Context, rawURL string) (*Metadata, error) {
-	if v, ok := f.metaCache.get(rawURL); ok {
+	key := normalizeKey(rawURL)
+	if v, ok := f.metaCache.get(key); ok {
+		if fail, failed := v.(*fetchFailure); failed {
+			return nil, fail.err
+		}
 		return v.(*Metadata), nil
 	}
 
+	v, err := f.metaFlight.do(key, func() (any, error) {
+		meta, err := f.fetchMetadata(ctx, rawURL)
+		if err != nil {
+			f.metaCache.setTTL(key, &fetchFailure{err: err}, failureTTL)
+			return nil, err
+		}
+		f.metaCache.set(key, meta)
+		return meta, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return v.(*Metadata), nil
+}
+
+func (f *Fetcher) fetchMetadata(ctx context.Context, rawURL string) (*Metadata, error) {
 	ctx, cancel := context.WithTimeout(ctx, f.timeout)
 	defer cancel()
 
@@ -128,45 +154,73 @@ func (f *Fetcher) FetchMetadata(ctx context.Context, rawURL string) (*Metadata, 
 	}
 
 	meta := parseMetadata(io.LimitReader(resp.Body, maxHTMLBody), finalURL)
-	f.metaCache.set(rawURL, meta)
+	meta.URL = safeLinkedURL(meta.URL)
+	meta.Image = safeLinkedURL(meta.Image)
+	meta.Favicon = safeLinkedURL(meta.Favicon)
 	return meta, nil
 }
 
-// FetchImage retrieves an image or favicon at rawURL. Only image/* responses
-// are returned and the body is capped at the image size limit.
+// FetchImage retrieves an image or favicon at rawURL. Only raster image
+// responses whose body matches the declared type are returned and the body
+// is capped at the image size limit.
 func (f *Fetcher) FetchImage(ctx context.Context, rawURL string) (data []byte, contentType string, err error) {
-	if v, ok := f.imageCache.get(rawURL); ok {
+	key := normalizeKey(rawURL)
+	if v, ok := f.imageCache.get(key); ok {
+		if fail, failed := v.(*fetchFailure); failed {
+			return nil, "", fail.err
+		}
 		img := v.(*cachedImage)
 		return img.data, img.contentType, nil
 	}
 
+	v, err := f.imageFlight.do(key, func() (any, error) {
+		img, err := f.fetchImage(ctx, rawURL)
+		if err != nil {
+			f.imageCache.setTTL(key, &fetchFailure{err: err}, failureTTL)
+			return nil, err
+		}
+		f.imageCache.set(key, img)
+		return img, nil
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	img := v.(*cachedImage)
+	return img.data, img.contentType, nil
+}
+
+func (f *Fetcher) fetchImage(ctx context.Context, rawURL string) (*cachedImage, error) {
 	ctx, cancel := context.WithTimeout(ctx, f.timeout)
 	defer cancel()
 
 	resp, _, err := f.fetch(ctx, rawURL)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	defer closeBody(resp)
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, "", &UpstreamError{Status: resp.StatusCode}
+		return nil, &UpstreamError{Status: resp.StatusCode}
 	}
 	ct := mediaType(resp.Header.Get("Content-Type"))
-	if !strings.HasPrefix(ct, "image/") {
-		return nil, "", ErrNotImage
+	want, ok := sniffableImageTypes[ct]
+	if !ok {
+		return nil, ErrNotImage
 	}
 
-	data, err = io.ReadAll(io.LimitReader(resp.Body, maxImageBody+1))
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxImageBody+1))
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	if len(data) > maxImageBody {
-		return nil, "", ErrTooLarge
+		return nil, ErrTooLarge
 	}
-
-	f.imageCache.set(rawURL, &cachedImage{data: data, contentType: ct})
-	return data, ct, nil
+	// The declared type alone is not trusted: an SVG or HTML polyglot
+	// served as image/png must not reach clients as an image.
+	if sniffed := mediaType(http.DetectContentType(data)); sniffed != want {
+		return nil, ErrNotImage
+	}
+	return &cachedImage{data: data, contentType: ct}, nil
 }
 
 // fetch GETs u following at most maxRedirects redirects. Scheme, port and the
@@ -202,6 +256,15 @@ func (f *Fetcher) fetch(ctx context.Context, rawURL string) (*http.Response, *ur
 		if err := checkURL(next); err != nil {
 			return nil, nil, err
 		}
+		// A redirect that only adds or changes the fragment is a loop:
+		// refetching the same resource gains nothing.
+		same := *next
+		same.Fragment = ""
+		current := *u
+		current.Fragment = ""
+		if same.String() == current.String() {
+			return nil, nil, &UpstreamError{Status: resp.StatusCode}
+		}
 		if hop >= maxRedirects {
 			return nil, nil, ErrTooManyRedirects
 		}
@@ -225,6 +288,9 @@ func (f *Fetcher) doRequest(ctx context.Context, u *url.URL) (*http.Response, er
 		DisableKeepAlives:      true,
 		ResponseHeaderTimeout:  headerTimeout,
 		MaxResponseHeaderBytes: 64 << 10,
+		// The size caps must apply to the bytes on the wire, not to a
+		// transparently inflated gzip stream.
+		DisableCompression: true,
 		TLSClientConfig: &tls.Config{
 			ServerName: host,
 			MinVersion: tls.VersionTLS12,
@@ -320,7 +386,9 @@ var blockedPrefixes = []netip.Prefix{
 	netip.MustParsePrefix("64:ff9b:1::/48"), // NAT64 local use
 	netip.MustParsePrefix("100::/64"),       // discard only
 	netip.MustParsePrefix("2001::/23"),      // teredo, orchid and other special use
+	netip.MustParsePrefix("2002::/16"),      // 6to4 embeds an IPv4 address
 	netip.MustParsePrefix("2001:db8::/32"),  // documentation range
+	netip.MustParsePrefix("fec0::/10"),      // deprecated site local
 	netip.MustParsePrefix("192.0.2.0/24"),   // documentation
 	netip.MustParsePrefix("198.51.100.0/24"),
 	netip.MustParsePrefix("203.0.113.0/24"),
@@ -416,6 +484,94 @@ type cachedImage struct {
 	contentType string
 }
 
+// fetchFailure is a cached error so a failing URL is not refetched on every
+// request. Negative entries use a short TTL.
+type fetchFailure struct {
+	err error
+}
+
+// sniffableImageTypes maps an allowed declared image type to the media type
+// http.DetectContentType must report for the body.
+var sniffableImageTypes = map[string]string{
+	"image/png":                  "image/png",
+	"image/jpeg":                 "image/jpeg",
+	"image/gif":                  "image/gif",
+	"image/webp":                 "image/webp",
+	"image/bmp":                  "image/bmp",
+	"image/x-icon":               "image/vnd.microsoft.icon",
+	"image/vnd.microsoft.icon":   "image/vnd.microsoft.icon",
+	"image/vnd.mozilla.apng+xml": "image/png",
+}
+
+// normalizeKey canonicalizes a request URL for cache keys so trivially
+// different spellings share one entry.
+func normalizeKey(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return raw
+	}
+	u.Scheme = strings.ToLower(u.Scheme)
+	host := strings.ToLower(strings.TrimSuffix(u.Hostname(), "."))
+	if port := u.Port(); port != "" &&
+		!(u.Scheme == "http" && port == "80") &&
+		!(u.Scheme == "https" && port == "443") {
+		host = net.JoinHostPort(host, port)
+	}
+	u.Host = host
+	u.Fragment = ""
+	return u.String()
+}
+
+// safeLinkedURL drops metadata links that fail the same scheme, userinfo and
+// port rules as a direct fetch, so the proxy never hands a client a URL it
+// would refuse to fetch itself.
+func safeLinkedURL(raw string) string {
+	if raw == "" {
+		return ""
+	}
+	u, err := url.Parse(raw)
+	if err != nil || checkURL(u) != nil {
+		return ""
+	}
+	return raw
+}
+
+// flightGroup coalesces concurrent calls for the same key into a single
+// invocation, matching golang.org/x/sync/singleflight semantics.
+type flightGroup struct {
+	mu    sync.Mutex
+	calls map[string]*flightCall
+}
+
+type flightCall struct {
+	done chan struct{}
+	val  any
+	err  error
+}
+
+func (g *flightGroup) do(key string, fn func() (any, error)) (any, error) {
+	g.mu.Lock()
+	if g.calls == nil {
+		g.calls = make(map[string]*flightCall)
+	}
+	if c, ok := g.calls[key]; ok {
+		g.mu.Unlock()
+		<-c.done
+		return c.val, c.err
+	}
+	c := &flightCall{done: make(chan struct{})}
+	g.calls[key] = c
+	g.mu.Unlock()
+
+	c.val, c.err = fn()
+
+	g.mu.Lock()
+	delete(g.calls, key)
+	close(c.done)
+	g.mu.Unlock()
+	return c.val, c.err
+}
+
 // cache is a small bounded map with per entry expiry.
 type cache struct {
 	mu    sync.Mutex
@@ -445,6 +601,10 @@ func (c *cache) get(key string) (any, bool) {
 }
 
 func (c *cache) set(key string, value any) {
+	c.setTTL(key, value, c.ttl)
+}
+
+func (c *cache) setTTL(key string, value any, ttl time.Duration) {
 	now := time.Now()
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -462,5 +622,5 @@ func (c *cache) set(key string, value any) {
 			break
 		}
 	}
-	c.items[key] = cacheEntry{value: value, expires: now.Add(c.ttl)}
+	c.items[key] = cacheEntry{value: value, expires: now.Add(ttl)}
 }

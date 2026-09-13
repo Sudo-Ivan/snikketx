@@ -71,6 +71,10 @@ type Account struct {
 	TOTPEnabled bool `json:"totp_enabled,omitempty"`
 	// TOTPCreatedAt records when the current TOTP secret was activated.
 	TOTPCreatedAt time.Time `json:"totp_created_at,omitempty"`
+	// OIDCSubject is the stable identity provider subject bound to the
+	// account. It is recorded when single sign-on provisions the account so
+	// a different provider identity can never claim the same localpart.
+	OIDCSubject string `json:"oidc_subject,omitempty"`
 }
 
 // NeedsSecondFactor reports whether the account must complete a second-factor
@@ -341,6 +345,29 @@ func (s *Store) ClearTOTP(jid string) error {
 	acct.TOTPSecret = ""
 	acct.TOTPEnabled = false
 	acct.TOTPCreatedAt = time.Time{}
+	s.data.Accounts[k] = acct
+	return s.save()
+}
+
+// OIDCSubject returns the identity provider subject bound to the account, or
+// an empty string when the account has no single sign-on binding.
+func (s *Store) OIDCSubject(jid string) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.data.Accounts[key(jid)].OIDCSubject
+}
+
+// BindOIDCSubject records the provider subject that owns the account. It
+// refuses to overwrite a different existing binding.
+func (s *Store) BindOIDCSubject(jid, subject string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	k := key(jid)
+	acct := s.data.Accounts[k]
+	if acct.OIDCSubject != "" && acct.OIDCSubject != subject {
+		return errors.New("credstore: account is bound to a different identity")
+	}
+	acct.OIDCSubject = subject
 	s.data.Accounts[k] = acct
 	return s.save()
 }

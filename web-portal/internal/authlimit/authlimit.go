@@ -92,6 +92,41 @@ func (l *Limiter) Allow(ip, localpart string) Decision {
 	return Decision{Allowed: true}
 }
 
+// Check reports whether the ip and localpart pair is currently locked out
+// without recording a new attempt. APIs that authenticate on every request
+// use Check so normal traffic does not consume the per-IP allowance.
+func (l *Limiter) Check(ip, localpart string) Decision {
+	now := time.Now()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.gc(now)
+
+	key := strings.ToLower(localpart) + "|" + ip
+	for _, k := range []string{key, "|" + ip} {
+		if until, ok := l.locks[k]; ok && until.After(now) {
+			return Decision{Allowed: false, RetryAfter: until.Sub(now)}
+		}
+	}
+	return Decision{Allowed: true}
+}
+
+// FailureIP records an authentication failure attributable to the IP alone.
+// Enough failures lock every account on that IP.
+func (l *Limiter) FailureIP(ip string) {
+	now := time.Now()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	c := l.ipHits[ip]
+	if c == nil {
+		c = &counter{reset: now.Add(l.window)}
+		l.ipHits[ip] = c
+	}
+	c.n++
+	if c.n >= l.ipLimit {
+		l.locks["|"+ip] = now.Add(l.lockout)
+	}
+}
+
 func (l *Limiter) Failure(ip, localpart string) {
 	now := time.Now()
 	key := strings.ToLower(localpart) + "|" + ip

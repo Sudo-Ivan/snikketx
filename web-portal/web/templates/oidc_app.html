@@ -3,7 +3,7 @@
 	<h1>Connect an app</h1>
 	<p class="muted">Your account <span class="mono">{{.JID}}</span> is ready to use.</p>
 	{{if .XMPPURI}}
-	<p><a class="btn btn-primary btn-block" href="{{.XMPPURI}}">{{template "icon" "log-in"}}<span>Open in app</span></a></p>
+	<p><a class="btn btn-primary btn-block" href="{{safeURL .XMPPURI}}">{{template "icon" "smartphone"}}<span>Open in app</span></a></p>
 	<p class="muted">If the app does not open, finish setup in your browser: <a href="{{.ResetURL}}">{{.ResetURL}}</a></p>
 	{{end}}
 	{{if .Note}}<p class="muted">{{.Note}}</p>{{end}}

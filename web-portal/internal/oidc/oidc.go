@@ -8,6 +8,7 @@ import (
 	"context"
 	"crypto"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
@@ -104,11 +105,12 @@ type Provider struct {
 	cfg  Config
 	http *http.Client
 
-	mu     sync.Mutex
-	disc   *discovery
-	discAt time.Time
-	keys   map[string]crypto.PublicKey
-	keysAt time.Time
+	mu      sync.Mutex
+	disc    *discovery
+	discAt  time.Time
+	keys    map[string]crypto.PublicKey
+	keysAt  time.Time
+	fetchMu sync.Mutex
 }
 
 // New returns a Provider for the given configuration. A nil httpClient uses a
@@ -267,6 +269,7 @@ func (p *Provider) VerifyIDToken(ctx context.Context, rawIDToken, nonce string) 
 			"RS256", "RS384", "RS512",
 			"PS256", "PS384", "PS512",
 			"ES256", "ES384", "ES512",
+			"EdDSA",
 		}),
 		jwt.WithIssuer(disc.Issuer),
 		jwt.WithAudience(p.cfg.ClientID),
@@ -290,6 +293,11 @@ func (p *Provider) VerifyIDToken(ctx context.Context, rawIDToken, nonce string) 
 	gotNonce, _ := claims["nonce"].(string)
 	if subtle.ConstantTimeCompare([]byte(gotNonce), []byte(nonce)) != 1 {
 		return nil, errors.New("oidc: id token nonce mismatch")
+	}
+	// When the token names an authorized party it must be this client,
+	// otherwise a token minted for a different client could be replayed.
+	if azp, ok := claims["azp"].(string); ok && azp != p.cfg.ClientID {
+		return nil, errors.New("oidc: id token authorized party mismatch")
 	}
 	sub, _ := claims["sub"].(string)
 	if sub == "" {
@@ -350,14 +358,22 @@ func (p *Provider) keyFor(ctx context.Context, disc *discovery, kid string) (cry
 	if key, ok := cached[kid]; ok && time.Since(at) < jwksTTL {
 		return key, nil
 	}
+	// Refetches are serialized so a burst of tokens with unknown kids
+	// cannot multiply outbound requests to the provider.
+	p.fetchMu.Lock()
+	p.mu.Lock()
+	cached, at = p.keys, p.keysAt
+	p.mu.Unlock()
 	if time.Since(at) > jwksCooldown {
 		if err := p.fetchJWKS(ctx, disc.JWKSURI); err != nil {
+			p.fetchMu.Unlock()
 			return nil, err
 		}
 		p.mu.Lock()
 		cached, at = p.keys, p.keysAt
 		p.mu.Unlock()
 	}
+	p.fetchMu.Unlock()
 	key, ok := cached[kid]
 	if !ok {
 		return nil, errors.New("oidc: id token signed with an unknown key")
@@ -445,6 +461,18 @@ func (k jwkKey) publicKey() (crypto.PublicKey, error) {
 			return nil, err
 		}
 		return &ecdsa.PublicKey{Curve: curve, X: new(big.Int).SetBytes(x), Y: new(big.Int).SetBytes(y)}, nil
+	case "OKP":
+		if k.Crv != "Ed25519" {
+			return nil, fmt.Errorf("oidc: unsupported OKP curve %q", k.Crv)
+		}
+		x, err := base64.RawURLEncoding.DecodeString(k.X)
+		if err != nil {
+			return nil, err
+		}
+		if len(x) != ed25519.PublicKeySize {
+			return nil, errors.New("oidc: bad Ed25519 key size")
+		}
+		return ed25519.PublicKey(x), nil
 	default:
 		return nil, fmt.Errorf("oidc: unsupported key type %q", k.Kty)
 	}

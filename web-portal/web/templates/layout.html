@@ -64,7 +64,8 @@
 			{{if .IsOIDC}}<a href="/user/app" class="topnav-link{{if eq .Nav "app"}} is-active{{end}}">{{template "icon" "smartphone"}}<span>Connect app</span></a>{{end}}
 			{{if not .IsOIDC}}<a href="/user/profile" class="topnav-link{{if eq .Nav "profile"}} is-active{{end}}">{{template "icon" "circle-user"}}<span>{{t "nav.profile"}}</span></a>
 			<a href="/user/passwd" class="topnav-link{{if eq .Nav "password"}} is-active{{end}}">{{template "icon" "key"}}<span>{{t "nav.password"}}</span></a>{{end}}
-			<a href="/user/security" class="topnav-link{{if eq .Nav "security"}} is-active{{end}}">{{template "icon" "shield"}}<span>{{t "nav.security"}}</span></a>
+			{{if not .IsOIDC}}<a href="/user/security" class="topnav-link{{if eq .Nav "security"}} is-active{{end}}">{{template "icon" "shield"}}<span>{{t "nav.security"}}</span></a>{{end}}
+			{{if .BotsEnabled}}<a href="/user/bots" class="topnav-link{{if eq .Nav "bots"}} is-active{{end}}">{{template "icon" "cpu"}}<span>Bots</span></a>{{end}}
 			{{if not .IsOIDC}}<a href="/user/manage_data" class="topnav-link{{if eq .Nav "data"}} is-active{{end}}">{{template "icon" "database"}}<span>{{t "nav.data"}}</span></a>{{end}}
 			{{if .IsAdmin}}<a href="/admin/" class="topnav-link">{{template "icon" "shield"}}<span>{{t "nav.admin"}}</span></a>{{end}}
 			<a href="/user/logout" class="topnav-link{{if eq .Nav "logout"}} is-active{{end}}">{{template "icon" "log-out"}}<span>{{t "nav.logout"}}</span></a>

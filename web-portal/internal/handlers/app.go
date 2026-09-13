@@ -18,6 +18,7 @@ import (
 	"github.com/sudo-ivan/snikketx/web-portal/internal/audit"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/authlimit"
 	backupclient "github.com/sudo-ivan/snikketx/web-portal/internal/backupclient"
+	"github.com/sudo-ivan/snikketx/web-portal/internal/bots"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/config"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/credstore"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/csrf"
@@ -71,8 +72,14 @@ type App struct {
 	Static   http.Handler
 	// LinkPreview fetches OpenGraph metadata for the API endpoints.
 	// LinkPreviewGate caps lookups per authenticated account.
+	// PreviewAuthGate throttles authentication failures on the API without
+	// touching the web login allowance.
 	LinkPreview     LinkPreviewer
 	LinkPreviewGate *linkpreview.Limiter
+	PreviewAuthGate *authlimit.Limiter
+	// Bots is the client for the mod_snikketx_bots management API. Nil
+	// disables the bot self service pages.
+	Bots *bots.Client
 
 	healthMu     sync.Mutex
 	healthAt     time.Time
@@ -102,6 +109,7 @@ func (a *App) Routes() http.Handler {
 	a.mountOIDC(mux)
 	a.mountSecurity(mux)
 	a.mountUser(mux)
+	a.mountBots(mux)
 	a.mountAdmin(mux)
 	a.mountInvite(mux)
 	a.mountMetrics(mux)
