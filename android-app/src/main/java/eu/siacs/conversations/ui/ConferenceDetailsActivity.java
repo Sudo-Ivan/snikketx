@@ -258,10 +258,10 @@ public class ConferenceDetailsActivity extends XmppActivity
                                 .show();
                         return;
                     }
-                    if (!mucOptions.getSelf().ranks(Affiliation.OWNER)) {
+                    if (!mucOptions.getSelf().ranks(Affiliation.ADMIN)) {
                         Toast.makeText(
                                         this,
-                                        R.string.only_the_owner_can_change_group_chat_avatar,
+                                        R.string.only_owners_and_admins_can_change_group_chat_avatar,
                                         Toast.LENGTH_SHORT)
                                 .show();
                         return;

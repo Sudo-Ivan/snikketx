@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="only_owners_and_admins_can_change_group_chat_avatar">Only owners and admins can change the group chat avatar</string>
+</resources>

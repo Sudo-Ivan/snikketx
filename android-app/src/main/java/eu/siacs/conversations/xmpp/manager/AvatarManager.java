@@ -297,6 +297,31 @@ public class AvatarManager extends AbstractManager {
         }
     }
 
+    // invalidates cached avatars and updates the UI without touching the stored
+    // hash. used when the underlying image file appeared for a hash that was
+    // already known (setAvatar() is a no-op in that case)
+    private void refreshAvatar(final Jid address) {
+        final var account = getAccount();
+        if (account.getJid().asBareJid().equals(address)) {
+            service.getAvatarService().clear(account);
+            service.updateAccountUi();
+            service.updateConversationUi();
+            return;
+        }
+        if (!address.isBareJid()) {
+            return;
+        }
+        final var contact = account.getRoster().getContact(address);
+        service.getAvatarService().clear(contact);
+        final var conversation = service.find(account, address);
+        if (conversation != null && conversation.getMode() == Conversational.MODE_MULTI) {
+            service.getAvatarService()
+                    .clear(getManager(MultiUserChatManager.class).getOrCreateState(conversation));
+        }
+        service.updateConversationUi();
+        service.updateRosterUi();
+    }
+
     private void setAvatarMucUser(final Jid from, final String id) {
         final var mucOptions = getManager(MultiUserChatManager.class).getState(from.asBareJid());
         final var user = mucOptions == null ? null : mucOptions.getUser(from);
@@ -789,8 +814,19 @@ public class AvatarManager extends AbstractManager {
                     final var avatar =
                             Files.asByteSource(FileBackend.getAvatarFile(context, info.getId()))
                                     .read();
-                    return getManager(VCardManager.class)
-                            .publishPhoto(address, info.getType(), avatar);
+                    final var publishFuture =
+                            getManager(VCardManager.class)
+                                    .publishPhoto(address, info.getType(), avatar);
+                    return Futures.transform(
+                            publishFuture,
+                            v -> {
+                                // the room does not necessarily announce the new avatar
+                                // hash right away. applying it locally makes the new
+                                // picture show up immediately
+                                setAvatar(address.asBareJid(), info.getId());
+                                return null;
+                            },
+                            MoreExecutors.directExecutor());
                 },
                 AVATAR_COMPRESSION_EXECUTOR);
     }
@@ -909,6 +945,10 @@ public class AvatarManager extends AbstractManager {
                             writeFuture,
                             v -> {
                                 setAvatar(address, actualHash);
+                                // if the hash was already known setAvatar() does not
+                                // invalidate anything. a placeholder cached while the
+                                // file was still missing needs to be dropped explicitly
+                                refreshAvatar(address);
                                 return null;
                             },
                             MoreExecutors.directExecutor());

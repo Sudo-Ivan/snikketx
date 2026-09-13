@@ -209,6 +209,7 @@ public class XmppConnectionService extends Service {
             Executors.newSingleThreadScheduledExecutor();
     private static final SerialSingleThreadExecutor VIDEO_COMPRESSION_EXECUTOR =
             new SerialSingleThreadExecutor("VideoCompression");
+    private static final int AVATAR_WARM_UP_LIMIT = 24;
     private final SerialSingleThreadExecutor mDatabaseWriterExecutor =
             new SerialSingleThreadExecutor("DatabaseWriter");
     public static final SerialSingleThreadExecutor DATABASE_READER =
@@ -1940,8 +1941,12 @@ public class XmppConnectionService extends Service {
                         for (final Account account : accounts) {
                             account.getXmppConnection().getManager(RosterManager.class).restore();
                         }
+                        // avatars may have been requested (and their placeholders
+                        // cached) while the roster was not yet restored
+                        getAvatarService().evictAll();
                         getBitmapCache().evictAll();
                         loadPhoneContacts();
+                        warmAvatars();
                         Log.d(Config.LOGTAG, "restoring messages...");
                         final long startMessageRestore = SystemClock.elapsedRealtime();
                         final Conversation quickLoad = QuickLoader.get(this.conversations);
@@ -2021,6 +2026,23 @@ public class XmppConnectionService extends Service {
     private void warmMucOptions(final Conversation conversation) {
         if (conversation.getMode() == Conversation.MODE_MULTI) {
             conversation.getMucOptions();
+        }
+    }
+
+    // rendering an avatar decodes the cached avatar file from disk. doing this for the
+    // first couple of conversations here, on the database reader thread, keeps the
+    // conversation overview from flashing placeholder avatars right after a cold start
+    private void warmAvatars() {
+        final int size =
+                Math.round(
+                        getResources().getDimension(R.dimen.avatar_on_conversation_overview));
+        int warmed = 0;
+        for (final Conversation conversation : this.conversations) {
+            if (warmed >= AVATAR_WARM_UP_LIMIT) {
+                break;
+            }
+            getAvatarService().get(conversation, size, false);
+            ++warmed;
         }
     }
 

@@ -505,11 +505,27 @@ public class AvatarService {
         }
     }
 
+    // drops every cached avatar. used right after the roster has been restored to
+    // get rid of placeholder avatars that were cached while the roster (and with
+    // it the stored avatar hashes) was not yet available
+    public void evictAll() {
+        this.cache.invalidateAll();
+        synchronized (this.conversationDependentKeys) {
+            this.conversationDependentKeys.clear();
+        }
+    }
+
     private String key(final MucOptions options, int size) {
         synchronized (this.sizes) {
             this.sizes.add(size);
         }
-        return PREFIX_CONVERSATION + "_" + options.getConversation().getUuid() + "_" + size;
+        return PREFIX_CONVERSATION
+                + "_"
+                + options.getConversation().getUuid()
+                + "_"
+                + Strings.nullToEmpty(options.getAvatar())
+                + "_"
+                + size;
     }
 
     private String key(final List<MucOptions.User> users, final int size) {
