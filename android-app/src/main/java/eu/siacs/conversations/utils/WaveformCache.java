@@ -4,6 +4,7 @@ import android.media.AudioFormat;
 import android.media.MediaCodec;
 import android.media.MediaExtractor;
 import android.media.MediaFormat;
+import android.os.SystemClock;
 import android.util.Log;
 import android.util.LruCache;
 import eu.siacs.conversations.Config;
@@ -30,6 +31,10 @@ public final class WaveformCache {
     // decode at most ~3 minutes worth of blocks to keep memory and runtime bounded
     private static final int MAX_BLOCKS = 20_000;
 
+    // hard wall-clock limit for a single decode. a stalled codec would otherwise
+    // spin on dequeue timeouts forever and burn CPU
+    private static final long MAX_DECODE_MS = 10_000L;
+
     private static final int MAX_CACHED_WAVEFORMS = 128;
 
     private static final String KEY_PCM_FORMAT = "pcm-format";
@@ -40,6 +45,9 @@ public final class WaveformCache {
 
     /** Returns the cached waveform for the given path or null if it has not been decoded yet. */
     public static synchronized float[] peek(final String path) {
+        if (path == null) {
+            return null;
+        }
         return CACHE.get(path);
     }
 
@@ -48,6 +56,9 @@ public final class WaveformCache {
      * the file cannot be decoded. Must not be called on the main thread.
      */
     public static synchronized float[] get(final String path) {
+        if (path == null) {
+            return null;
+        }
         final float[] cached = CACHE.get(path);
         if (cached != null) {
             return cached;
@@ -116,7 +127,10 @@ public final class WaveformCache {
         boolean outputDone = false;
         float blockPeak = 0f;
         int blockSamples = 0;
-        while (!outputDone && blocks.size() < MAX_BLOCKS) {
+        final long deadline = SystemClock.elapsedRealtime() + MAX_DECODE_MS;
+        while (!outputDone
+                && blocks.size() < MAX_BLOCKS
+                && SystemClock.elapsedRealtime() < deadline) {
             if (!inputDone) {
                 final int inputIndex = codec.dequeueInputBuffer(10_000);
                 if (inputIndex >= 0) {
@@ -178,7 +192,7 @@ public final class WaveformCache {
         return blocks;
     }
 
-    private static float[] bucket(final List<Float> blocks, final int barCount) {
+    static float[] bucket(final List<Float> blocks, final int barCount) {
         final int total = blocks.size();
         final float[] bars = new float[barCount];
         float max = 0f;

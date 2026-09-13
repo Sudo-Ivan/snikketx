@@ -1480,7 +1480,7 @@ public class DatabaseBackend extends SQLiteOpenHelper {
         final ArrayList<Message> list = new ArrayList<>();
         final SQLiteDatabase db = this.getReadableDatabase();
         final String[] selectionArgs = {String.valueOf(Message.TYPE_RTP_SESSION)};
-        final Cursor cursor =
+        try (final Cursor cursor =
                 db.query(
                         Message.TABLENAME,
                         null,
@@ -1488,16 +1488,16 @@ public class DatabaseBackend extends SQLiteOpenHelper {
                         selectionArgs,
                         null,
                         null,
-                        Message.TIME_SENT + " DESC");
-        CursorUtils.upgradeCursorWindowSize(cursor);
-        while (cursor.moveToNext()) {
-            try {
-                list.add(Message.fromCursor(context, cursor, null));
-            } catch (final Exception e) {
-                Log.e(Config.LOGTAG, "unable to restore rtp session message", e);
+                        Message.TIME_SENT + " DESC")) {
+            CursorUtils.upgradeCursorWindowSize(cursor);
+            while (cursor.moveToNext()) {
+                try {
+                    list.add(Message.fromCursor(context, cursor, null));
+                } catch (final Exception e) {
+                    Log.e(Config.LOGTAG, "unable to restore rtp session message", e);
+                }
             }
         }
-        cursor.close();
         return list;
     }
 
@@ -1520,7 +1520,7 @@ public class DatabaseBackend extends SQLiteOpenHelper {
             final String selection, final String[] selectionArgs) {
         final var list = new ArrayList<ScheduledMessage>();
         final SQLiteDatabase db = this.getReadableDatabase();
-        final Cursor cursor =
+        try (final Cursor cursor =
                 db.query(
                         ScheduledMessage.TABLENAME,
                         null,
@@ -1528,18 +1528,36 @@ public class DatabaseBackend extends SQLiteOpenHelper {
                         selectionArgs,
                         null,
                         null,
-                        ScheduledMessage.SCHEDULED_AT + " ASC");
-        while (cursor != null && cursor.moveToNext()) {
-            try {
-                list.add(ScheduledMessage.fromCursor(cursor));
-            } catch (final Exception e) {
-                Log.e(Config.LOGTAG, "unable to restore scheduled message", e);
+                        ScheduledMessage.SCHEDULED_AT + " ASC")) {
+            while (cursor.moveToNext()) {
+                try {
+                    list.add(ScheduledMessage.fromCursor(cursor));
+                } catch (final Exception e) {
+                    Log.e(Config.LOGTAG, "unable to restore scheduled message", e);
+                }
             }
         }
-        if (cursor != null) {
-            cursor.close();
-        }
         return list;
+    }
+
+    /**
+     * Returns the earliest scheduled_at of all pending scheduled messages or null when the table is
+     * empty. Used to arm a targeted wakeup instead of polling the table.
+     */
+    public Long getNextScheduledMessageAt() {
+        final SQLiteDatabase db = this.getReadableDatabase();
+        try (final Cursor cursor =
+                db.rawQuery(
+                        "select min("
+                                + ScheduledMessage.SCHEDULED_AT
+                                + ") from "
+                                + ScheduledMessage.TABLENAME,
+                        null)) {
+            if (cursor.moveToFirst() && !cursor.isNull(0)) {
+                return cursor.getLong(0);
+            }
+            return null;
+        }
     }
 
     public void deleteScheduledMessage(final String uuid) {
@@ -1790,15 +1808,12 @@ public class DatabaseBackend extends SQLiteOpenHelper {
         final var db = this.getReadableDatabase();
         final String sql = "select * from messages where uuid=? LIMIT 1";
         final String[] args = {uuid};
-        final Cursor cursor = db.rawQuery(sql, args);
-        final Message message;
-        if (cursor.moveToFirst()) {
-            message = IndividualMessage.fromCursor(context, cursor, null);
-        } else {
-            message = null;
+        try (final Cursor cursor = db.rawQuery(sql, args)) {
+            if (cursor.moveToFirst()) {
+                return IndividualMessage.fromCursor(context, cursor, null);
+            }
+            return null;
         }
-        cursor.close();
-        return message;
     }
 
     public void insertCapsCache(

@@ -159,6 +159,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -286,6 +287,9 @@ public class XmppConnectionService extends Service {
     public final Set<String> FILENAMES_TO_IGNORE_DELETION = new HashSet<>();
 
     private final AtomicLong mLastExpiryRun = new AtomicLong(0);
+
+    private final Object mScheduledMessageWakeupLock = new Object();
+    private ScheduledFuture<?> mScheduledMessageWakeup;
 
     private OpenPgpServiceConnection pgpServiceConnection;
     private PgpEngine mPgpEngine = null;
@@ -776,6 +780,18 @@ public class XmppConnectionService extends Service {
         final String pushedAccountHash = extras == null ? null : extras.getString("account");
         final boolean interactive = java.util.Objects.equals(ACTION_TRY_AGAIN, action);
         WakeLockHelper.acquire(wakeLock);
+        try {
+            manageAccountConnectionStatesLocked(action, extras, pushedAccountHash, interactive);
+        } finally {
+            WakeLockHelper.release(wakeLock);
+        }
+    }
+
+    private void manageAccountConnectionStatesLocked(
+            final String action,
+            final Bundle extras,
+            final String pushedAccountHash,
+            final boolean interactive) {
         boolean pingNow =
                 ConnectivityManager.CONNECTIVITY_ACTION.equals(action)
                         || (Config.POST_CONNECTIVITY_CHANGE_PING_INTERVAL > 0
@@ -822,7 +838,6 @@ public class XmppConnectionService extends Service {
                         account.getUuid().hashCode());
             }
         }
-        WakeLockHelper.release(wakeLock);
     }
 
     private void handleOrbotStartedEvent() {
@@ -1194,10 +1209,10 @@ public class XmppConnectionService extends Service {
         toggleForegroundService();
         internalPingExecutor.scheduleWithFixedDelay(
                 this::manageAccountConnectionStatesInternal, 10, 10, TimeUnit.SECONDS);
-        // sweeps the scheduled_messages table; also flushes messages that became
-        // overdue while the app was not running. there is no exact alarm wakeup
-        internalPingExecutor.scheduleWithFixedDelay(
-                this::processScheduledMessages, 15, 15, TimeUnit.SECONDS);
+        // scheduled messages are not polled. each pass of processScheduledMessages()
+        // arms a one-shot wakeup for the earliest pending entry and disarms itself
+        // entirely when the table is empty
+        scheduleNextScheduledMessageSweep();
         final SharedPreferences sharedPreferences =
                 androidx.preference.PreferenceManager.getDefaultSharedPreferences(this);
         sharedPreferences.registerOnSharedPreferenceChangeListener(
@@ -1294,7 +1309,7 @@ public class XmppConnectionService extends Service {
         } catch (final RuntimeException e) {
             // ignored
         }
-        destroyed = false;
+        destroyed = true;
         fileObserver.stopWatching();
         internalPingExecutor.shutdown();
         super.onDestroy();
@@ -1809,18 +1824,14 @@ public class XmppConnectionService extends Service {
 
     public void scheduleMessage(final ScheduledMessage scheduledMessage) {
         mDatabaseWriterExecutor.execute(
-                () -> databaseBackend.createScheduledMessage(scheduledMessage));
-        final long delay =
-                Math.max(0L, scheduledMessage.getScheduledAt() - System.currentTimeMillis());
-        // one shot wakeup for timely delivery while the service is running; the
-        // periodic sweep started in onCreate acts as a safety net and flushes
-        // overdue messages on next launch
-        try {
-            internalPingExecutor.schedule(
-                    this::processScheduledMessages, delay, TimeUnit.MILLISECONDS);
-        } catch (final RejectedExecutionException e) {
-            Log.d(Config.LOGTAG, "unable to schedule wakeup; periodic sweep will pick it up", e);
-        }
+                () -> {
+                    databaseBackend.createScheduledMessage(scheduledMessage);
+                    // re-arm the wakeup after the insert so the earliest pending
+                    // entry is always reflected. the sweep runs while the service
+                    // is running; messages that become overdue while it is not are
+                    // flushed on next launch
+                    scheduleNextScheduledMessageSweep();
+                });
     }
 
     public List<ScheduledMessage> getScheduledMessages(final Conversation conversation) {
@@ -1829,7 +1840,31 @@ public class XmppConnectionService extends Service {
 
     public void deleteScheduledMessage(final ScheduledMessage scheduledMessage) {
         mDatabaseWriterExecutor.execute(
-                () -> databaseBackend.deleteScheduledMessage(scheduledMessage.getUuid()));
+                () -> {
+                    databaseBackend.deleteScheduledMessage(scheduledMessage.getUuid());
+                    scheduleNextScheduledMessageSweep();
+                });
+    }
+
+    private void scheduleNextScheduledMessageSweep() {
+        synchronized (mScheduledMessageWakeupLock) {
+            if (mScheduledMessageWakeup != null) {
+                mScheduledMessageWakeup.cancel(false);
+                mScheduledMessageWakeup = null;
+            }
+            final Long next = databaseBackend.getNextScheduledMessageAt();
+            if (next == null) {
+                return;
+            }
+            final long delay = Math.max(0L, next - System.currentTimeMillis());
+            try {
+                mScheduledMessageWakeup =
+                        internalPingExecutor.schedule(
+                                this::processScheduledMessages, delay, TimeUnit.MILLISECONDS);
+            } catch (final RejectedExecutionException e) {
+                Log.d(Config.LOGTAG, "unable to arm scheduled message wakeup", e);
+            }
+        }
     }
 
     private void processScheduledMessages() {
@@ -1841,6 +1876,7 @@ public class XmppConnectionService extends Service {
         for (final var scheduled : due) {
             sendScheduledMessage(scheduled);
         }
+        scheduleNextScheduledMessageSweep();
     }
 
     private void sendScheduledMessage(final ScheduledMessage scheduled) {
@@ -1982,6 +2018,9 @@ public class XmppConnectionService extends Service {
                         }
                         mNotificationService.finishBacklog();
                         restoredFromDatabaseLatch.countDown();
+                        // flush scheduled messages that became overdue while the
+                        // service was not running and arm the next wakeup
+                        scheduleNextScheduledMessageSweep();
                         final long diffMessageRestore =
                                 SystemClock.elapsedRealtime() - startMessageRestore;
                         Log.d(

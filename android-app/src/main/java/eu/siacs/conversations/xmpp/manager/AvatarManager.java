@@ -3,6 +3,7 @@ package eu.siacs.conversations.xmpp.manager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
+import android.os.SystemClock;
 import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -54,8 +55,10 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.HttpUrl;
@@ -102,7 +105,15 @@ public class AvatarManager extends AbstractManager {
     private static final Executor AVATAR_COMPRESSION_EXECUTOR =
             MoreExecutors.newSequentialExecutor(Executors.newSingleThreadScheduledExecutor());
 
+    // minimum interval between vCard avatar fetches for the same address/hash pair.
+    // presences repeat the same hash on every broadcast; a failed or in-flight
+    // lookup must not be retried on each one
+    private static final long AVATAR_FETCH_RETRY_INTERVAL_MS = TimeUnit.MINUTES.toMillis(5);
+    private static final int MAX_TRACKED_AVATAR_FETCHES = 256;
+
     private final XmppConnectionService service;
+
+    private final Map<String, Long> recentAvatarFetches = new ConcurrentHashMap<>();
 
     public AvatarManager(final XmppConnectionService service, XmppConnection connection) {
         super(service.getApplicationContext(), connection);
@@ -356,6 +367,10 @@ public class AvatarManager extends AbstractManager {
         if (cache.exists()) {
             setAvatarInfo(from, avatar.preferred);
         } else if (service.isDataSaverDisabled()) {
+            final var pepFetchKey = "pep:" + from.asBareJid() + ":" + avatar.preferred.getId();
+            if (!shouldAttemptAvatarFetch(pepFetchKey)) {
+                return;
+            }
             final var contact = getManager(RosterManager.class).getContactFromContactList(from);
             final ListenableFuture<Info> future;
             if (contact != null && contact.showInContactList()) {
@@ -385,6 +400,24 @@ public class AvatarManager extends AbstractManager {
         }
     }
 
+    // returns true when a fetch for the given key has not been attempted recently.
+    // records the attempt either way so in-flight and failed fetches are throttled
+    // by the same window
+    private boolean shouldAttemptAvatarFetch(final String fetchKey) {
+        final long now = SystemClock.elapsedRealtime();
+        final Long lastAttempt = recentAvatarFetches.get(fetchKey);
+        if (lastAttempt != null && now - lastAttempt < AVATAR_FETCH_RETRY_INTERVAL_MS) {
+            return false;
+        }
+        if (recentAvatarFetches.size() >= MAX_TRACKED_AVATAR_FETCHES) {
+            recentAvatarFetches
+                    .entrySet()
+                    .removeIf(e -> now - e.getValue() >= AVATAR_FETCH_RETRY_INTERVAL_MS);
+        }
+        recentAvatarFetches.put(fetchKey, now);
+        return true;
+    }
+
     public void handleVCardUpdate(final Jid address, final VCardUpdate vCardUpdate) {
         final var hash = vCardUpdate.getHash();
         if (hash == null) {
@@ -399,6 +432,9 @@ public class AvatarManager extends AbstractManager {
         if (avatarFile.exists()) {
             setAvatar(address, hash);
         } else if (service.isDataSaverDisabled()) {
+            if (!shouldAttemptAvatarFetch("vcard:" + address.asBareJid() + ":" + hash)) {
+                return;
+            }
             final var future = this.fetchAndStoreVCard(address, hash);
             Futures.addCallback(
                     future,

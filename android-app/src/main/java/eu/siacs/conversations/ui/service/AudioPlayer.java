@@ -60,7 +60,10 @@ public class AudioPlayer
     private final PendingItem<WeakReference<MaterialButton>> pendingOnClickView =
             new PendingItem<>();
 
-    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    // shared so that every opened conversation does not leave a permanently
+    // parked worker thread behind; decode work is serialized on the
+    // WaveformCache lock anyway
+    private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor();
 
     private final Handler handler = new Handler();
 
@@ -77,7 +80,9 @@ public class AudioPlayer
         synchronized (AudioPlayer.LOCK) {
             if (AudioPlayer.player != null) {
                 AudioPlayer.player.setOnCompletionListener(this);
-                if (AudioPlayer.player.isPlaying() && sensorManager != null) {
+                if (AudioPlayer.player.isPlaying()
+                        && sensorManager != null
+                        && proximitySensor != null) {
                     sensorManager.registerListener(
                             this, proximitySensor, SensorManager.SENSOR_DELAY_NORMAL);
                 }
@@ -110,7 +115,7 @@ public class AudioPlayer
             audioPlayer.setTag(message);
             if (init(audioPlayer, ViewHolder.get(audioPlayer), message)) {
                 this.audioPlayerLayouts.addWeakReferenceTo(audioPlayer);
-                executor.execute(() -> this.stopRefresher(true));
+                EXECUTOR.execute(() -> this.stopRefresher(true));
             } else {
                 this.audioPlayerLayouts.removeWeakReferenceTo(audioPlayer);
             }
@@ -185,7 +190,7 @@ public class AudioPlayer
             return;
         }
         viewHolder.progress.setAmplitudes(null);
-        executor.execute(
+        EXECUTOR.execute(
                 () -> {
                     final float[] waveform = WaveformCache.get(path);
                     if (waveform == null) {
@@ -335,14 +340,27 @@ public class AudioPlayer
             viewHolder.playPause.setIconResource(R.drawable.ic_pause_24dp);
             viewHolder.playPause.setContentDescription(
                     viewHolder.playPause.getContext().getString(R.string.pause_audio));
-            sensorManager.registerListener(
-                    this, proximitySensor, SensorManager.SENSOR_DELAY_NORMAL);
+            if (sensorManager != null && proximitySensor != null) {
+                sensorManager.registerListener(
+                        this, proximitySensor, SensorManager.SENSOR_DELAY_NORMAL);
+            }
             return true;
         } catch (final Exception e) {
             messageAdapter.flagScreenOff();
             releaseProximityWakeLock();
             AudioPlayer.currentlyPlayingMessage = null;
-            sensorManager.unregisterListener(this);
+            if (AudioPlayer.player != null) {
+                // release the freshly created player left in an error state so it does
+                // not linger or get confused with a healthy player later
+                try {
+                    AudioPlayer.player.release();
+                } catch (final Exception ignored) {
+                }
+                AudioPlayer.player = null;
+            }
+            if (sensorManager != null) {
+                sensorManager.unregisterListener(this);
+            }
             return false;
         }
     }
@@ -412,7 +430,9 @@ public class AudioPlayer
             messageAdapter.flagScreenOff();
             releaseProximityWakeLock();
             resetPlayerUi();
-            sensorManager.unregisterListener(this);
+            if (sensorManager != null) {
+                sensorManager.unregisterListener(this);
+            }
         }
     }
 
@@ -444,7 +464,9 @@ public class AudioPlayer
                 stopCurrent();
             }
             AudioPlayer.currentlyPlayingMessage = null;
-            sensorManager.unregisterListener(this);
+            if (sensorManager != null) {
+                sensorManager.unregisterListener(this);
+            }
             if (wakeLock != null && wakeLock.isHeld()) {
                 wakeLock.release();
             }
@@ -559,9 +581,13 @@ public class AudioPlayer
 
     private ViewHolder getCurrentViewHolder() {
         for (WeakReference<RelativeLayout> audioPlayer : audioPlayerLayouts) {
-            final Message message = (Message) audioPlayer.get().getTag();
+            final RelativeLayout layout = audioPlayer.get();
+            if (layout == null) {
+                continue;
+            }
+            final Message message = (Message) layout.getTag();
             if (message == currentlyPlayingMessage) {
-                return ViewHolder.get(audioPlayer.get());
+                return ViewHolder.get(layout);
             }
         }
         return null;
