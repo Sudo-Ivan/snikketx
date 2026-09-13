@@ -8,4 +8,25 @@
         domain="database"
         path="."
         requireFlags="clientSideEncryption" />
+    <exclude
+        domain="database"
+        path="history" />
+    <exclude
+        domain="database"
+        path="history-wal" />
+    <exclude
+        domain="database"
+        path="history-shm" />
+    <exclude
+        domain="database"
+        path="unified-push-distributor" />
+    <exclude
+        domain="database"
+        path="unified-push-distributor-wal" />
+    <exclude
+        domain="database"
+        path="unified-push-distributor-shm" />
+    <exclude
+        domain="file"
+        path="KeyStore/KeyStore.bks" />
 </full-backup-content>

@@ -76,6 +76,56 @@ public class FileBackend {
 
     private static final String FILE_PROVIDER = ".files";
     private static final float IGNORE_PADDING = 0.15f;
+
+    private static final List<String> EXIF_PRIVACY_TAGS =
+            Arrays.asList(
+                    ExifInterface.TAG_GPS_ALTITUDE,
+                    ExifInterface.TAG_GPS_ALTITUDE_REF,
+                    ExifInterface.TAG_GPS_AREA_INFORMATION,
+                    ExifInterface.TAG_GPS_DATESTAMP,
+                    ExifInterface.TAG_GPS_DEST_BEARING,
+                    ExifInterface.TAG_GPS_DEST_BEARING_REF,
+                    ExifInterface.TAG_GPS_DEST_DISTANCE,
+                    ExifInterface.TAG_GPS_DEST_DISTANCE_REF,
+                    ExifInterface.TAG_GPS_DEST_LATITUDE,
+                    ExifInterface.TAG_GPS_DEST_LATITUDE_REF,
+                    ExifInterface.TAG_GPS_DEST_LONGITUDE,
+                    ExifInterface.TAG_GPS_DEST_LONGITUDE_REF,
+                    ExifInterface.TAG_GPS_DOP,
+                    ExifInterface.TAG_GPS_H_POSITIONING_ERROR,
+                    ExifInterface.TAG_GPS_IMG_DIRECTION,
+                    ExifInterface.TAG_GPS_IMG_DIRECTION_REF,
+                    ExifInterface.TAG_GPS_LATITUDE,
+                    ExifInterface.TAG_GPS_LATITUDE_REF,
+                    ExifInterface.TAG_GPS_LONGITUDE,
+                    ExifInterface.TAG_GPS_LONGITUDE_REF,
+                    ExifInterface.TAG_GPS_MAP_DATUM,
+                    ExifInterface.TAG_GPS_MEASURE_MODE,
+                    ExifInterface.TAG_GPS_PROCESSING_METHOD,
+                    ExifInterface.TAG_GPS_SATELLITES,
+                    ExifInterface.TAG_GPS_SPEED,
+                    ExifInterface.TAG_GPS_SPEED_REF,
+                    ExifInterface.TAG_GPS_STATUS,
+                    ExifInterface.TAG_GPS_TIMESTAMP,
+                    ExifInterface.TAG_GPS_TRACK,
+                    ExifInterface.TAG_GPS_TRACK_REF,
+                    ExifInterface.TAG_GPS_VERSION_ID,
+                    ExifInterface.TAG_MAKE,
+                    ExifInterface.TAG_MODEL,
+                    ExifInterface.TAG_SOFTWARE,
+                    ExifInterface.TAG_ARTIST,
+                    ExifInterface.TAG_COPYRIGHT,
+                    ExifInterface.TAG_DATETIME,
+                    ExifInterface.TAG_DATETIME_DIGITIZED,
+                    ExifInterface.TAG_DATETIME_ORIGINAL,
+                    ExifInterface.TAG_IMAGE_DESCRIPTION,
+                    ExifInterface.TAG_USER_COMMENT,
+                    ExifInterface.TAG_CAMERA_OWNER_NAME,
+                    ExifInterface.TAG_BODY_SERIAL_NUMBER,
+                    ExifInterface.TAG_LENS_MAKE,
+                    ExifInterface.TAG_LENS_MODEL,
+                    ExifInterface.TAG_LENS_SERIAL_NUMBER,
+                    ExifInterface.TAG_LENS_SPECIFICATION);
     private final XmppConnectionService mXmppConnectionService;
 
     public FileBackend(XmppConnectionService service) {
@@ -678,7 +728,34 @@ public class FileBackend {
             }
             setupRelativeFilePath(message, String.format("%s.%s", message.getUuid(), extension));
         }
-        copyFileToPrivateStorage(mXmppConnectionService.getFileBackend().getFile(message), uri);
+        final var destination = mXmppConnectionService.getFileBackend().getFile(message);
+        copyFileToPrivateStorage(destination, uri);
+        if (mime != null
+                && (mime.equals("image/jpeg")
+                        || mime.equals("image/png")
+                        || mime.equals("image/webp")
+                        || mime.equals("image/heic")
+                        || mime.equals("image/heif"))) {
+            stripExifMetadata(destination);
+        }
+    }
+
+    private static void stripExifMetadata(final File file) {
+        try {
+            final ExifInterface exif = new ExifInterface(file);
+            boolean modified = false;
+            for (final String tag : EXIF_PRIVACY_TAGS) {
+                if (exif.getAttribute(tag) != null) {
+                    exif.setAttribute(tag, null);
+                    modified = true;
+                }
+            }
+            if (modified) {
+                exif.saveAttributes();
+            }
+        } catch (final IOException | RuntimeException e) {
+            Log.d(Config.LOGTAG, "unable to strip exif metadata from " + file.getAbsolutePath(), e);
+        }
     }
 
     private String getExtensionFromUri(final Uri uri) {

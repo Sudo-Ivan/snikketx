@@ -170,6 +170,7 @@ public class EditMessage extends AppCompatEditText {
     @Override
     public InputConnection onCreateInputConnection(@NonNull EditorInfo editorInfo) {
         final InputConnection ic = super.onCreateInputConnection(editorInfo);
+        editorInfo.imeOptions |= EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING;
 
         if (mimeTypes != null && mCommitContentListener != null && ic != null) {
             EditorInfoCompat.setContentMimeTypes(editorInfo, mimeTypes);
