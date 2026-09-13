@@ -18,6 +18,14 @@
 		<item>-1</item>
 	</integer-array>
 
+	<integer-array name="ephemeral_timer_durations">
+		<item>0</item>
+		<item>60</item>
+		<item>3600</item>
+		<item>86400</item>
+		<item>604800</item>
+	</integer-array>
+
 	<string-array name="picture_compression_values">
 		<item>never</item>
 		<item>auto</item>
@@ -55,6 +63,12 @@
 		<item>604800</item>
 		<item>2592000</item>
 		<item>15811200</item>
+	</integer-array>
+	<integer-array name="app_lock_timeout_values">
+		<item>0</item>
+		<item>30</item>
+		<item>60</item>
+		<item>300</item>
 	</integer-array>
 	<integer-array name="recurring_backup_values">
 		<item>0</item>

@@ -79,6 +79,7 @@ import eu.siacs.conversations.ui.util.SettingsUtils;
 import eu.siacs.conversations.ui.util.SoftKeyboardUtils;
 import eu.siacs.conversations.ui.widget.AddReactionDialog;
 import eu.siacs.conversations.utils.AccountUtils;
+import eu.siacs.conversations.utils.AppLockManager;
 import eu.siacs.conversations.utils.Compatibility;
 import eu.siacs.conversations.utils.SignupUtils;
 import eu.siacs.conversations.xmpp.Jid;
@@ -228,6 +229,7 @@ public abstract class XmppActivity extends ActionBarActivity {
     @Override
     public void onStart() {
         super.onStart();
+        AppLockManager.onActivityStarted();
         if (!xmppConnectionServiceBound) {
             connectToBackend();
         } else {
@@ -255,6 +257,7 @@ public abstract class XmppActivity extends ActionBarActivity {
             unbindService(mConnection);
             xmppConnectionServiceBound = false;
         }
+        AppLockManager.onActivityStopped();
     }
 
     @RequiresApi(api = Build.VERSION_CODES.R)
@@ -1038,6 +1041,7 @@ public abstract class XmppActivity extends ActionBarActivity {
     protected void onResume() {
         super.onResume();
         SettingsUtils.applyScreenshotSetting(this);
+        AppLockManager.onActivityResumed(this);
     }
 
     @Override

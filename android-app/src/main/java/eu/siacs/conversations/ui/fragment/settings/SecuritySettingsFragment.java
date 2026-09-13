@@ -1,5 +1,7 @@
 package eu.siacs.conversations.ui.fragment.settings;
 
+import android.app.KeyguardManager;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Bundle;
 import android.widget.Toast;
@@ -8,6 +10,7 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.preference.ListPreference;
 import androidx.preference.Preference;
+import androidx.preference.SwitchPreferenceCompat;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.common.base.Strings;
 import eu.siacs.conversations.AppSettings;
@@ -15,6 +18,8 @@ import eu.siacs.conversations.R;
 import eu.siacs.conversations.crypto.OmemoSetting;
 import eu.siacs.conversations.services.MemorizingTrustManager;
 import eu.siacs.conversations.services.QuickConversationsService;
+import eu.siacs.conversations.utils.AppLockManager;
+import eu.siacs.conversations.utils.TimeFrameUtils;
 import java.security.KeyStoreException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -30,8 +35,14 @@ public class SecuritySettingsFragment extends XmppPreferenceFragment {
         final ListPreference omemo = findPreference(AppSettings.OMEMO);
         final ListPreference automaticMessageDeletion =
                 findPreference(AppSettings.AUTOMATIC_MESSAGE_DELETION);
+        final SwitchPreferenceCompat appLock = findPreference(AppSettings.APP_LOCK);
+        final ListPreference appLockTimeout = findPreference(AppSettings.APP_LOCK_TIMEOUT);
         final Preference serverConnection = findPreference(SERVER_CONNECTION);
-        if (omemo == null || automaticMessageDeletion == null || serverConnection == null) {
+        if (omemo == null
+                || automaticMessageDeletion == null
+                || appLock == null
+                || appLockTimeout == null
+                || serverConnection == null) {
             throw new IllegalStateException("The preference resource file is missing preferences");
         }
         omemo.setSummaryProvider(new OmemoSummaryProvider());
@@ -39,6 +50,28 @@ public class SecuritySettingsFragment extends XmppPreferenceFragment {
                 automaticMessageDeletion,
                 R.array.automatic_message_deletion_values,
                 value -> timeframeValueToName(requireContext(), value));
+        setValues(
+                appLockTimeout,
+                R.array.app_lock_timeout_values,
+                value -> appLockTimeoutToName(requireContext(), value));
+        appLock.setOnPreferenceChangeListener(
+                (preference, newValue) -> {
+                    if (!Boolean.TRUE.equals(newValue)) {
+                        return true;
+                    }
+                    final var keyguardManager =
+                            requireContext().getSystemService(KeyguardManager.class);
+                    if (keyguardManager == null || !keyguardManager.isDeviceSecure()) {
+                        Toast.makeText(
+                                        requireContext(),
+                                        R.string.app_lock_requires_screen_lock,
+                                        Toast.LENGTH_LONG)
+                                .show();
+                        return false;
+                    }
+                    AppLockManager.unlock();
+                    return true;
+                });
         if (QuickConversationsService.isQuicksy()) {
             serverConnection.setVisible(false);
         }
@@ -144,6 +177,13 @@ public class SecuritySettingsFragment extends XmppPreferenceFragment {
                                         R.plurals.toast_delete_certificates, count, count),
                         Toast.LENGTH_LONG)
                 .show();
+    }
+
+    private static String appLockTimeoutToName(final Context context, final int value) {
+        if (value <= 0) {
+            return context.getString(R.string.immediately);
+        }
+        return TimeFrameUtils.resolve(context, 1000L * value);
     }
 
     private static class OmemoSummaryProvider

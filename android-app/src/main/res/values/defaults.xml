@@ -50,4 +50,6 @@
     <bool name="auto_send_recording">true</bool>
     <bool name="align_start">false</bool>
     <bool name="use_shared_storage">false</bool>
+    <bool name="app_lock">false</bool>
+    <integer name="app_lock_timeout">0</integer>
 </resources>

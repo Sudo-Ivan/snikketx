@@ -81,6 +81,8 @@ public class AppSettings {
     public static final String CHAT_WALLPAPER = "chat_wallpaper";
     public static final String VOICE_PLAYBACK_SPEED = "voice_playback_speed";
     public static final String WIDGET_SHOW_MESSAGE_PREVIEW = "widget_show_message_preview";
+    public static final String APP_LOCK = "app_lock";
+    public static final String APP_LOCK_TIMEOUT = "app_lock_timeout";
 
     private static final String ACCEPT_INVITES_FROM_STRANGERS = "accept_invites_from_strangers";
     private static final String NOTIFICATIONS_FROM_STRANGERS = "notifications_from_strangers";
@@ -269,6 +271,14 @@ public class AppSettings {
     public boolean isWidgetShowMessagePreview() {
         return getBooleanPreference(
                 WIDGET_SHOW_MESSAGE_PREVIEW, R.bool.widget_show_message_preview);
+    }
+
+    public boolean isAppLockEnabled() {
+        return getBooleanPreference(APP_LOCK, R.bool.app_lock);
+    }
+
+    public long getAppLockTimeout() {
+        return getLongPreference(APP_LOCK_TIMEOUT, R.integer.app_lock_timeout);
     }
 
     public int getDesiredNightMode() {

@@ -370,6 +370,10 @@
             </intent-filter>
         </activity>
         <activity
+            android:name=".ui.LockActivity"
+            android:exported="false"
+            android:launchMode="singleTask" />
+        <activity
             android:name=".ui.ChooseContactActivity"
             android:label="@string/title_activity_choose_contact" />
         <activity

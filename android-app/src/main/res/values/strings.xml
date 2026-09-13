@@ -1138,6 +1138,16 @@
     <string name="last_seen">last seen %s</string>
     <string name="strong_transport_security">Strong transport security</string>
     <string name="require_tls_v1_3">Require Transport Layer Security (TLS) Protocol Version 1.3 for all connections</string>
+    <string name="pref_app_lock">App lock</string>
+    <string name="pref_app_lock_summary">Require a biometric or device credential to open the app</string>
+    <string name="pref_app_lock_timeout">Lock automatically</string>
+    <string name="immediately">Immediately</string>
+    <string name="unlock">Unlock</string>
+    <string name="unlock_to_continue">Unlock to continue</string>
+    <string name="app_locked">%s is locked</string>
+    <string name="app_lock_requires_screen_lock">App lock requires a device screen lock. Set up a PIN, pattern or password in the system settings first.</string>
+    <string name="no_unlock_method_available">No unlock method available. Set up a device screen lock or enroll biometrics in the system settings.</string>
+    <string name="no_screen_lock_configured">No device screen lock configured</string>
     <string name="empty_conversations_list_hint">Once you start a new conversation, you’ll see it listed here</string>
     <string name="number_reactions_are_restricted">Reaction limit reached.</string>
     <string name="this_reaction_isnt_allowed">This reaction isn’t allowed.</string>
