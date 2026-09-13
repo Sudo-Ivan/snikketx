@@ -62,7 +62,7 @@ docker run -d --name snikketx-rg-seed --network "$net" \
 docker exec -i -e RG_PASS="$password" -e RG_DOMAIN="$domain" -e RG_MODE="$MODE" \
 	-e RG_PORTAL_URL="$SNIKKETX_PORTAL_ENDPOINT" \
 	snikketx-rg-seed python3 - <<'PY'
-import json, os, urllib.request, http.cookiejar, time, urllib.error
+import json, os, urllib.request, time, urllib.error
 
 base = "http://ravenguard:9090/api/v1"
 password = os.environ["RG_PASS"]
@@ -71,27 +71,42 @@ mode = os.environ.get("RG_MODE", "prod")
 portal_url = os.environ.get("RG_PORTAL_URL", "http://snikket_portal:5765")
 hosts = [domain, f"share.{domain}", f"groups.{domain}"]
 
-cj = http.cookiejar.CookieJar()
-opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
+# The admin session cookie is marked Secure when tls.mode=acme, and cookie
+# jars will not replay Secure cookies over this plain-HTTP listener. Capture
+# it from the login response and send it explicitly instead.
+session_cookie = None
 
 def call(method, path, body=None, csrf=None):
 	data = None
 	headers = {"Content-Type": "application/json"}
 	if csrf:
 		headers["X-CSRF-Token"] = csrf
+	if session_cookie:
+		headers["Cookie"] = session_cookie
 	if body is not None:
 		data = json.dumps(body).encode()
 	req = urllib.request.Request(base + path, data=data, headers=headers, method=method)
-	with opener.open(req, timeout=30) as resp:
+	with urllib.request.urlopen(req, timeout=30) as resp:
 		raw = resp.read().decode() or "null"
 		return json.loads(raw)
 
 last_err = None
 for _ in range(60):
 	try:
-		call("POST", "/auth/login", {"username": "admin", "password": password})
-		last_err = None
-		break
+		req = urllib.request.Request(
+			base + "/auth/login",
+			data=json.dumps({"username": "admin", "password": password}).encode(),
+			headers={"Content-Type": "application/json"},
+			method="POST",
+		)
+		with urllib.request.urlopen(req, timeout=30) as resp:
+			resp.read()
+			set_cookies = resp.headers.get_all("Set-Cookie") or []
+		session_cookie = "; ".join(c.split(";", 1)[0] for c in set_cookies)
+		if session_cookie:
+			last_err = None
+			break
+		last_err = "no session cookie in login response"
 	except Exception as e:
 		last_err = e
 		time.sleep(1)
