@@ -341,7 +341,7 @@ if ENV_SNIKKET_TWEAK_TURNSERVER ~= "0" or ENV_SNIKKET_TWEAK_TURNSERVER_DOMAIN th
 end
 
 -- Allow restricted users access to push notification servers
-isolate_except_domains = { "push.snikket.net", "push-ios.snikket.net" }
+isolate_except_domains = { "push.snikket.net", "push-ios.snikket.net", "push.quad4.io" }
 
 VirtualHost (DOMAIN)
 	authentication = "internal_hashed"
