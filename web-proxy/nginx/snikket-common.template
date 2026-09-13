@@ -25,6 +25,10 @@ location /upload {
 	try_files none @prosody;
 }
 
+location /chat {
+	try_files none @prosody;
+}
+
 location /http-bind {
 	try_files none @prosodyws;
 }

@@ -131,7 +131,7 @@ local function handle_retraction(event, to_local)
 	else
 		-- Outbound retraction from a local client: the sent copy lives in
 		-- the sender's archive under 'with = recipient'.
-		local username, host = jid_split(stanza.attr.from);
+		local username = jid_split(stanza.attr.from);
 		if username then
 			tombstone_message(username, to_bare, message_id, from_bare);
 		end

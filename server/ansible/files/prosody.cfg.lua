@@ -12,6 +12,8 @@ local RETENTION_DAYS = Lua.tonumber(ENV_SNIKKET_RETENTION_DAYS) or 7;
 local UPLOAD_STORAGE_GB = Lua.tonumber(ENV_SNIKKET_UPLOAD_STORAGE_GB);
 local DAILY_UPLOAD_LIMIT_PER_USER_GB = Lua.tonumber(ENV_SNIKKET_DAILY_UPLOAD_LIMIT_PER_USER_GB);
 
+local LDAP_ENABLED = ENV_SNIKKET_TWEAK_LDAP == "1";
+
 if Lua.prosody.process_type == "prosody" and not Lua.prosody.config_loaded then
 	-- Wait at startup for certificates
 	local lfs, socket = Lua.require "lfs", Lua.require "socket";
@@ -61,6 +63,7 @@ modules_enabled = {
 		"time"; -- Let others know the time here on this server
 		"ping"; -- Replies to XMPP pings with pongs
 		"register"; -- Allow users to register on this server using a client and change passwords
+		"register_limits"; -- Rate limits on account creation (core module, no link needed)
 		"mam"; -- Store messages in an archive and allow users to access it
 		"csi_simple"; -- Simple Mobile optimizations
 
@@ -134,6 +137,7 @@ modules_enabled = {
 		"invites_tracking";
 		"invites_default_group";
 		"invites_bootstrap";
+		"snikket_invites_quota"; -- Per-user daily quota on contact invite creation
 
 		"firewall";
 
@@ -201,11 +205,17 @@ password_policy = {
 -- or people who want to opt into the new security sooner.
 enforce_client_ids = ENV_SNIKKET_TWEAK_REQUIRE_SASL2 == "1"
 
--- This disables in-app invites for non-admins
--- TODO: The plan is to enable it once we can
--- give the admin more fine-grained control
--- over what happens when a user invites someone.
-allow_contact_invites = false
+-- In-app contact invites for regular users (XEP-0401). Disabled by default:
+-- open invite creation can be abused to mass-invite contacts, so it is
+-- limited by a per-user daily quota enforced by mod_snikket_invites_quota.
+allow_contact_invites = (ENV_SNIKKET_TWEAK_CONTACT_INVITES == "1")
+
+-- Whether regular users may create invites that can register new accounts.
+-- Disabled by default: every such invite can create a real account.
+allow_user_invites = (ENV_SNIKKET_TWEAK_USER_INVITES == "1")
+
+-- Max contact invites a single user may create per UTC day (admins exempt)
+invites_daily_limit = Lua.tonumber(ENV_SNIKKET_TWEAK_CONTACT_INVITES_PER_DAY) or 20
 
 -- Disallow restricted users to create invitations to the server
 deny_user_invites_by_roles = { "prosody:restricted" }
@@ -288,17 +298,27 @@ log = {
 	[ENV_SNIKKET_LOGLEVEL or "info"] = "*stdout"
 }
 
-authentication = "internal_hashed"
 authorization = "internal"
-disable_sasl_mechanisms = { "PLAIN", "OAUTHBEARER" }
 allow_unencrypted_plain_auth = false
 
--- SCRAM hash used for stored credentials. SHA-256 is recommended for new
--- deployments, but it MUST be set before the first account is created:
--- stored keys are hash-specific, so changing it on an existing host
--- invalidates every password (users would need a reset).
-password_hash = ENV_SNIKKET_TWEAK_PASSWORD_HASH or "SHA-1"
-default_iteration_count = Lua.tonumber(ENV_SNIKKET_TWEAK_ITERATION_COUNT) or 10000
+if LDAP_ENABLED then
+	-- mod_auth_ldap2 only supports SASL PLAIN over an LDAP simple bind:
+	-- passwords reach the server in plaintext and are protected only by
+	-- TLS (c2s_require_encryption stays enabled). PLAIN must not be
+	-- disabled, and the SCRAM storage options do not apply to LDAP.
+	authentication = "ldap2"
+	disable_sasl_mechanisms = { "OAUTHBEARER" }
+else
+	authentication = "internal_hashed"
+	disable_sasl_mechanisms = { "PLAIN", "OAUTHBEARER" }
+
+	-- SCRAM hash used for stored credentials. SHA-256 is recommended for new
+	-- deployments, but it MUST be set before the first account is created:
+	-- stored keys are hash-specific, so changing it on an existing host
+	-- invalidates every password (users would need a reset).
+	password_hash = ENV_SNIKKET_TWEAK_PASSWORD_HASH or "SHA-1"
+	default_iteration_count = Lua.tonumber(ENV_SNIKKET_TWEAK_ITERATION_COUNT) or 10000
+end
 
 if ENV_SNIKKET_TWEAK_STORAGE == "sqlite" then
 	storage = "sql"
@@ -376,10 +396,45 @@ end
 isolate_except_domains = { "push.snikket.net", "push-ios.snikket.net", "push.quad4.io" }
 
 VirtualHost (DOMAIN)
-	authentication = "internal_hashed"
 	contact_uri = "https://" .. DOMAIN .. "/"
 
-	modules_enabled = {}
+	if LDAP_ENABLED then
+		authentication = "ldap2"
+		-- Accounts come from the directory, so invite-based account
+		-- registration is not meaningful when LDAP auth is enabled.
+		-- hostname may be a plain host, host:port or an ldaps:// URI.
+		local ldap_config = {
+			hostname = Lua.assert(ENV_SNIKKET_LDAP_HOST, "SNIKKET_LDAP_HOST is required when SNIKKET_TWEAK_LDAP=1")
+				.. (ENV_SNIKKET_LDAP_PORT and (":"..ENV_SNIKKET_LDAP_PORT) or "");
+			bind_dn = ENV_SNIKKET_LDAP_BIND_DN;
+			bind_password = ENV_SNIKKET_LDAP_BIND_PASSWORD
+				or (ENV_SNIKKET_LDAP_BIND_PASSWORD_FILE and FileLine(ENV_SNIKKET_LDAP_BIND_PASSWORD_FILE));
+			use_tls = (ENV_SNIKKET_LDAP_USE_TLS == "1");
+			user = {
+				basedn = ENV_SNIKKET_LDAP_USER_BASE_DN;
+				usernamefield = ENV_SNIKKET_LDAP_USERNAME_FIELD or "uid";
+				namefield = ENV_SNIKKET_LDAP_NAME_FIELD or "cn";
+				filter = ENV_SNIKKET_LDAP_USER_FILTER;
+			};
+		}
+		if ENV_SNIKKET_LDAP_GROUP_BASE_DN then
+			ldap_config.groups = {
+				basedn = ENV_SNIKKET_LDAP_GROUP_BASE_DN;
+				memberfield = ENV_SNIKKET_LDAP_GROUP_MEMBER_FIELD or "member";
+				namefield = "cn";
+			}
+		end
+		ldap = ldap_config
+		-- groups_migration enumerates local accounts, which do not exist
+		-- under LDAP auth
+		modules_disabled = { "groups_migration" }
+	else
+		authentication = "internal_hashed"
+	end
+
+	modules_enabled = {
+		"snikket_badinage";
+	}
 	firewall_scripts = {}
 
 	http_files_dir = "/var/www"
@@ -388,6 +443,7 @@ VirtualHost (DOMAIN)
 		landing_page = "/";
 		invites_page = "/invite";
 		invites_register = "/register";
+		badinage = "/chat";
 	}
 
 	if ENV_SNIKKET_TWEAK_PROMETHEUS == "1" then

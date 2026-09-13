@@ -103,10 +103,15 @@ for m in \
   mod_http_connect \
   mod_restrict_federation \
   mod_protect_last_admin \
-  mod_c2s_limit_sessions
+  mod_c2s_limit_sessions \
+  mod_auth_ldap2
 do
   link_mod "$m"
 done
+
+# mod_lib_ldap is a plugin library: module:require "ldap" resolves
+# ldap.lib.lua directly in a plugin path, not inside a mod_* directory.
+ln -sfn /usr/local/lib/prosody-modules/mod_lib_ldap/ldap.lib.lua /etc/prosody/modules/ldap.lib.lua
 
 for m in \
   mod_update_check \
@@ -127,7 +132,9 @@ for m in \
   mod_snikket_muc_api \
   mod_snikket_ops_api \
   mod_snikket_data_policy \
-  mod_snikket_tombstones
+  mod_snikket_tombstones \
+  mod_snikket_invites_quota \
+  mod_snikket_badinage
 do
   ln -sfn "/usr/local/lib/snikket-modules/$m" "/etc/prosody/modules/$m"
 done

@@ -1,6 +1,43 @@
 # syntax=docker/dockerfile:1.27.0@sha256:bde3983e9c939224420ddaf6b784cc30e09b035a4dea01f581230c50809f372e
 
 
+# Badinage web client build. No release tarballs are published, so the
+# source is fetched at a pinned commit and built with VITE_BASE=/chat/ to
+# match the HTTP path mod_snikket_badinage serves it under.
+# Pinned pnpm install follows upstream docker/Dockerfile.
+FROM docker.io/library/node:26-alpine@sha256:ef24c5053d50fdc3e4e56eb4e7ddb7861874ab0fdc797046ba897581deb8e868 AS badinage-build
+
+ARG BADINAGE_VERSION=73930133b3b62cf1a9704adbb1187c6bc241fd3d
+ARG BADINAGE_SHA256=bcaf797100042900d40ca800d05a335194131b7c01835dcc512f1aaa0cc718d9
+ARG PNPM_VERSION=11.24.0
+ARG PNPM_SHA256_X64=2fce00e10729d0c1f3836d499b908697fd3cd0832332651fbcee79c0a7442dcb
+ARG PNPM_SHA256_ARM64=950160e3d1d039e0bd1f234da5a307fdc9c1d6b9c030683adfcb85f607c7d500
+ARG TARGETARCH
+
+WORKDIR /badinage
+
+RUN set -eu; \
+    case "${TARGETARCH:-$(uname -m)}" in \
+      amd64|x86_64) pnpm_arch=x64; pnpm_sum="$PNPM_SHA256_X64" ;; \
+      arm64|aarch64) pnpm_arch=arm64; pnpm_sum="$PNPM_SHA256_ARM64" ;; \
+      *) echo "unsupported arch" >&2; exit 1 ;; \
+    esac; \
+    wget -qO /tmp/pnpm.tgz "https://github.com/pnpm/pnpm/releases/download/v${PNPM_VERSION}/pnpm-linux-${pnpm_arch}-musl.tar.gz"; \
+    echo "$pnpm_sum  /tmp/pnpm.tgz" | sha256sum -c -; \
+    mkdir -p /usr/local/lib/pnpm; \
+    tar -xzf /tmp/pnpm.tgz -C /usr/local/lib/pnpm; \
+    ln -s /usr/local/lib/pnpm/pnpm /usr/local/bin/pnpm; \
+    rm /tmp/pnpm.tgz
+
+RUN set -eu; \
+    wget -qO /tmp/badinage.tar.gz "https://github.com/Quad4-Software/Badinage/archive/${BADINAGE_VERSION}.tar.gz"; \
+    echo "$BADINAGE_SHA256  /tmp/badinage.tar.gz" | sha256sum -c -; \
+    tar -xzf /tmp/badinage.tar.gz --strip-components=1; \
+    rm /tmp/badinage.tar.gz; \
+    pnpm install --frozen-lockfile; \
+    VITE_BASE=/chat/ pnpm build
+
+
 FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b AS build
 
 ARG BUILD_SERIES=dev
@@ -16,7 +53,7 @@ RUN apk upgrade --no-cache \
       ca-certificates curl wget tar gzip bash coreutils shadow \
       prosody coturn s6 msmtp idn2-utils libqrencode-tools \
       lua5.4 lua5.4-expat lua5.4-filesystem lua5.4-sec lua5.4-socket \
-      lua5.4-unbound lua5.4-dbi-sqlite3 openssl
+      lua5.4-unbound lua5.4-dbi-sqlite3 lua5.4-ldap openssl
 
 COPY tools/smtp-url-to-msmtp.lua /usr/local/bin/smtp-url-to-msmtp
 COPY docker/entrypoint.sh /bin/entrypoint.sh
@@ -50,6 +87,7 @@ ARG BUILD_DATE=unknown
 ENV LANG=C.UTF-8
 
 COPY --from=build / /
+COPY --from=badinage-build /badinage/dist /usr/local/lib/snikket-badinage
 
 USER root
 

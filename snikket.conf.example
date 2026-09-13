@@ -29,3 +29,39 @@ SNIKKET_LETSENCRYPT_TOS_AGREE=N
 # Optional: PBKDF2 iteration count for stored passwords (default 10000).
 # Higher is harder to brute force but slower on sign-in.
 # SNIKKET_TWEAK_ITERATION_COUNT=10000
+
+# Optional: authenticate users against an LDAP directory (org/SSO
+# deployments). Accounts come from the directory, so invite-based account
+# registration does not apply while this is enabled.
+# WARNING: LDAP auth uses a simple bind, so passwords reach Prosody and the
+# LDAP server in plaintext. They are only protected by TLS on the wire
+# (c2s_require_encryption stays enabled); there is no SCRAM hashing.
+# SNIKKET_TWEAK_LDAP=1
+# SNIKKET_LDAP_HOST=ldap.example.com
+# SNIKKET_LDAP_PORT=389
+# SNIKKET_LDAP_USE_TLS=1
+# SNIKKET_LDAP_BIND_DN=cn=prosody,dc=example,dc=com
+# SNIKKET_LDAP_BIND_PASSWORD=secret
+# Or read the bind password from a file instead:
+# SNIKKET_LDAP_BIND_PASSWORD_FILE=/run/secrets/ldap_bind_password
+# SNIKKET_LDAP_USER_BASE_DN=ou=users,dc=example,dc=com
+# SNIKKET_LDAP_USERNAME_FIELD=uid
+# SNIKKET_LDAP_NAME_FIELD=cn
+# SNIKKET_LDAP_USER_FILTER=(objectClass=inetOrgPerson)
+# SNIKKET_LDAP_GROUP_BASE_DN=ou=groups,dc=example,dc=com
+# SNIKKET_LDAP_GROUP_MEMBER_FIELD=member
+
+# Optional: allow regular users to create contact invites from their
+# client (XEP-0401). Disabled by default because unrestricted invite
+# creation can be abused to mass-invite contacts; combine with the daily
+# quota below when enabling.
+# SNIKKET_TWEAK_CONTACT_INVITES=1
+
+# Optional: allow regular users to create invites that can register new
+# accounts on this server. Disabled by default: every such invite can
+# create a real account, so only enable if users may onboard others.
+# SNIKKET_TWEAK_USER_INVITES=1
+
+# Optional: maximum contact invites a single user may create per UTC day
+# (default 20). Admin users are exempt. Limits abuse of in-app invites.
+# SNIKKET_TWEAK_CONTACT_INVITES_PER_DAY=20
