@@ -52,10 +52,32 @@ const (
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "-healthcheck" {
+		os.Exit(healthcheck())
+	}
 	if err := run(); err != nil {
 		slog.Error("startup failed", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
+}
+
+// healthcheck runs inside the container through the Docker HEALTHCHECK
+// instruction. Exit 0 when the local health endpoint answers.
+func healthcheck() int {
+	port := os.Getenv("SNIKKET_TWEAK_PORTAL_INTERNAL_HTTP_PORT")
+	if port == "" {
+		port = "5765"
+	}
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Get("http://127.0.0.1:" + port + "/_health")
+	if err != nil {
+		return 1
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return 1
+	}
+	return 0
 }
 
 // run wires the application together and serves until a signal arrives.

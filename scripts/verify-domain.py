@@ -339,6 +339,31 @@ def check_https(host, timeout):
         report(FAIL, f"HTTPS {url} -> {code}")
 
 
+def check_addr_reach(domain, port, timeout):
+    """Connect to every resolved address directly. An advertised address
+    that does not answer is a misconfiguration, because clients prefer
+    IPv6 and would hit a dead end."""
+    try:
+        infos = socket.getaddrinfo(domain, port, proto=socket.IPPROTO_TCP)
+    except socket.gaierror:
+        return
+    seen = set()
+    for fam, _t, _p, _c, sa in infos:
+        label = "IPv6" if fam == socket.AF_INET6 else "IPv4"
+        if label in seen:
+            continue
+        seen.add(label)
+        try:
+            with socket.create_connection(sa, timeout=timeout):
+                report(PASS, f"{label} {domain}:{port} accepts "
+                             f"connections ({sa[0]})")
+        except Exception as exc:
+            rtype = "AAAA" if fam == socket.AF_INET6 else "A"
+            report(FAIL, f"{label} {domain}:{port} does not answer "
+                         f"({sa[0]}: {exc}). Either publish {label} for "
+                         f"this service or remove the {rtype} record")
+
+
 def check_tcp(domain, port, label, timeout):
     try:
         with socket.create_connection((domain, port), timeout=timeout):
@@ -443,6 +468,8 @@ def main():
         check_tlsa(5222, domain, nameserver, args.timeout, der_5222)
         check_tlsa(5269, domain, nameserver, args.timeout, der_5269)
         check_tls_port(domain, 5223, "XMPP direct TLS", args.timeout)
+        check_addr_reach(domain, 443, args.timeout)
+        check_addr_reach(domain, 5222, args.timeout)
         check_stun(domain, args.timeout)
         check_tcp(domain, 3478, "STUN/TURN", args.timeout)
         check_tls_port(domain, 5349, "TURN TLS", args.timeout)

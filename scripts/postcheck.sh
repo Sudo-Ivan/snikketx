@@ -63,6 +63,15 @@ for c in "${required[@]}"; do
 		docker logs "$c" --tail 15 2>&1 | sed 's/^/  /' || true
 		echo "  --- end ${c} logs ---"
 	fi
+	health=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{end}}' \
+		"$c" 2>/dev/null || echo "")
+	case "$health" in
+	healthy) ok "container ${c} healthcheck: healthy" ;;
+	"") ;;
+	starting) warn "container ${c} healthcheck still starting" ;;
+	*) fail "container ${c} healthcheck: ${health}"
+		hint "check: docker inspect --format '{{json .State.Health}}' ${c}" ;;
+	esac
 	if [[ "$restarts" =~ ^[0-9]+$ ]] && [[ "$restarts" -gt 5 ]]; then
 		warn "container ${c} has ${restarts} restarts (possible crash loop)"
 	fi
@@ -167,7 +176,8 @@ else
 	ok "no prosody errors in the last 15m"
 fi
 
-if docker logs snikket --since 60m 2>&1 | grep -q "turndb"; then
+if docker logs snikket --since 60m 2>&1 \
+	| grep -qiE "(error|fail|cannot|denied).*turndb|turndb.*(error|fail|cannot|denied)"; then
 	warn "prosody TURN database error seen in the last hour (turndb)"
 	hint "check /snikket/turnserver/turndb permissions inside container snikket"
 fi
@@ -223,43 +233,66 @@ for spec in "3478/udp" "3478/tcp" "5349/tcp" "5349/udp" \
 	fi
 done
 
-# UDP relay range must also be open on the host firewall for calls to
-# get relay candidates when peers cannot connect directly.
-if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: active"; then
-	if ufw status 2>/dev/null | grep -qE "${turn_min}:${turn_max}/udp"; then
-		ok "ufw allows TURN relay range ${turn_min}:${turn_max}/udp"
-	else
-		fail "ufw does not allow TURN relay range ${turn_min}:${turn_max}/udp"
-		hint "allow it: ufw allow ${turn_min}:${turn_max}/udp"
-	fi
-fi
+# The UDP relay range must also be open on the host firewall for calls
+# to get relay candidates. That is covered in the firewall section.
 
 echo ""
 echo "== Host firewall =="
 
-required_ports_tcp="80 443 5222 5223 5269 3478 5349"
-required_ports_udp="443 3478 5349"
+required_specs="80/tcp 443/tcp 443/udp 5222/tcp 5223/tcp 5269/tcp \
+5000/tcp 3478/tcp 3478/udp 3479/tcp 3479/udp 5349/tcp 5349/udp \
+5350/tcp 5350/udp"
+
+ufw_allows() {
+	# ufw_allows <port-or-range> <proto> -> 0 when ufw covers it
+	local port="$1" proto="$2"
+	if ufw status 2>/dev/null \
+		| grep -qE "(^|[[:space:]])${port}(/${proto})?[[:space:]]+ALLOW"; then
+		return 0
+	fi
+	# The SnikketX ufw application profile covers ports as a group.
+	if ufw status 2>/dev/null | grep -qiE "^SnikketX[[:space:]]+ALLOW"; then
+		ufw app info SnikketX 2>/dev/null \
+			| grep -qE "(^|[|[:space:]])${port}(/${proto})?([|[:space:]]|$)"
+		return
+	fi
+	return 1
+}
 
 if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: active"; then
 	echo "ufw is active, checking required ports"
-	for p in $required_ports_tcp; do
-		if ufw status 2>/dev/null | grep -qE "(^|[[:space:]])${p}(/tcp)?[[:space:]]"; then
-			ok "ufw allows ${p}/tcp"
+	ufw_missing=0
+	for spec in $required_specs; do
+		port="${spec%/*}"
+		proto="${spec#*/}"
+		if ufw_allows "$port" "$proto"; then
+			ok "ufw allows ${spec}"
 		else
-			fail "ufw does not list ${p}/tcp as allowed"
-			hint "allow it: ufw allow ${p}/tcp"
+			fail "ufw does not list ${spec} as allowed"
+			hint "allow it: ufw allow ${spec}"
+			ufw_missing=$((ufw_missing + 1))
 		fi
 	done
-	for p in $required_ports_udp; do
-		if ufw status 2>/dev/null | grep -qE "(^|[[:space:]])${p}/udp[[:space:]]"; then
-			ok "ufw allows ${p}/udp"
-		else
-			fail "ufw does not list ${p}/udp as allowed"
-			hint "allow it: ufw allow ${p}/udp"
+	turn_range="${turn_min}:${turn_max}"
+	if ufw_allows "$turn_range" udp; then
+		ok "ufw allows ${turn_range}/udp"
+	else
+		fail "ufw does not list ${turn_range}/udp as allowed"
+		hint "allow it: ufw allow ${turn_range}/udp"
+		ufw_missing=$((ufw_missing + 1))
+	fi
+	if [[ "$ufw_missing" -gt 0 ]]; then
+		hint "open them all at once: ./scripts/firewall.sh"
+		if [[ -t 0 ]]; then
+			read -rp "Open the missing ports on ufw now? [y/N] " ans
+			case "$ans" in
+			y | Y | yes | YES) ./scripts/firewall.sh --yes ;;
+			esac
 		fi
-	done
+	fi
 elif command -v ufw >/dev/null 2>&1; then
 	echo "ufw installed but inactive, skipping"
+	hint "before enabling ufw allow your SSH port: ufw allow ssh && ufw enable"
 else
 	echo "ufw not installed, skipping"
 fi

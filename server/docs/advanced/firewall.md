@@ -13,6 +13,7 @@ SnikketX currently requires the following ports to be open/forwarded:
  | :------------ | :--------------------------------------------------------------------------------- |
  | 80/443        | Web Interface And Group File Sharing Service (HTTP(S))                             |                                                                                                 
  | 5222          | Client App Connections (Client to Server) (XMPP-c2s)                               |               
+ | 5223          | Client App Connections over Direct TLS (XMPP-c2s)                                  |
  | 5269          | Federation With Other SnikketX Servers (Server to Server) (XMPP-s2s)                |                                                                                                      
  | 5000          | File Transfer Proxy (proxy65)                                                      |
   
@@ -25,7 +26,8 @@ SnikketX currently requires the following ports to be open/forwarded:
 
  |**UDP only**  |                                                                                    |
  | :----------- | :----------------------------------------------------------------------------------|
- | 49152-65535  | Audio/Video Data Proxy (Turn Data, see below)                                      |
+ | 443          | HTTP/3 (QUIC) for the web edge                                                     |
+ | 49152-49251  | Audio/Video Data Proxy (Turn Data, see below)                                      |
 
 Obviously your server may need additional ports open as well as these, depending on what services you run.
 For example you will definitely want to keep your SSH port (usually port 22) open if you manage your server
@@ -38,7 +40,7 @@ The STUN/TURN server is required for audio/video (A/V) calls to work reliably on
 However, some appliances will not allow forwarding a large range of UDP ports as normally required for TURN. If you have to forward ports through such an appliance, you can tweak the port range used by the STUN/TURN server using the following two configuration options:
 
 * `SNIKKET_TWEAK_TURNSERVER_MIN_PORT`: Set the lower bound of the port range (default: 49152)
-* `SNIKKET_TWEAK_TURNSERVER_MAX_PORT`: Set the upper bound of the port range (default: 65535)
+* `SNIKKET_TWEAK_TURNSERVER_MAX_PORT`: Set the upper bound of the port range (default: 49251 in the shipped compose file)
 
 Both numbers must be larger than 1024 and smaller than or equal to 65535. Keeping them above 40000 is generally recommended for network standards reasons. Obviously, the min number must be less than or equal to the max number.
 
@@ -63,27 +65,35 @@ That means that if you have 20 users and want to allow them to start calls at th
 
 ## Configuring UFW to Allow Ports for SnikketX
 
-[UFW](https://wiki.ubuntu.com/UncomplicatedFirewall), the Uncomplicated Firewall, is a user-friendly interface to the more complicated iptables commands that control a Linux systems's firewall. 
+[UFW](https://wiki.ubuntu.com/UncomplicatedFirewall), the Uncomplicated Firewall, is a user-friendly interface to the more complicated iptables commands that control a Linux systems's firewall.
 
-It is possible to manually add each of the above ports with `ufw` commands like the following: `# ufw allow 5000/tcp comment 'File Transfer Proxy (proxy65)'`, however, doing so is tedious and clutters the output of `# ufw status`. A better way is to create a custom ufw application, which we will call "SnikketX" and have ufw add rules for that application. This is not only easier and declarative but also has the advantage of yielding a clean `# ufw status` report that looks as follows:
+The easiest path is the helper script, which audits the current rules,
+writes a ufw application profile, and offers to allow everything at once.
+It also reviews fail2ban jails for banned addresses:
 
 ```
-To       Action    From 
+./scripts/firewall.sh
+```
+
+It is also possible to do it by hand. Add each port with `ufw` commands like `# ufw allow 5000/tcp`, or create a custom ufw application called "SnikketX" and allow it once, which yields a clean `# ufw status` report:
+
+```
+To       Action    From
 --       ------    ----
 SnikketX  ALLOW     Anywhere
 ```
 
-Create the following file at `/etc/ufw/applications.d/ufw-snikket`.
-If you [changed the TURN server port range](#changing-the-turnserver-port-range) then you should change the last part (`49152:65535/udp`) to reflect this.
+Create the following file at `/etc/ufw/applications.d/snikketx`.
+If you [changed the TURN server port range](#changing-the-turnserver-port-range) then you should change the last part (`49152:49251/udp`) to reflect this.
 
 ```
 [SnikketX]
 title=SnikketX Server
-description=Simple XMPP Server
-ports=80/tcp|443/tcp|5222/tcp|5269/tcp|5000/tcp|3478|3479|5349|5350|49152:65535/udp
+description=SnikketX XMPP server ports
+ports=80/tcp|443/tcp|443/udp|5222/tcp|5223/tcp|5269/tcp|5000/tcp|3478|3479|5349|5350|49152:49251/udp
 ```
 
 Add the new rule:
-`# ufw allow snikket`
+`# ufw allow SnikketX`
 
 Running `# ufw status` should now show SnikketX as a rule. If you want to see all the specific ports that have been allowed by adding this rule you can run `# ufw status verbose`.

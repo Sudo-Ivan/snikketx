@@ -36,11 +36,20 @@ x-tmpfs: &tmpfs
   tmpfs:
     - /tmp:size=64m,mode=1777
 
+x-healthcheck: &healthcheck
+  interval: 30s
+  timeout: 5s
+  retries: 3
+  start_period: 15s
+
 services:
   traefik:
     <<: [*defaults, *cap-drop, *read-only, *tmpfs]
     image: docker.io/library/traefik:v3.7.13@sha256:f86a2cab1b5c649070c49f883c743dd32d8485a56e3368c5f93b9e91f1e91259
     container_name: snikketx-traefik
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
     cap_add:
       - NET_BIND_SERVICE
     environment:
@@ -79,6 +88,9 @@ services:
     <<: [*defaults, *cap-drop, *read-only]
     image: docker.io/library/busybox:1.38.0@sha256:dc2d74b28e4cf8984fa52af1f39bc7c3d9c73760b41a74d629f5d11b1ab28616
     container_name: snikketx-acme-webroot
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD-SHELL", "pgrep httpd >/dev/null"]
     user: "65534:65534"
     tmpfs:
       - /tmp:size=8m,mode=1777
@@ -94,6 +106,9 @@ services:
       # Only used by scripts/enable-dns-acme.sh installs. Empty keeps
       # certbot on the default HTTP-01 webroot challenge.
       CF_DNS_API_TOKEN: ${CF_DNS_API_TOKEN:-}
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD-SHELL", "test ! -f /snikket/letsencrypt/has-errors"]
     cap_add:
       - CHOWN
       - SETUID
@@ -117,6 +132,9 @@ services:
       SNIKKET_WEB_UPDATER_TOKEN: ${SNIKKET_UPDATER_TOKEN:-snikket-updater-local}
       SNIKKET_WEB_BACKUP_ENDPOINT: ${SNIKKET_WEB_BACKUP_ENDPOINT:-http://snikket_backup:9292}
       SNIKKET_WEB_BACKUP_TOKEN: ${SNIKKET_BACKUP_TOKEN:-snikket-backup-local}
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD", "/portal", "-healthcheck"]
     volumes:
       - portal_data:/var/lib/snikket-web-portal
     depends_on:
@@ -140,6 +158,10 @@ services:
       SNIKKET_TWEAK_INTERNAL_HTTP_PORT: "5280"
       SNIKKET_TWEAK_TURNSERVER_MIN_PORT: ${SNIKKET_TURN_MIN_PORT:-49152}
       SNIKKET_TWEAK_TURNSERVER_MAX_PORT: ${SNIKKET_TURN_MAX_PORT:-49251}
+    healthcheck:
+      <<: *healthcheck
+      start_period: 60s
+      test: ["CMD-SHELL", "prosodyctl status >/dev/null 2>&1"]
     volumes:
       - snikket_data:/snikket
     ports:
@@ -175,6 +197,9 @@ services:
       SNIKKET_UPDATER_REQUIRE_SIGNATURES: ${SNIKKET_UPDATER_REQUIRE_SIGNATURES:-true}
       SNIKKET_UPDATER_COSIGN_IDENTITY_REGEXP: ${SNIKKET_UPDATER_COSIGN_IDENTITY_REGEXP:-https://github.com/Sudo-Ivan/snikketx/.*}
       SNIKKET_UPDATER_COSIGN_OIDC_ISSUER: ${SNIKKET_UPDATER_COSIGN_OIDC_ISSUER:-https://token.actions.githubusercontent.com}
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9191/healthz"]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./:/work:ro
@@ -197,6 +222,9 @@ services:
       RESTIC_PASSWORD_FILE: ${RESTIC_PASSWORD_FILE:-}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+    healthcheck:
+      <<: *healthcheck
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9292/healthz"]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./:/work:ro
