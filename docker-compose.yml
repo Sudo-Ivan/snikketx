@@ -39,7 +39,7 @@ x-tmpfs: &tmpfs
 services:
   ravenguard:
     <<: [*defaults, *cap-drop, *read-only, *tmpfs]
-    image: ghcr.io/quad4-software/ravenguard:edge@sha256:36e9df0c1812cb015443d6e5690e6e487b73ee02e281e83b6036d5475ecf0365
+    image: ghcr.io/quad4-software/ravenguard:edge@sha256:55597ca6eb9de4b5b68f72ed745d2fc3ac789b3fa2f9af009f1baeb62ea9a01d
     container_name: snikketx-ravenguard
     user: "65532:65532"
     cap_add:

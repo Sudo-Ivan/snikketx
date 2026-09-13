@@ -253,17 +253,9 @@ echo "== 5/6 Preflight + start =="
 ./scripts/preflight.sh || true
 ./scripts/start.sh
 
-echo "== 6/6 Verify =="
-for _ in $(seq 1 60); do
-	up=1
-	for c in snikket snikket-portal snikketx-ravenguard; do
-		st=$(docker inspect -f '{{.State.Running}}' "$c" 2>/dev/null || echo false)
-		[[ "$st" == "true" ]] || up=0
-	done
-	[[ "$up" -eq 1 ]] && break
-	sleep 2
-done
-./scripts/status.sh || echo "HTTPS probe still pending (first ACME issuance can take a minute)."
+echo "== 6/6 Post-check =="
+postcheck_rc=0
+./scripts/postcheck.sh prod || postcheck_rc=$?
 
 cat <<EOF
 
@@ -280,3 +272,10 @@ If something is wrong:
 When you trust SnikketX, you can remove deploy/migrate/docker-compose.migrate.yml
 only after copying data into a native snikketx_snikket_data volume (optional).
 EOF
+
+if [[ "$postcheck_rc" -ne 0 ]]; then
+	echo ""
+	echo "Post-check reported failures; review the output above before trusting" >&2
+	echo "the migration. The classic backup is still at ${LATEST}." >&2
+	exit "$postcheck_rc"
+fi

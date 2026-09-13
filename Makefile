@@ -1,6 +1,6 @@
 .PHONY: all docker docker-server docker-portal docker-proxy docker-certs docker-updater docker-backup \
 	init-dev up up-dev down down-dev status status-prod logs logs-prod admin invite preflight \
-	backup backup-status restore migrate rollback screenshot
+	backup backup-status restore migrate rollback update postcheck verify screenshot
 
 IMAGE_PREFIX ?= ghcr.io/sudo-ivan/snikketx
 TAG ?= latest
@@ -96,6 +96,15 @@ migrate:
 
 rollback:
 	./scripts/rollback-to-snikket.sh --from "$(FROM)" --backup-dir "$(BACKUP_DIR)" $(ROLLBACK_FLAGS)
+
+update:
+	./scripts/update.sh $(UPDATE_FLAGS)
+
+postcheck:
+	./scripts/postcheck.sh
+
+verify:
+	./scripts/verify-domain.py
 
 screenshot:
 	./scripts/screenshot-dashboard.sh

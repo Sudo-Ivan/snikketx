@@ -87,6 +87,9 @@ usable backup is picked automatically. Without flags, rollback falls back to
 | `make invite` | Admin invite link |
 | `make preflight` | Docker, DNS, ports, firewall hints |
 | `make backup DEST=/abs/dir` | Full backup (data + config + SnikketX volumes) |
+| `make update` | git pull + image pull + restart + post-check (`UPDATE_FLAGS=--no-git`) |
+| `make postcheck` | Containers, edge probe, external domain verification |
+| `make verify` | DNS/TLS/DANE/port verifier only (`scripts/verify-domain.py`) |
 | `make backup-status` | Backup service status when the sidecar is running |
 | `make restore ARCHIVE=/abs/snikket-data-....tar.gz` | Restore Prosody `/snikket` (`RESTORE_FLAGS=--full --dry-run` supported) |
 | `make down` / `make down-dev` | Stop stack |
