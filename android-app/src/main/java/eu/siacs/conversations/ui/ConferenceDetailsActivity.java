@@ -50,6 +50,7 @@ import eu.siacs.conversations.ui.util.MucDetailsContextMenuHelper;
 import eu.siacs.conversations.ui.util.SoftKeyboardUtils;
 import eu.siacs.conversations.utils.AccountUtils;
 import eu.siacs.conversations.utils.Compatibility;
+import eu.siacs.conversations.utils.MessageStyling;
 import eu.siacs.conversations.utils.StylingHelper;
 import eu.siacs.conversations.xmpp.manager.BookmarkManager;
 import eu.siacs.conversations.xmpp.manager.MultiUserChatManager;
@@ -622,7 +623,7 @@ public class ConferenceDetailsActivity extends XmppActivity
         }
         if (Bookmark.printableValue(subject)) {
             final var spannable = new SpannableString(subject);
-            StylingHelper.format(spannable, this.binding.mucSubject.getCurrentTextColor());
+            MessageStyling.format(spannable, this.binding.mucSubject.getCurrentTextColor());
             Linkify.addLinks(spannable);
             FixedURLSpan.fix(spannable);
             this.binding.mucSubject.setText(spannable);

@@ -28,7 +28,6 @@ public final class MessageStyling {
     }
 
     private static final String SPAN_DIRECTIVES = "*_~`";
-    private static final String OPENING_BOUNDARY_PUNCTUATION = "\"'({[<";
     private static final String FENCE = "```";
 
     private MessageStyling() {}
@@ -127,33 +126,37 @@ public final class MessageStyling {
 
     private static void parseSpans(
             final CharSequence text, final int start, final int end, final List<Style> styles) {
-        final Deque<int[]> opens = new ArrayDeque<>();
+        // One stack of open positions per directive char. All lookups are
+        // O(1) so pathological input stays linear.
+        @SuppressWarnings("unchecked")
+        final Deque<Integer>[] opens = new Deque[SPAN_DIRECTIVES.length()];
+        for (int i = 0; i < opens.length; ++i) {
+            opens[i] = new ArrayDeque<>();
+        }
         for (int i = start; i < end; ++i) {
             final char c = text.charAt(i);
-            if (SPAN_DIRECTIVES.indexOf(c) < 0) {
+            final int directive = SPAN_DIRECTIVES.indexOf(c);
+            if (directive < 0) {
+                continue;
+            }
+            // A run of the same directive char is literal text, never a
+            // nested style. This keeps **x** and ***x*** unstyled.
+            if ((i > start && text.charAt(i - 1) == c)
+                    || (i + 1 < end && text.charAt(i + 1) == c)) {
                 continue;
             }
             if (i > start && !Character.isWhitespace(text.charAt(i - 1))) {
-                final int[] open = peekMatching(opens, c);
-                if (open != null && i - open[1] > 1) {
-                    opens.remove(open);
-                    styles.add(new Style(typeFor(c), open[1], i + 1, open[1] + 1, i));
+                final Integer open = opens[directive].peek();
+                if (open != null && i - open > 1) {
+                    opens[directive].pop();
+                    styles.add(new Style(typeFor(c), open, i + 1, open + 1, i));
                     continue;
                 }
             }
             if (isOpeningDirective(text, i, start, end, opens)) {
-                opens.push(new int[] {c, i});
+                opens[directive].push(i);
             }
         }
-    }
-
-    private static int[] peekMatching(final Deque<int[]> opens, final char c) {
-        for (final int[] open : opens) {
-            if (open[0] == c) {
-                return open;
-            }
-        }
-        return null;
     }
 
     private static boolean isOpeningDirective(
@@ -161,22 +164,24 @@ public final class MessageStyling {
             final int i,
             final int start,
             final int end,
-            final Deque<int[]> opens) {
+            final Deque<Integer>[] opens) {
         if (i + 1 >= end || Character.isWhitespace(text.charAt(i + 1))) {
             return false;
         }
         if (i == start) {
             return true;
         }
-        final char previous = text.charAt(i - 1);
-        return Character.isWhitespace(previous)
-                || isPendingOpeningDirective(opens, i - 1)
-                || OPENING_BOUNDARY_PUNCTUATION.indexOf(previous) >= 0;
+        return Character.isWhitespace(text.charAt(i - 1))
+                || isPendingOpeningDirective(opens, i - 1);
     }
 
-    private static boolean isPendingOpeningDirective(final Deque<int[]> opens, final int position) {
-        for (final int[] open : opens) {
-            if (open[1] == position) {
+    // XEP-0393 boundaries are whitespace only. A directive directly after
+    // another pending opener (nesting like *_x_*) is also allowed.
+    private static boolean isPendingOpeningDirective(
+            final Deque<Integer>[] opens, final int position) {
+        for (final Deque<Integer> open : opens) {
+            final Integer top = open.peek();
+            if (top != null && top == position) {
                 return true;
             }
         }

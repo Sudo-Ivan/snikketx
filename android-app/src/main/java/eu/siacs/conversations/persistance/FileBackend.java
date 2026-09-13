@@ -1763,6 +1763,17 @@ public class FileBackend {
             return file;
         }
 
+        public File takeVideo() {
+            final String filename =
+                    String.format("VID_%s.%s", TIMESTAMP_FORMATTER.format(Instant.now()), "mp4");
+            final var cameraDirectory = new File(context.getCacheDir(), DIRECTORY_CAMERA);
+            final var file = new File(cameraDirectory, filename);
+            if (cameraDirectory.mkdirs()) {
+                Log.d(Config.LOGTAG, "create directory " + cameraDirectory.getAbsolutePath());
+            }
+            return file;
+        }
+
         public File recording(final int outputFormat) {
             final String extension;
             if (outputFormat == MediaRecorder.OutputFormat.MPEG_4) {

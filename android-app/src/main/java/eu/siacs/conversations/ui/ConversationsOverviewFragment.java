@@ -103,6 +103,7 @@ import im.conversations.android.provider.SearchSuggestionProvider;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -717,8 +718,27 @@ public class ConversationsOverviewFragment extends XmppFragment {
     }
 
     private void refreshEmptyState() {
+        if (!isAdded()) {
+            return;
+        }
+        // A folder that simply has no chats is not an onboarding moment:
+        // show a folder specific hint instead of the first-run content.
+        if (this.selectedFolder != null) {
+            this.binding.emptyChatHintText.setText(R.string.empty_folder_hint);
+            this.binding.emptyStateStartChat.setVisibility(View.GONE);
+            this.binding.emptyStateScanQr.setVisibility(View.GONE);
+            this.binding.suggestedContactsTitle.setVisibility(View.GONE);
+            this.binding.suggestedContacts.setVisibility(View.GONE);
+            return;
+        }
+        this.binding.emptyChatHintText.setText(R.string.empty_conversations_list_hint);
+        this.binding.emptyStateStartChat.setVisibility(View.VISIBLE);
+        final var activity = getActivity();
         this.binding.emptyStateScanQr.setVisibility(
-                requireXmppActivity().isCameraFeatureAvailable() ? View.VISIBLE : View.GONE);
+                activity instanceof XmppActivity xmppActivity
+                                && xmppActivity.isCameraFeatureAvailable()
+                        ? View.VISIBLE
+                        : View.GONE);
         final var suggestions = suggestedContacts();
         this.binding.suggestedContactsTitle.setVisibility(
                 suggestions.isEmpty() ? View.GONE : View.VISIBLE);
@@ -740,25 +760,42 @@ public class ConversationsOverviewFragment extends XmppFragment {
                 row.contactJid.setVisibility(View.GONE);
             }
             AvatarWorkerTask.loadAvatar(contact, row.contactPhoto, R.dimen.avatar);
+            row.getRoot().setFocusable(true);
+            row.getRoot()
+                    .setContentDescription(
+                            getString(
+                                    R.string.suggested_contact_row_description,
+                                    contact.getDisplayName(),
+                                    address == null ? "" : address.toString()));
             row.getRoot().setOnClickListener(v -> openConversationWith(contact));
             this.binding.suggestedContacts.addView(row.getRoot());
         }
     }
 
     private List<Contact> suggestedContacts() {
-        final var service = requireXmppActivity().xmppConnectionService;
+        final var activity = getActivity();
+        final var service =
+                activity instanceof XmppActivity ? ((XmppActivity) activity).xmppConnectionService : null;
         if (service == null) {
             return Collections.emptyList();
         }
+        // One row per bare JID; contacts reachable on several accounts are
+        // merged so the suggestion list does not repeat the same person.
         final var contacts = new ArrayList<Contact>();
+        final var seenJids = new HashSet<String>();
         for (final var account : service.getAccounts()) {
             if (account == null || !account.isEnabled() || account.getXmppConnection() == null) {
                 continue;
             }
             for (final var contact : account.getRoster().getContacts()) {
-                if (contact.showInRoster() && !contact.isSelf()) {
-                    contacts.add(contact);
+                if (!contact.showInRoster() || contact.isSelf()) {
+                    continue;
                 }
+                final var address = contact.getAddress();
+                if (address == null || !seenJids.add(address.asBareJid().toString())) {
+                    continue;
+                }
+                contacts.add(contact);
             }
         }
         Collections.sort(contacts);

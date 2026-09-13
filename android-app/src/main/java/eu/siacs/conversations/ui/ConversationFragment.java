@@ -182,6 +182,7 @@ import im.conversations.android.xmpp.model.muc.Role;
 import im.conversations.android.xmpp.model.stanza.Presence;
 import im.conversations.android.xmpp.model.state.Composing;
 import im.conversations.android.xmpp.model.state.Paused;
+import java.io.File;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -293,6 +294,7 @@ public class ConversationFragment extends XmppFragment
     private final PendingItem<ArrayList<Attachment>> pendingMediaPreviews = new PendingItem<>();
     private final PendingItem<Bundle> pendingExtras = new PendingItem<>();
     private final PendingItem<Uri> pendingTakePhotoUri = new PendingItem<>();
+    private final PendingItem<Uri> pendingTakeVideoUri = new PendingItem<>();
     private final PendingItem<ScrollState> pendingScrollState = new PendingItem<>();
     private final PendingItem<String> pendingLastMessageUuid = new PendingItem<>();
     private final PendingItem<Message> pendingMessage = new PendingItem<>();
@@ -1252,8 +1254,31 @@ public class ConversationFragment extends XmppFragment
                     Log.d(Config.LOGTAG, "lost take photo uri. unable to to attach");
                 }
                 break;
-            case ATTACHMENT_CHOICE_CHOOSE_FILE:
             case ATTACHMENT_CHOICE_RECORD_VIDEO:
+                final Uri takeVideoUri = pendingTakeVideoUri.pop();
+                final File takeVideoFile =
+                        takeVideoUri == null ? null : new File(takeVideoUri.getPath());
+                if (takeVideoFile != null && takeVideoFile.length() > 0) {
+                    mediaPreviewAdapter.addMediaPreviews(
+                            Attachment.of(
+                                    requireContext(), takeVideoUri, Attachment.Type.FILE));
+                    toggleInputMethod();
+                } else {
+                    // The camera app ignored EXTRA_OUTPUT and reported its own
+                    // media store location instead.
+                    final List<Attachment> videoUris =
+                            Attachment.extractAttachments(
+                                    requireContext(), data, Attachment.Type.FILE);
+                    if (videoUris.isEmpty()) {
+                        Log.d(
+                                Config.LOGTAG,
+                                "video capture returned no usable file. nothing to attach");
+                    }
+                    mediaPreviewAdapter.addMediaPreviews(videoUris);
+                    toggleInputMethod();
+                }
+                break;
+            case ATTACHMENT_CHOICE_CHOOSE_FILE:
                 final List<Attachment> fileUris =
                         Attachment.extractAttachments(requireContext(), data, Attachment.Type.FILE);
                 mediaPreviewAdapter.addMediaPreviews(fileUris);
@@ -1401,6 +1426,13 @@ public class ConversationFragment extends XmppFragment
                     Log.d(
                             Config.LOGTAG,
                             "cleared pending photo uri after negative activity result");
+                }
+                break;
+            case ATTACHMENT_CHOICE_RECORD_VIDEO:
+                if (pendingTakeVideoUri.clear()) {
+                    Log.d(
+                            Config.LOGTAG,
+                            "cleared pending video uri after negative activity result");
                 }
                 break;
             case REQUEST_FORWARD_MESSAGE:
@@ -1842,12 +1874,12 @@ public class ConversationFragment extends XmppFragment
             if (m.getEncryption() == Message.ENCRYPTION_DECRYPTION_FAILED && !deleted) {
                 retryDecryption.setVisible(true);
             }
-            if ((m.isFileOrImage() && !deleted && !receiving)
+            if ((m.isFileOrImage() && !deleted && !receiving && t == null)
                     || (m.getType() == Message.TYPE_TEXT && !m.treatAsDownloadable())
                             && !unInitiatedButKnownSize
                             && t == null) {
                 shareWith.setVisible(true);
-                forwardMessage.setVisible(!encrypted);
+                forwardMessage.setVisible(!encrypted && !m.isEphemeral());
             }
             if (m.getStatus() == Message.STATUS_SEND_FAILED) {
                 sendAgain.setVisible(true);
@@ -1994,6 +2026,14 @@ public class ConversationFragment extends XmppFragment
     }
 
     private void forwardMessage(final Message message) {
+        if (message.isEphemeral()) {
+            Toast.makeText(
+                            requireContext(),
+                            R.string.cannot_forward_ephemeral_message,
+                            Toast.LENGTH_SHORT)
+                    .show();
+            return;
+        }
         this.mPendingForwardMessage = message;
         final var intent = new Intent(getActivity(), ChooseContactActivity.class);
         intent.putExtra(ChooseContactActivity.EXTRA_TITLE_RES_ID, R.string.forward);
@@ -2011,6 +2051,9 @@ public class ConversationFragment extends XmppFragment
         if (message == null || service == null || jids == null || jids.isEmpty()) {
             return;
         }
+        if (message.isEphemeral() || message.getTransferable() != null) {
+            return;
+        }
         final Account account;
         final Conversation target;
         try {
@@ -2025,6 +2068,22 @@ public class ConversationFragment extends XmppFragment
         if (target == null) {
             return;
         }
+        if (message.getEncryption() == Message.ENCRYPTION_AXOLOTL
+                && target.getNextEncryption() == Message.ENCRYPTION_NONE) {
+            new MaterialAlertDialogBuilder(requireContext())
+                    .setTitle(R.string.forward_message)
+                    .setMessage(R.string.forward_encrypted_to_plaintext_warning)
+                    .setPositiveButton(
+                            R.string.forward, (dialog, which) -> doForward(service, target, message))
+                    .setNegativeButton(R.string.cancel, null)
+                    .show();
+            return;
+        }
+        doForward(service, target, message);
+    }
+
+    private void doForward(
+            final XmppConnectionService service, final Conversation target, final Message message) {
         if (message.isFileOrImage()) {
             forwardFileTo(service, target, message);
         } else {
@@ -2841,6 +2900,19 @@ public class ConversationFragment extends XmppFragment
                         {
                             final var intent = new Intent(MediaStore.ACTION_VIDEO_CAPTURE);
                             intent.putExtra(MediaStore.EXTRA_VIDEO_QUALITY, 1);
+                            intent.putExtra(MediaStore.EXTRA_DURATION_LIMIT, 300);
+                            intent.putExtra(MediaStore.EXTRA_SIZE_LIMIT, 100L * 1024 * 1024);
+                            // Some camera apps return RESULT_OK with no data; a
+                            // controlled EXTRA_OUTPUT destination keeps the
+                            // recording retrievable either way.
+                            final var takeVideoFile =
+                                    new FileBackend.Cache(requireContext()).takeVideo();
+                            pendingTakeVideoUri.push(Uri.fromFile(takeVideoFile));
+                            intent.putExtra(
+                                    MediaStore.EXTRA_OUTPUT,
+                                    FileBackend.getUriForFile(requireContext(), takeVideoFile));
+                            intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
                             yield intent;
                         }
                     case ATTACHMENT_CHOICE_TAKE_PHOTO:

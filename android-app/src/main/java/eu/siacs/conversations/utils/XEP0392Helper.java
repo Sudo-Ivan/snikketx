@@ -28,7 +28,9 @@ public class XEP0392Helper {
     @ColorInt
     public static int rgbFromAngle(final double angle) {
         final var converter = new HsluvColorConverter();
-        converter.hsluv_h = angle;
+        // Normalize any caller supplied angle into [0, 360); negative or
+        // wrapped values otherwise produce out of gamut colors.
+        converter.hsluv_h = ((angle % 360) + 360) % 360;
         converter.hsluv_s = 100;
         converter.hsluv_l = 50;
         converter.hsluvToRgb();

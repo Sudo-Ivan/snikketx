@@ -144,10 +144,21 @@ public class MessageStylingTest {
     }
 
     @Test
-    public void tripleDirectiveNests() {
-        final String text = "***strong***";
-        final var styles = ofType(text, MessageStyling.Type.BOLD);
-        Assert.assertEquals(3, styles.size());
-        Assert.assertEquals("strong", styles.get(0).getContent(text));
+    public void sameDirectiveRunsAreLiteral() {
+        // Runs of the same directive char never parse as nested styles:
+        // ***strong*** and **bold** stay unstyled, *bold* still works.
+        Assert.assertTrue(ofType("***strong***", MessageStyling.Type.BOLD).isEmpty());
+        Assert.assertTrue(ofType("**bold**", MessageStyling.Type.BOLD).isEmpty());
+        Assert.assertEquals(1, ofType("*bold*", MessageStyling.Type.BOLD).size());
+    }
+
+    @Test
+    public void manyDirectivesStayLinear() {
+        final var sb = new StringBuilder();
+        for (int i = 0; i < 5000; ++i) {
+            sb.append('*').append('x');
+        }
+        // Pathological input: 5000 opens and no closes must not blow up.
+        Assert.assertTrue(MessageStyling.parse(sb).size() < 5000);
     }
 }

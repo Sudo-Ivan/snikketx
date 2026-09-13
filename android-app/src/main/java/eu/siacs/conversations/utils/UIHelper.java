@@ -282,7 +282,7 @@ public class UIHelper {
 
     private static CharSequence getStyledBodyOneLine(final String body, final int textColor) {
         final var styledBody = new SpannableStringBuilder(body);
-        StylingHelper.format(styledBody, 0, styledBody.length() - 1, textColor);
+        MessageStyling.format(styledBody, 0, styledBody.length() - 1, textColor);
         final var builder = new SpannableStringBuilder();
         for (final var l : CharSequences.split(styledBody, '\n')) {
             if (l.length() == 0) {
