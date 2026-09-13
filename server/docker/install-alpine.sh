@@ -96,7 +96,9 @@ for m in \
   mod_privilege \
   mod_admin_blocklist \
   mod_muc_moderation \
+  mod_muc_mam_hints \
   mod_push2 \
+  mod_track_muc_joins \
   mod_migrate_lastlog2 \
   mod_http_connect \
   mod_restrict_federation \
@@ -123,7 +125,9 @@ for m in \
   mod_snikketx_api_util \
   mod_snikket_audit_api \
   mod_snikket_muc_api \
-  mod_snikket_ops_api
+  mod_snikket_ops_api \
+  mod_snikket_data_policy \
+  mod_snikket_tombstones
 do
   ln -sfn "/usr/local/lib/snikket-modules/$m" "/etc/prosody/modules/$m"
 done

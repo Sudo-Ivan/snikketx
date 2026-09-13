@@ -70,6 +70,7 @@ modules_enabled = {
 		"sasl2_sm";
 		"sasl2_fast";
 		"client_management";
+		"sasl_ssdp"; -- XEP-0474: SASL mechanism/channel-binding downgrade protection
 
 	-- Event auditing
 		"audit";
@@ -109,6 +110,8 @@ modules_enabled = {
 		"migrate_lastlog2"; -- Automatically migrate data from mod_lastlog2 if necessary
 		"protect_last_admin";
 		"c2s_limit_sessions";
+		"snikket_tombstones"; -- XEP-0424: replace retracted MAM entries with tombstones
+		"snikket_data_policy"; -- XEP-0504: publish data policy via disco
 
 	-- Spam/abuse management
 		"spam_reporting"; -- Allow users to report spam/abuse
@@ -245,6 +248,27 @@ add_permissions = {
 
 archive_expires_after = ("%dd"):format(RETENTION_DAYS) -- Remove archived messages after N days
 
+-- Push notifications carry only a wake-up ping (message-count) to the push
+-- service; iOS clients that register an encryption key additionally get an
+-- AES-128-GCM-encrypted summary they decrypt locally. Never include sender
+-- or content in the clear.
+push_notification_with_body = false
+push_notification_with_sender = false
+
+-- XEP-0504 data policy advertised in service discovery
+data_policy = {
+	auth_data = "hidden"; -- SCRAM: the server never sees plaintext passwords
+	data_transmission = "encrypted";
+	encryption_algorithm = "TLS";
+	data_retention = Lua.tostring(RETENTION_DAYS * 24); -- hours
+	data_deletion = true; -- retraction, MAM expiry, account deletion
+	encryption_at_rest = false; -- volumes are not encrypted by default
+	tos = "https://"..DOMAIN.."/";
+	data_export = true; -- XEP-0227 export via http_xep227 and the portal
+	access_policy = { "admins" };
+	full_erasure = true;
+}
+
 -- This is required for Conversations 2.19 to receive offline messages, which
 -- we currently utilize to attempt at-least-once delivery for messages beyond
 -- the archive retention period.
@@ -267,6 +291,14 @@ log = {
 authentication = "internal_hashed"
 authorization = "internal"
 disable_sasl_mechanisms = { "PLAIN", "OAUTHBEARER" }
+allow_unencrypted_plain_auth = false
+
+-- SCRAM hash used for stored credentials. SHA-256 is recommended for new
+-- deployments, but it MUST be set before the first account is created:
+-- stored keys are hash-specific, so changing it on an existing host
+-- invalidates every password (users would need a reset).
+password_hash = ENV_SNIKKET_TWEAK_PASSWORD_HASH or "SHA-1"
+default_iteration_count = Lua.tonumber(ENV_SNIKKET_TWEAK_ITERATION_COUNT) or 10000
 
 if ENV_SNIKKET_TWEAK_STORAGE == "sqlite" then
 	storage = "sql"
@@ -392,6 +424,7 @@ VirtualHost (DOMAIN)
 Component ("groups."..DOMAIN) "muc"
 	modules_enabled = {
 		"muc_mam";
+		"muc_mam_hints"; -- Honor XEP-0334 no-store hints in group archives
 		"muc_moderation";
 		"muc_local_only";
 		"muc_defaults";
@@ -412,6 +445,7 @@ Component ("groups."..DOMAIN) "muc"
 	end
 
 	restrict_room_creation = "local"
+	muc_log_expires_after = ("%dd"):format(RETENTION_DAYS) -- Match personal archive retention
 
 	-- Some older deployments may have the general@ MUC, so we still need
 	-- to protect it:
