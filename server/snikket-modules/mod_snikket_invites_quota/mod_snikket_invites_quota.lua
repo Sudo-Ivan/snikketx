@@ -34,11 +34,15 @@ module:hook("iq-set/host/http://jabber.org/protocol/commands:command", function 
 	if not command or command.attr.node ~= "urn:xmpp:invite#invite" then
 		return;
 	end
-	local action = command.attr.action;
-	if action and action ~= "execute" then
-		return;
+	-- mod_invites_adhoc ignores the command action entirely: a request
+	-- carrying action="cancel" still creates an invite, so every request
+	-- targeting this node is counted, not just execute.
+	local username, host;
+	if origin.username and origin.host then
+		username, host = origin.username, origin.host;
+	else
+		username, host = jid_split(stanza.attr.from);
 	end
-	local username, host = jid_split(stanza.attr.from);
 	if not username or host ~= module.host then
 		return;
 	end
