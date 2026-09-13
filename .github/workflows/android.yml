@@ -41,9 +41,21 @@ jobs:
         run: ./gradlew --no-daemon testConversationsFreeDebugUnitTest
       - name: Assemble debug APK
         run: ./gradlew --no-daemon assembleConversationsFreeDebug
+      - name: Checksums and signing certificate
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s globstar nullglob
+          APKSIGNER=$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -1 || true)
+          for apk in build/outputs/apk/**/*.apk; do
+            sha256sum "$apk" > "$apk.sha256"
+            if [ -n "$APKSIGNER" ]; then
+              "$APKSIGNER" verify --print-certs "$apk" > "$apk.certs" || true
+            fi
+          done
       - name: Upload APK
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: snikketx-conversations-free-debug
-          path: android-app/build/outputs/apk/**/*.apk
+          path: android-app/build/outputs/apk/**/*.apk*
           retention-days: 14

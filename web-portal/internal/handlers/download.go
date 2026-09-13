@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/sudo-ivan/snikketx/web-portal/internal/appcache"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/authlimit"
 )
 
@@ -24,9 +25,48 @@ func (a *App) handleAndroidVersion(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "public, max-age=3600")
-	if err := json.NewEncoder(w).Encode(meta); err != nil {
+	payload := struct {
+		appcache.Meta
+		SigningCertSHA256 string `json:"signing_cert_sha256,omitempty"`
+	}{Meta: meta, SigningCertSHA256: a.Cfg.AndroidCertSHA256}
+	if err := json.NewEncoder(w).Encode(payload); err != nil {
 		slog.Warn("android version encode failed", slog.String("error", err.Error()))
 	}
+}
+
+// handleAndroidSHA256 serves the checksum of the cached APK in sha256sum
+// format so downloads can be verified with standard tooling.
+func (a *App) handleAndroidSHA256(w http.ResponseWriter, r *http.Request) {
+	if a.AppCache == nil || !a.AppCache.Ready() {
+		http.NotFound(w, r)
+		return
+	}
+	meta, err := a.AppCache.PublicMeta()
+	if err != nil || meta.SHA256 == "" {
+		http.NotFound(w, r)
+		return
+	}
+	filename := meta.Filename
+	if filename == "" {
+		filename = "snikketx-android.apk"
+	}
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=3600")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	_, _ = fmt.Fprintf(w, "%s  %s\n", meta.SHA256, filename)
+}
+
+// handleAndroidCertSHA256 serves the SHA-256 fingerprint of the APK signing
+// certificate when the operator configured one.
+func (a *App) handleAndroidCertSHA256(w http.ResponseWriter, r *http.Request) {
+	if a.Cfg.AndroidCertSHA256 == "" {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("Cache-Control", "public, max-age=86400")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	_, _ = fmt.Fprintln(w, a.Cfg.AndroidCertSHA256)
 }
 
 // handleAndroidAPK serves the cached Android package with per IP rate limiting.

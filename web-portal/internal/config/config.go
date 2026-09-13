@@ -61,6 +61,10 @@ type Config struct {
 	FDroidURL                string
 	AndroidDownloadLimitHour int
 	AndroidRefreshHours      int
+	// AndroidCertSHA256 is the SHA-256 fingerprint of the APK signing
+	// certificate, published next to the download so installs can be
+	// verified with tools like AppVerifier.
+	AndroidCertSHA256 string
 }
 
 func Load(version, commit, buildDate string) (*Config, error) {
@@ -177,6 +181,13 @@ func Load(version, commit, buildDate string) (*Config, error) {
 			return nil, fmt.Errorf("SNIKKET_WEB_ANDROID_REFRESH_HOURS: %w", err)
 		}
 	}
+	androidCertSHA256 := ""
+	if raw := strings.TrimSpace(os.Getenv("SNIKKET_WEB_ANDROID_CERT_SHA256")); raw != "" {
+		androidCertSHA256 = normalizeHexDigest(raw)
+		if len(androidCertSHA256) != 64 {
+			return nil, fmt.Errorf("SNIKKET_WEB_ANDROID_CERT_SHA256: must be a 64 character hex SHA-256 fingerprint")
+		}
+	}
 
 	tos := os.Getenv("SNIKKET_WEB_TOS_URI")
 	privacy := os.Getenv("SNIKKET_WEB_PRIVACY_URI")
@@ -234,7 +245,22 @@ func Load(version, commit, buildDate string) (*Config, error) {
 		FDroidURL:                fdroidURL,
 		AndroidDownloadLimitHour: androidLimit,
 		AndroidRefreshHours:      androidRefresh,
+		AndroidCertSHA256:        androidCertSHA256,
 	}, nil
+}
+
+// normalizeHexDigest lowercases a hex digest and strips separators so a
+// pasted fingerprint like "ab:cd:..." validates the same as "abcd...".
+func normalizeHexDigest(raw string) string {
+	v := strings.ToLower(strings.TrimSpace(raw))
+	v = strings.ReplaceAll(v, ":", "")
+	v = strings.ReplaceAll(v, " ", "")
+	for _, r := range v {
+		if (r < '0' || r > '9') && (r < 'a' || r > 'f') {
+			return ""
+		}
+	}
+	return v
 }
 
 func validateHTTPURL(name, raw string) error {

@@ -38,6 +38,8 @@ func (a *App) mountMain(mux *http.ServeMux) {
 	mux.HandleFunc("GET /download/android.version", a.handleAndroidVersion)
 	mux.HandleFunc("GET /download/android.apk", a.handleAndroidAPK)
 	mux.HandleFunc("HEAD /download/android.apk", a.handleAndroidAPK)
+	mux.HandleFunc("GET /download/android.apk.sha256", a.handleAndroidSHA256)
+	mux.HandleFunc("GET /download/android.cert.sha256", a.handleAndroidCertSHA256)
 }
 
 // handleIndex sends the caller to their home page or to the login page.
