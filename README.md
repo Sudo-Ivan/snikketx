@@ -107,6 +107,8 @@ Config files:
 - Backup sidecar schedules local archives, retention, dry-run restore checks, and optional Restic offsite (`Admin → Backup`).
 - Invite helpers use `prosodyctl shell invite` (create_account / create_reset). The old `mod_invites generate` path is gone.
 - Publish pipeline signs images keyless with Cosign, attaches Syft SPDX SBOMs, runs Trivy and container smoke tests. Production compose requires Cosign verification before applying updates.
+- Security additions: SASL SCRAM downgrade protection (XEP-0474 via mod_sasl_ssdp), XEP-0424 tombstoning of retracted 1:1 archive entries, XEP-0334 no-store hints in MUC archives, MUC log retention matching RETENTION_DAYS, a published XEP-0504 data policy form, explicit push payload minimization, and opt-in SCRAM-SHA-256 password storage (SNIKKET_TWEAK_PASSWORD_HASH, new installs only).
+- Android privacy additions: optional biometric or device-credential app lock with configurable auto-lock timeout, per-conversation disappearing messages (XEP-0466), EXIF/GPS metadata stripped from image uploads including send-as-file, OMEMO keys and history databases excluded from cloud backup, incognito keyboard flag on message input, and a signed APK SHA-256 plus signing certificate fingerprint published at `/download/android.apk.sha256` for AppVerifier checks.
 
 HTTP path:
 

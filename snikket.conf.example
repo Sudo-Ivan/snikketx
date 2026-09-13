@@ -14,3 +14,18 @@ SNIKKET_LETSENCRYPT_TOS_AGREE=N
 # Compose secrets (RavenGuard, updater) live in .env
 # (see .env.example). ./scripts/init.sh writes both files.
 # Local quick path: ./scripts/init.sh --dev
+
+# Optional: SHA-256 fingerprint of the Android APK signing certificate.
+# Published at /download/android.cert.sha256 and in /download/android.version
+# so installs of the self-hosted APK can be verified (e.g. AppVerifier).
+# Get it with: apksigner verify --print-certs app-release.apk
+# SNIKKET_WEB_ANDROID_CERT_SHA256=
+
+# Optional: SCRAM password storage hash. SHA-256 is stronger but MUST be set
+# before the first account exists; enabling it later invalidates all stored
+# passwords.
+# SNIKKET_TWEAK_PASSWORD_HASH=SHA-256
+
+# Optional: PBKDF2 iteration count for stored passwords (default 10000).
+# Higher is harder to brute force but slower on sign-in.
+# SNIKKET_TWEAK_ITERATION_COUNT=10000
