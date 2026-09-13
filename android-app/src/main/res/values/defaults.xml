@@ -34,7 +34,7 @@
     <bool name="manually_change_presence">false</bool>
     <bool name="away_when_screen_off">false</bool>
     <bool name="enable_foreground_service">true</bool>
-    <bool name="send_crash_reports">false</bool>
+    <bool name="send_crash_reports">true</bool>
     <bool name="validate_hostname">false</bool>
     <bool name="scroll_to_bottom">true</bool>
     <string name="omemo_setting_default">default_on</string>

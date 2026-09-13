@@ -117,7 +117,7 @@
              SDK can be gated on the send_crash_reports preference in SentryHelper.init() -->
         <meta-data
             android:name="io.sentry.dsn"
-            android:value="https://953e1bb7b337453aba5a2c338c33e3d9@bugs.quad4.io/1" />
+            android:value="https://121179e3f2174d6294693a3891b456be@bugs.quad4.io/1" />
         <meta-data
             android:name="io.sentry.auto-init"
             android:value="false" />

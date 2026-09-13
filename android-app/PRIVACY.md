@@ -10,8 +10,9 @@ is provided by the person who invited you.
 - Messages are sent over XMPP, end-to-end encrypted by default with OMEMO
   where supported.
 - Media you send is uploaded to the XMPP server you are connected to.
-- If you enable crash reporting, anonymized stack traces may be sent to
-  help fix bugs. This is off unless you opt in under Settings > Privacy.
+- Crash reporting is on by default. Anonymized stack traces are sent to
+  a self hosted Bugsink instance to help fix bugs. You can turn it off
+  under Settings > Privacy.
 - The free build can check your server's portal once a day for a newer
   app version (`/download/android.version`). This sends no personal data.
 - The app does not use analytics or advertising SDKs and does not share
