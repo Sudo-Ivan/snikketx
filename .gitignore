@@ -16,3 +16,4 @@ deploy/traefik/dynamic.yml
 post-check.log
 dns-backup-*
 deploy/acme-dns/docker-compose.acme-dns.yml
+deploy/ipv6/docker-compose.ipv6.yml

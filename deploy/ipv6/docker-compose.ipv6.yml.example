@@ -1,0 +1,50 @@
+# Optional override that publishes every public port on IPv6 as well as
+# IPv4. Use it when the DNS zone has AAAA records pointing at this host.
+# Without it Docker only binds IPv4 and IPv6 clients hit a dead end.
+#
+# Activate with:
+#   cp deploy/ipv6/docker-compose.ipv6.yml.example \
+#      deploy/ipv6/docker-compose.ipv6.yml
+#   ./scripts/update.sh
+#
+# The host needs working IPv6 for this to help. If it does not, remove
+# the AAAA records instead.
+
+services:
+  traefik:
+    ports: !override
+      - "80:80"
+      - "[::]:80:80"
+      - "443:443"
+      - "443:443/udp"
+      - "[::]:443:443"
+      - "[::]:443:443/udp"
+
+  snikket_server:
+    ports: !override
+      - "5222:5222"
+      - "[::]:5222:5222"
+      - "5223:5223"
+      - "[::]:5223:5223"
+      - "5269:5269"
+      - "[::]:5269:5269"
+      - "5000:5000"
+      - "[::]:5000:5000"
+      - "3478:3478"
+      - "3478:3478/udp"
+      - "[::]:3478:3478"
+      - "[::]:3478:3478/udp"
+      - "3479:3479"
+      - "3479:3479/udp"
+      - "[::]:3479:3479"
+      - "[::]:3479:3479/udp"
+      - "5349:5349"
+      - "5349:5349/udp"
+      - "[::]:5349:5349"
+      - "[::]:5349:5349/udp"
+      - "5350:5350"
+      - "5350:5350/udp"
+      - "[::]:5350:5350"
+      - "[::]:5350:5350/udp"
+      - "${SNIKKET_TURN_MIN_PORT:-49152}-${SNIKKET_TURN_MAX_PORT:-49251}:${SNIKKET_TURN_MIN_PORT:-49152}-${SNIKKET_TURN_MAX_PORT:-49251}/udp"
+      - "[::]:${SNIKKET_TURN_MIN_PORT:-49152}-${SNIKKET_TURN_MAX_PORT:-49251}:${SNIKKET_TURN_MIN_PORT:-49152}-${SNIKKET_TURN_MAX_PORT:-49251}/udp"

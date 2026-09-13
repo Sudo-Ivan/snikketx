@@ -76,6 +76,9 @@ snikketx_parse_mode() {
 	if [[ "$COMPOSE_MODE" == "prod" && -f deploy/acme-dns/docker-compose.acme-dns.yml ]]; then
 		COMPOSE_ARGS+=(-f deploy/acme-dns/docker-compose.acme-dns.yml)
 	fi
+	if [[ "$COMPOSE_MODE" == "prod" && -f deploy/ipv6/docker-compose.ipv6.yml ]]; then
+		COMPOSE_ARGS+=(-f deploy/ipv6/docker-compose.ipv6.yml)
+	fi
 }
 
 snikketx_conf_get() {

@@ -354,7 +354,8 @@ def check_addr_reach(domain, port, timeout):
             continue
         seen.add(label)
         try:
-            with socket.create_connection(sa, timeout=timeout):
+            # IPv6 sockaddr is a 4-tuple, create_connection wants 2.
+            with socket.create_connection(sa[:2], timeout=timeout):
                 report(PASS, f"{label} {domain}:{port} accepts "
                              f"connections ({sa[0]})")
         except Exception as exc:
