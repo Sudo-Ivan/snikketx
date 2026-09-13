@@ -83,10 +83,13 @@ type Config struct {
 	AndroidCertSHA256 string
 
 	// BotsEndpoint is the base URL of the mod_snikketx_bots management
-	// API on the server, usually {ProsodyEndpoint}/bots. BotsAdminToken
-	// is a static admin token from bot_admin_tokens. Bot self service is
-	// disabled unless the token is set.
+	// API on the server, usually {ProsodyEndpoint}/bots. BotsHost is the
+	// Host header the API answers to: it is served by the bots.DOMAIN
+	// component, not the main host. BotsAdminToken is a static admin
+	// token from bot_admin_tokens. Bot self service is disabled unless
+	// the token is set.
 	BotsEndpoint   string
+	BotsHost       string
 	BotsAdminToken string
 }
 
@@ -289,6 +292,7 @@ func Load(version, commit, buildDate string) (*Config, error) {
 		ServicePassword:    servicePassword,
 		LinkPreviewEnabled: linkPreview,
 		BotsEndpoint:       strings.TrimRight(envOr("SNIKKET_WEB_BOTS_ENDPOINT", endpoint+"/bots"), "/"),
+		BotsHost:           envOr("SNIKKET_WEB_BOTS_HOST", "bots."+domain),
 		BotsAdminToken:     os.Getenv("SNIKKET_WEB_BOTS_ADMIN_TOKEN"),
 
 		AndroidHostEnabled:       androidEnabled,

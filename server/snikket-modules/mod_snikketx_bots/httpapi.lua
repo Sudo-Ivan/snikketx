@@ -41,10 +41,18 @@ end
 
 -- tokenauth is a community module in the Snikket image; absent on a
 -- plain Prosody, where only bot_admin_tokens and bot tokens then work.
-local tokens_mod;
-pcall(function ()
-	tokens_mod = module:depends("tokenauth");
-end);
+-- mod_tokenauth validates grants against its own host's store, so the
+-- instance that matters is the one on the owner host, not this
+-- component. We resolve it lazily instead of depending on our own copy.
+local function token_session_for(token)
+	local owner_host = config.owner_host;
+	local host_entry = owner_host and prosody.hosts[owner_host];
+	local tokenauth = host_entry and host_entry.modules and host_entry.modules.tokenauth;
+	if tokenauth and tokenauth.get_token_session then
+		return tokenauth.get_token_session(token);
+	end
+	return nil;
+end
 
 local sse_conns = {}; -- conn -> unsubscribe fn, used for keepalives
 
@@ -82,9 +90,9 @@ local function decode_query(query)
 	local out = {};
 	if not query then return out; end
 	for key, value in tostring(query):gmatch("([^&=]+)=([^&=]*)") do
-		key = key:gsub("%%(%x%x)", function (h) return string.char(tonumber(h, 16)); end);
-		value = value:gsub("%%(%x%x)", function (h) return string.char(tonumber(h, 16)); end);
-		out[key] = value;
+		local k = key:gsub("%%(%x%x)", function (h) return string.char(tonumber(h, 16)); end);
+		local v = value:gsub("%%(%x%x)", function (h) return string.char(tonumber(h, 16)); end);
+		out[k] = v;
 	end
 	return out;
 end
@@ -137,8 +145,8 @@ local function authenticate(request)
 		return nil, deny_reason;
 	end
 
-	if tokens_mod and tokens_mod.get_token_session then
-		local session = tokens_mod.get_token_session(token);
+	do
+		local session = token_session_for(token);
 		if session then
 			local username = session.username or (session.token_info and session.token_info.username);
 			local host = session.host or (session.token_info and session.token_info.host) or config.owner_host;

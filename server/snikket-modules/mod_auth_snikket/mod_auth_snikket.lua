@@ -108,11 +108,29 @@ local provider = { name = "snikket" };
 function provider.get_sasl_handler(session)
 	local handler = backend.get_sasl_handler(session);
 	local profile = handler.profile;
-	profile.oauthbearer = oauthbearer;
+	-- internal_hashed already wires oauthbearer to mod_tokenauth so that
+	-- Prosody-issued OAuth2 tokens authenticate. Keep that path as a
+	-- fallback: external IdP tokens are validated first, then locally
+	-- issued tokens get their chance. Only the external challenge
+	-- carries the IdP discovery URL for XEP-0493 clients.
+	local backend_oauthbearer = profile.oauthbearer;
+	profile.oauthbearer = function (self, token, realm, authzid)
+		local username, state, info = oauthbearer(self, token, realm, authzid);
+		if username and state then
+			return username, state, info;
+		end
+		if token and token ~= "" and backend_oauthbearer then
+			local b_username, b_state, b_info = backend_oauthbearer(self, token, realm, authzid);
+			if b_username and b_state then
+				return b_username, b_state, b_info;
+			end
+		end
+		return username, state, info;
+	end;
 	-- Mechanisms are cached on the profile, so drop the cache to let
 	-- the new backend method be picked up.
 	profile.mechanisms = nil;
-	return sasl.new(handler.realm, profile, session);
+	return sasl.new(handler.realm, profile, handler.userdata);
 end
 
 module:provides("auth", setmetatable(provider, {

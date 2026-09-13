@@ -66,15 +66,19 @@ func ValidName(name string) bool {
 // Client calls the management API with a static admin token.
 type Client struct {
 	endpoint string
+	host     string
 	token    string
 	http     *http.Client
 }
 
 // New returns a client for endpoint (for example
-// http://server:5280/bots) using the admin bearer token.
-func New(endpoint, token string) *Client {
+// http://server:5280/bots) using the admin bearer token. host is the
+// Host header sent with requests: the API is served by the bots.DOMAIN
+// component, so it must not be the plain server host.
+func New(endpoint, host, token string) *Client {
 	return &Client{
 		endpoint: strings.TrimRight(endpoint, "/"),
+		host:     host,
 		token:    token,
 		http:     &http.Client{Timeout: defaultTimeout},
 	}
@@ -92,6 +96,9 @@ func (c *Client) call(ctx context.Context, method, path string, payload, out any
 	req, err := http.NewRequestWithContext(ctx, method, c.endpoint+path, body)
 	if err != nil {
 		return err
+	}
+	if c.host != "" {
+		req.Host = c.host
 	}
 	req.Header.Set("Authorization", "Bearer "+c.token)
 	req.Header.Set("Accept", "application/json")
@@ -160,15 +167,16 @@ func (c *Client) Delete(ctx context.Context, name string) error {
 	return c.call(ctx, http.MethodDelete, "/"+url.PathEscape(name), nil, nil)
 }
 
-// SetDisabled enables or disables the bot.
+// SetDisabled enables or disables the bot. Bot updates are PATCH:
+// POST on the bot itself is reserved for the action endpoints.
 func (c *Client) SetDisabled(ctx context.Context, name string, disabled bool) error {
-	return c.call(ctx, http.MethodPost, "/"+url.PathEscape(name),
+	return c.call(ctx, http.MethodPatch, "/"+url.PathEscape(name),
 		map[string]any{"disabled": disabled}, nil)
 }
 
 // SetLabel updates the display label of the bot.
 func (c *Client) SetLabel(ctx context.Context, name, label string) error {
-	return c.call(ctx, http.MethodPost, "/"+url.PathEscape(name),
+	return c.call(ctx, http.MethodPatch, "/"+url.PathEscape(name),
 		map[string]any{"label": label}, nil)
 }
 

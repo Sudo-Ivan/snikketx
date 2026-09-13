@@ -155,12 +155,14 @@ def ensure_route(name, path_prefix, upstream_id, priority):
 
 prosody_paths = [
 	"/upload",
+	"/chat",
 	"/http-bind",
 	"/xmpp-websocket",
 	"/admin_api",
 	"/invites_api",
 	"/invites_bootstrap",
 	"/.well-known/host-meta",
+	"/.well-known/host-meta.json",
 ]
 for p in prosody_paths:
 	slug = p.strip("/").replace("/", "-") or "root"

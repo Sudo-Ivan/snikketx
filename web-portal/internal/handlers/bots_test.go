@@ -68,6 +68,32 @@ func stubBotsAPI(t *testing.T) *httptest.Server {
 			})
 		case strings.HasSuffix(path, "/tokens") && r.Method == http.MethodPost:
 			_ = json.NewEncoder(w).Encode(map[string]any{"token": "sxb_newtoken", "id": "tok2"})
+		case strings.HasSuffix(path, "/tokens/tok1") && r.Method == http.MethodDelete:
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(map[string]any{"revoked": "tok1"})
+		case r.Method == http.MethodPatch:
+			name := strings.TrimPrefix(path, "/")
+			bot, ok := bots[name]
+			if !ok {
+				w.WriteHeader(http.StatusNotFound)
+				_ = json.NewEncoder(w).Encode(map[string]string{"error": "not-found"})
+				return
+			}
+			var in map[string]any
+			_ = json.NewDecoder(r.Body).Decode(&in)
+			if d, ok := in["disabled"]; ok {
+				bot["disabled"] = d
+			}
+			_ = json.NewEncoder(w).Encode(bot)
+		case r.Method == http.MethodDelete:
+			name := strings.TrimPrefix(path, "/")
+			if _, ok := bots[name]; !ok {
+				w.WriteHeader(http.StatusNotFound)
+				_ = json.NewEncoder(w).Encode(map[string]string{"error": "not-found"})
+				return
+			}
+			delete(bots, name)
+			_ = json.NewEncoder(w).Encode(map[string]any{"deleted": name})
 		default:
 			w.WriteHeader(http.StatusNotFound)
 			_ = json.NewEncoder(w).Encode(map[string]string{"error": "not-found"})
@@ -152,6 +178,91 @@ func TestBotsCreate(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "sxb_testtoken") {
 		t.Fatal("new token not shown")
+	}
+}
+
+// postBotForm posts a CSRF protected form as the alice admin session.
+func postBotForm(t *testing.T, handler http.Handler, cookie *http.Cookie, path string, form url.Values) *httptest.ResponseRecorder {
+	t.Helper()
+	form.Set("csrf_token", "csrftoken")
+	req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.AddCookie(cookie)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	return rec
+}
+
+func TestBotsToggle(t *testing.T) {
+	api := stubBotsAPI(t)
+	app := botsTestApp(t, api)
+	handler := app.Routes()
+	cookie := adminCookie(t, app)
+
+	rec := postBotForm(t, handler, cookie, "/user/bots/echo/toggle", url.Values{})
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("status %d, want 303", rec.Code)
+	}
+}
+
+func TestBotsDelete(t *testing.T) {
+	api := stubBotsAPI(t)
+	app := botsTestApp(t, api)
+	handler := app.Routes()
+	cookie := adminCookie(t, app)
+
+	rec := postBotForm(t, handler, cookie, "/user/bots/echo/delete", url.Values{})
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("status %d, want 303", rec.Code)
+	}
+}
+
+func TestBotsRejectsForeignBot(t *testing.T) {
+	api := stubBotsAPI(t)
+	app := botsTestApp(t, api)
+	handler := app.Routes()
+	cookie := adminCookie(t, app)
+
+	// "other" belongs to mallory@example.test: every mutation must bounce
+	// on the ownership check without reaching the API.
+	for _, path := range []string{
+		"/user/bots/other/delete",
+		"/user/bots/other/toggle",
+		"/user/bots/other/tokens",
+		"/user/bots/other/tokens/tok1/delete",
+	} {
+		rec := postBotForm(t, handler, cookie, path, url.Values{})
+		if rec.Code != http.StatusSeeOther {
+			t.Fatalf("%s: status %d, want 303 with unknown-bot flash", path, rec.Code)
+		}
+	}
+}
+
+func TestBotsTokenMintShowsTokenOnce(t *testing.T) {
+	api := stubBotsAPI(t)
+	app := botsTestApp(t, api)
+	handler := app.Routes()
+	cookie := adminCookie(t, app)
+
+	rec := postBotForm(t, handler, cookie, "/user/bots/echo/tokens",
+		url.Values{"token_name": {"laptop"}, "ttl_days": {"7"}})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200\n%s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "sxb_newtoken") {
+		t.Fatal("newly minted token not shown")
+	}
+}
+
+func TestBotsTokenRevoke(t *testing.T) {
+	api := stubBotsAPI(t)
+	app := botsTestApp(t, api)
+	handler := app.Routes()
+	cookie := adminCookie(t, app)
+
+	rec := postBotForm(t, handler, cookie, "/user/bots/echo/tokens/tok1/delete", url.Values{})
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("status %d, want 303", rec.Code)
 	}
 }
 

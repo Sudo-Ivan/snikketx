@@ -48,6 +48,7 @@ modules_enabled = {
 	-- Generally required
 		"roster"; -- Allow users to have a roster. Recommended ;)
 		"saslauth"; -- Authentication for clients and servers. Recommended if you want to log in.
+		"tokenauth"; -- Token storage/validation (prosodyctl token, bots API owner sessions)
 		"tls"; -- Add support for secure TLS on c2s/s2s connections
 		"disco"; -- Service discovery
 

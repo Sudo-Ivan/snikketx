@@ -12,7 +12,7 @@ ENV CGO_ENABLED=0 \
 
 WORKDIR /src
 
-COPY go.mod ./
+COPY go.mod go.sum ./
 RUN go mod download
 
 COPY cmd/ cmd/

@@ -21,7 +21,7 @@ func (a *App) mountBots(mux *http.ServeMux) {
 		return
 	}
 	if a.Bots == nil {
-		a.Bots = bots.New(a.Cfg.BotsEndpoint, a.Cfg.BotsAdminToken)
+		a.Bots = bots.New(a.Cfg.BotsEndpoint, a.Cfg.BotsHost, a.Cfg.BotsAdminToken)
 	}
 	mux.HandleFunc("GET "+pathUserBots, a.handleBotsPage)
 	mux.HandleFunc("POST "+pathUserBots, a.handleBotsCreate)
@@ -222,8 +222,10 @@ func botErrorMessage(err error) string {
 			return "You have reached the maximum number of bots."
 		case "global-quota":
 			return "The bot service is at capacity. Contact the operator."
-		case "owner-unknown":
+		case "owner-unknown", "owner-not-local", "invalid-owner":
 			return "Your account is not known to the bot service."
+		case "token-quota":
+			return "This bot has too many tokens. Revoke one first."
 		case "not-found":
 			return "Unknown bot."
 		case "rate-limited":

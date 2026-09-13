@@ -146,3 +146,34 @@ func TestReloadPersists(t *testing.T) {
 		t.Fatalf("secret=%q enabled=%v err=%v", secret, enabled, err)
 	}
 }
+
+func TestBindOIDCSubjectRefusesTakeover(t *testing.T) {
+	store, dir := testStore(t)
+	jid := "alice@example.test"
+
+	if err := store.BindOIDCSubject(jid, "sub-1"); err != nil {
+		t.Fatal(err)
+	}
+	if got := store.OIDCSubject(jid); got != "sub-1" {
+		t.Fatalf("OIDCSubject = %q", got)
+	}
+	// Rebinding to the same subject is idempotent.
+	if err := store.BindOIDCSubject(jid, "sub-1"); err != nil {
+		t.Fatal(err)
+	}
+	// A different subject must never take over the account.
+	if err := store.BindOIDCSubject(jid, "sub-2"); err == nil {
+		t.Fatal("foreign subject binding accepted")
+	}
+	if got := store.OIDCSubject(jid); got != "sub-1" {
+		t.Fatalf("binding overwritten, OIDCSubject = %q", got)
+	}
+	// Binding persists across a reopen.
+	reopened, err := Open(dir, []byte("0123456789abcdef0123456789abcdef"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := reopened.OIDCSubject(jid); got != "sub-1" {
+		t.Fatalf("binding lost after reopen, OIDCSubject = %q", got)
+	}
+}
