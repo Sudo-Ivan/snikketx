@@ -22,6 +22,7 @@ import android.provider.MediaStore;
 import android.provider.OpenableColumns;
 import android.system.Os;
 import android.system.StructStat;
+import android.util.Base64;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.util.LruCache;
@@ -47,6 +48,7 @@ import eu.siacs.conversations.ui.adapter.MediaAdapter;
 import eu.siacs.conversations.ui.util.Attachment;
 import eu.siacs.conversations.utils.FileWriterException;
 import eu.siacs.conversations.utils.MimeUtils;
+import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.File;
 import java.io.FileDescriptor;
@@ -396,7 +398,17 @@ public class FileBackend {
     }
 
     public static void updateFileParams(Message message, String url, long size) {
-        message.setBody(url + '|' + size);
+        // keep already known dimensions (e.g. from file sharing metadata) when refreshing
+        // the size of a not yet fully downloaded file
+        final var existing = message.getFileParams();
+        final var body = new StringBuilder().append(url).append('|').append(size);
+        if (existing.width > 0 && existing.height > 0) {
+            body.append('|').append(existing.width).append('|').append(existing.height);
+            if (existing.runtime > 0) {
+                body.append('|').append(existing.runtime);
+            }
+        }
+        message.setBody(body.toString());
     }
 
     public Bitmap getPreviewForUri(Attachment attachment, int size, boolean cacheOnly) {
@@ -648,6 +660,9 @@ public class FileBackend {
                 && new FileBackend.Cache(mXmppConnectionService).isCachedFile(file.get())) {
             // These are files we created ourselves like recordings and photos
             setupRelativeFilePath(message, file.get().getName());
+            if (Cache.isRecordingFilenamePattern(file.get().getName())) {
+                message.setVoiceMessage(true);
+            }
         } else {
             final String extension;
             final var extensionForType = MimeUtils.guessExtensionFromMimeType(mime);
@@ -987,6 +1002,131 @@ public class FileBackend {
             }
         }
         return thumbnail;
+    }
+
+    private static final int INLINE_THUMBNAIL_MAX_EDGE = 48;
+    private static final int INLINE_THUMBNAIL_MAX_BYTES = 1536;
+    private static final int[] INLINE_THUMBNAIL_QUALITIES = {50, 30};
+
+    /**
+     * Builds a tiny, heavily downscaled JPEG preview of an outgoing image or video. Used as
+     * data uri for the thumbnail element (XEP-0264) in file sharing metadata. Returns null
+     * when the file can not be rendered or the encoded thumbnail exceeds the size budget.
+     */
+    public InlineThumbnail getInlineThumbnail(final Message message) {
+        final var file = getFile(message);
+        if (file == null || !file.isFile()) {
+            return null;
+        }
+        final String mime = Strings.nullToEmpty(MimeUtils.getMimeType(file));
+        final Bitmap scaled;
+        try {
+            if (mime.startsWith("video/")) {
+                scaled = inlineVideoFrame(file);
+            } else if (mime.startsWith("image/")) {
+                final var preview = getFullSizeImagePreview(file, INLINE_THUMBNAIL_MAX_EDGE);
+                scaled =
+                        preview == null
+                                ? null
+                                : rotate(
+                                        resize(preview, INLINE_THUMBNAIL_MAX_EDGE),
+                                        getRotation(file));
+            } else {
+                return null;
+            }
+        } catch (final IOException | RuntimeException | OutOfMemoryError e) {
+            return null;
+        }
+        if (scaled == null) {
+            return null;
+        }
+        final var flattened = flatten(scaled);
+        try {
+            for (final int quality : INLINE_THUMBNAIL_QUALITIES) {
+                final var stream = new ByteArrayOutputStream();
+                flattened.compress(Bitmap.CompressFormat.JPEG, quality, stream);
+                final byte[] bytes = stream.toByteArray();
+                if (bytes.length > 0 && bytes.length <= INLINE_THUMBNAIL_MAX_BYTES) {
+                    return new InlineThumbnail(
+                            "data:image/jpeg;base64,"
+                                    + Base64.encodeToString(bytes, Base64.NO_WRAP),
+                            flattened.getWidth(),
+                            flattened.getHeight());
+                }
+            }
+            return null;
+        } finally {
+            flattened.recycle();
+        }
+    }
+
+    private Bitmap inlineVideoFrame(final File file) {
+        final var retriever = new MediaMetadataRetriever();
+        final Bitmap frame;
+        try {
+            retriever.setDataSource(file.getAbsolutePath());
+            frame = retriever.getFrameAtTime(0);
+        } catch (final RuntimeException e) {
+            return null;
+        } finally {
+            try {
+                retriever.release();
+            } catch (final Exception e) {
+                // ignore release failures
+            }
+        }
+        if (frame == null) {
+            return null;
+        }
+        try {
+            return resize(frame, INLINE_THUMBNAIL_MAX_EDGE);
+        } catch (final IOException e) {
+            return null;
+        }
+    }
+
+    private static Bitmap flatten(final Bitmap bitmap) {
+        if (!bitmap.hasAlpha()) {
+            return bitmap;
+        }
+        final var flattened =
+                Bitmap.createBitmap(
+                        bitmap.getWidth(), bitmap.getHeight(), Bitmap.Config.ARGB_8888);
+        flattened.eraseColor(Color.WHITE);
+        new Canvas(flattened).drawBitmap(bitmap, 0f, 0f, null);
+        bitmap.recycle();
+        return flattened;
+    }
+
+    /** Decodes a bounded data uri thumbnail received via file sharing metadata. */
+    public static Bitmap decodeInlineThumbnail(final String dataUri, final int maxEdge) {
+        final var marker = ";base64,";
+        final int index = dataUri.indexOf(marker);
+        if (!dataUri.startsWith("data:") || index < 0) {
+            return null;
+        }
+        final byte[] bytes;
+        try {
+            bytes = Base64.decode(dataUri.substring(index + marker.length()), Base64.DEFAULT);
+        } catch (final IllegalArgumentException e) {
+            return null;
+        }
+        if (bytes.length == 0 || bytes.length > INLINE_THUMBNAIL_MAX_BYTES * 8) {
+            return null;
+        }
+        final var bounds = new BitmapFactory.Options();
+        bounds.inJustDecodeBounds = true;
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.length, bounds);
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+            return null;
+        }
+        final var options = new BitmapFactory.Options();
+        options.inSampleSize = calcSampleSize(bounds, maxEdge);
+        try {
+            return BitmapFactory.decodeByteArray(bytes, 0, bytes.length, options);
+        } catch (final OutOfMemoryError e) {
+            return null;
+        }
     }
 
     private Bitmap getFullSizeImagePreview(File file, int size) {
@@ -1593,6 +1733,8 @@ public class FileBackend {
             return IMAGE_FILENAME_PATTERN.matcher(filename).matches();
         }
     }
+
+    public record InlineThumbnail(String dataUri, int width, int height) {}
 
     private record Dimensions(int height, int width) {
 

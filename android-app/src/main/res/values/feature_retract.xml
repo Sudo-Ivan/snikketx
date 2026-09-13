@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="delete_for_everyone">Delete for everyone</string>
+    <string name="delete_for_everyone_confirmation">Retract this message for everyone? Recipients whose clients do not support retraction may still see it.</string>
+    <string name="message_retracted">This message was retracted</string>
+</resources>

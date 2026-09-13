@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="spoiler_hidden">Spoiler</string>
+    <string name="spoiler_hidden_hint">Spoiler: %1$s</string>
+    <string name="spoiler_tap_to_reveal">tap to reveal</string>
+    <string name="nudge_received">%1$s sent you a nudge</string>
+    <string name="nudge_sent">You sent a nudge</string>
+</resources>

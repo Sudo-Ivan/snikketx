@@ -5,6 +5,49 @@
 
     <merge>
 
+        <LinearLayout
+            android:id="@+id/reply_quote"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="10dp"
+            android:layout_marginTop="5dp"
+            android:orientation="horizontal"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <View
+                android:id="@+id/reply_quote_indicator"
+                android:layout_width="3dp"
+                android:layout_height="match_parent"
+                android:layout_marginEnd="6dp"
+                tools:background="#888888" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/reply_quote_author"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textAppearance="?textAppearanceBodySmall"
+                    android:textStyle="bold"
+                    tools:text="Anna" />
+
+                <TextView
+                    android:id="@+id/reply_quote_body"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="2"
+                    android:textAppearance="?textAppearanceBodySmall"
+                    tools:text="We should bake a cake" />
+            </LinearLayout>
+        </LinearLayout>
+
         <TextView
             android:id="@+id/message_body"
             android:layout_width="wrap_content"

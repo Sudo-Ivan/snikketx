@@ -152,9 +152,11 @@ import eu.siacs.conversations.utils.MessageUtils;
 import eu.siacs.conversations.utils.NickValidityChecker;
 import eu.siacs.conversations.utils.PermissionUtils;
 import eu.siacs.conversations.utils.QuickLoader;
+import eu.siacs.conversations.utils.ReplyUtils;
 import eu.siacs.conversations.utils.StylingHelper;
 import eu.siacs.conversations.utils.TimeFrameUtils;
 import eu.siacs.conversations.utils.UIHelper;
+import eu.siacs.conversations.utils.UserStates;
 import eu.siacs.conversations.xmpp.Jid;
 import eu.siacs.conversations.xmpp.XmppConnection;
 import eu.siacs.conversations.xmpp.jingle.AbstractJingleConnection;
@@ -541,6 +543,7 @@ public class ConversationFragment extends XmppFragment
                 return true;
             };
     private Message selectedMessage;
+    private Message replyToMessage;
     private final OnClickListener mEnableAccountListener =
             new OnClickListener() {
                 @Override
@@ -1088,9 +1091,33 @@ public class ConversationFragment extends XmppFragment
             return;
         }
         final Editable text = this.binding.textInput.getText();
-        final String body = text == null ? "" : text.toString();
+        String body = text == null ? "" : text.toString();
         final Conversation conversation = this.conversation;
         if (body.isEmpty() || conversation == null) {
+            return;
+        }
+        // the text between the first two pairs of vertical bars becomes the XEP-0382
+        // spoiler hint, everything after the second pair is the hidden body
+        String spoilerHint = null;
+        if (body.startsWith("||")) {
+            final int end = body.indexOf("||", 2);
+            if (end >= 2) {
+                spoilerHint = body.substring(2, end);
+                body = body.substring(end + 2);
+            }
+        }
+        // /nudge or /attention send a XEP-0224 attention request, any trailing text
+        // becomes the message body
+        final boolean attention =
+                body.equals("/nudge")
+                        || body.equals("/attention")
+                        || body.startsWith("/nudge ")
+                        || body.startsWith("/attention ");
+        if (attention) {
+            final int space = body.indexOf(' ');
+            body = space < 0 ? "" : body.substring(space + 1);
+        }
+        if (body.isEmpty() && spoilerHint == null && !attention) {
             return;
         }
         if (trustKeysIfNeeded(conversation, REQUEST_TRUST_KEYS_TEXT)) {
@@ -1100,6 +1127,13 @@ public class ConversationFragment extends XmppFragment
         if (conversation.getCorrectingMessage() == null) {
             message = new Message(conversation, body, conversation.getNextEncryption());
             Message.configurePrivateMessage(message);
+            message.setInReplyTo(ReplyUtils.create(this.replyToMessage));
+            if (spoilerHint != null) {
+                message.setSpoilerHint(spoilerHint);
+            }
+            if (attention) {
+                message.setAttention(true);
+            }
         } else {
             message = conversation.getCorrectingMessage();
             final var uuid = message.getUuid();
@@ -1472,6 +1506,8 @@ public class ConversationFragment extends XmppFragment
         messageListAdapter = new MessageAdapter((XmppActivity) getActivity(), this.messageList);
         messageListAdapter.setOnContactPictureClicked(this);
         messageListAdapter.setOnContactPictureLongClicked(this);
+        messageListAdapter.setOnReplyClicked(this::scrollToReferencedMessage);
+        binding.replyPreviewClose.setOnClickListener(v -> setReplyTo(null));
         binding.messagesView.setAdapter(messageListAdapter);
         binding.messagesView.setOnSwipeReplyListener(
                 new MessagesListView.OnSwipeReplyListener() {
@@ -1528,6 +1564,7 @@ public class ConversationFragment extends XmppFragment
         getParentFragmentManager().removeOnBackStackChangedListener(backStackListener);
         messageListAdapter.setOnContactPictureClicked(null);
         messageListAdapter.setOnContactPictureLongClicked(null);
+        messageListAdapter.setOnReplyClicked(null);
     }
 
     private void quoteText(String text) {
@@ -1545,7 +1582,45 @@ public class ConversationFragment extends XmppFragment
     }
 
     private void quoteMessage(Message message) {
-        quoteText(MessageUtils.prepareQuote(message));
+        if (binding.textInput.isEnabled() && ReplyUtils.create(message) != null) {
+            setReplyTo(message);
+        } else {
+            quoteText(MessageUtils.prepareQuote(message));
+        }
+    }
+
+    private void setReplyTo(final Message message) {
+        this.replyToMessage = message;
+        if (message == null) {
+            this.binding.replyPreview.setVisibility(View.GONE);
+            return;
+        }
+        this.binding.replyPreviewAuthor.setText(
+                getString(
+                        R.string.replying_to,
+                        Strings.nullToEmpty(UIHelper.getMessageDisplayName(message))));
+        this.binding.replyPreviewBody.setText(
+                UIHelper.getMessagePreview(requireContext(), message).first);
+        this.binding.replyPreview.setVisibility(View.VISIBLE);
+        if (this.binding.textInput.isEnabled()) {
+            this.binding.textInput.requestFocus();
+            final var inputMethodManager =
+                    (InputMethodManager)
+                            requireContext().getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (inputMethodManager != null) {
+                inputMethodManager.showSoftInput(
+                        this.binding.textInput, InputMethodManager.SHOW_IMPLICIT);
+            }
+        }
+    }
+
+    private void scrollToReferencedMessage(final Message message) {
+        synchronized (this.messageList) {
+            final var position = this.messageList.indexOf(message);
+            if (position >= 0) {
+                this.binding.messagesView.smoothScrollToPosition(position);
+            }
+        }
     }
 
     private static boolean canQuoteMessage(final Message m) {
@@ -1599,6 +1674,9 @@ public class ConversationFragment extends XmppFragment
     private void populateContextMenu(final ContextMenu menu) {
         final Message m = this.selectedMessage;
         final Transferable t = m.getTransferable();
+        if (m.isRetracted()) {
+            return;
+        }
         if (m.getType() != Message.TYPE_STATUS && m.getType() != Message.TYPE_RTP_SESSION) {
 
             if (m.getEncryption() == Message.ENCRYPTION_AXOLOTL_NOT_FOR_THIS_DEVICE
@@ -1640,6 +1718,7 @@ public class ConversationFragment extends XmppFragment
             final MenuItem cancelTransmission = menu.findItem(R.id.cancel_transmission);
             final MenuItem deleteFile = menu.findItem(R.id.delete_file);
             final MenuItem moderateMessage = menu.findItem(R.id.moderation);
+            final MenuItem retractMessage = menu.findItem(R.id.retract_message);
             final MenuItem showErrorMessage = menu.findItem(R.id.show_error_message);
             final MenuItem saveFile = menu.findItem(R.id.save_file);
             final MenuItem pinMessage = menu.findItem(R.id.action_pin_message);
@@ -1690,6 +1769,11 @@ public class ConversationFragment extends XmppFragment
                         isAckedModerationDisclaimer()
                                 ? R.string.moderate_delete
                                 : R.string.moderate_delete_dot_dot_dot);
+                final var sentSuccessfully =
+                        m.getStatus() == Message.STATUS_SEND
+                                || m.getStatus() == Message.STATUS_SEND_RECEIVED
+                                || m.getStatus() == Message.STATUS_SEND_DISPLAYED;
+                retractMessage.setVisible(sentSuccessfully && !moderateMessage.isVisible());
                 correctMessage.setVisible(
                         !showError
                                 && m.getStatus() != Message.STATUS_RECEIVED
@@ -1712,6 +1796,7 @@ public class ConversationFragment extends XmppFragment
                                 : R.string.pin_message);
             } else {
                 moderateMessage.setVisible(false);
+                retractMessage.setVisible(false);
                 addReaction.setVisible(false);
                 correctMessage.setVisible(false);
                 pinMessage.setVisible(false);
@@ -1862,6 +1947,9 @@ public class ConversationFragment extends XmppFragment
             return true;
         } else if (itemId == R.id.moderation) {
             moderate(selectedMessage);
+            return true;
+        } else if (itemId == R.id.retract_message) {
+            retract(selectedMessage);
             return true;
         } else if (itemId == R.id.show_error_message) {
             showErrorMessage(selectedMessage);
@@ -2913,6 +3001,25 @@ public class ConversationFragment extends XmppFragment
         }
     }
 
+    private void retract(final Message message) {
+        final var builder = new MaterialAlertDialogBuilder(requireActivity());
+        builder.setNegativeButton(R.string.cancel, null);
+        builder.setTitle(R.string.delete_for_everyone);
+        builder.setMessage(R.string.delete_for_everyone_confirmation);
+        builder.setPositiveButton(
+                R.string.confirm,
+                (dialog, which) -> {
+                    final var connection =
+                            message.getConversation().getAccount().getXmppConnection();
+                    if (connection == null) {
+                        return;
+                    }
+                    connection.getManager(ModerationManager.class).retract(message);
+                    refresh();
+                });
+        builder.create().show();
+    }
+
     private void resendMessage(final Message message, final boolean forceP2P) {
         if (message.isFileOrImage()) {
             if (!(message.getConversation() instanceof Conversation conversation)) {
@@ -3004,6 +3111,7 @@ public class ConversationFragment extends XmppFragment
     }
 
     private void correctMessage(final Message message) {
+        setReplyTo(null);
         this.conversation.setCorrectingMessage(message);
         final Editable editable = binding.textInput.getText();
         this.conversation.setDraftMessage(CharSequences.nullToEmpty(editable));
@@ -3206,6 +3314,7 @@ public class ConversationFragment extends XmppFragment
         }
 
         stopScrolling();
+        setReplyTo(null);
         Log.d(Config.LOGTAG, "reInit(hasExtras=" + hasExtras + ")");
 
         if (this.conversation.isRead() && hasExtras) {
@@ -3642,6 +3751,7 @@ public class ConversationFragment extends XmppFragment
 
     protected void messageSent() {
         mSendingPgpMessage.set(false);
+        setReplyTo(null);
         this.binding.textInput.setText("");
         if (conversation.setCorrectingMessage(null)) {
             this.binding.textInput.append(conversation.getDraftMessage());
@@ -3777,9 +3887,17 @@ public class ConversationFragment extends XmppFragment
         this.binding.toolbar.setTitle(c.getName());
         if (c.getMode() == Conversation.MODE_SINGLE && this.mShowLastUserInteraction) {
             final var contact = conversation.getContact();
-            this.binding.toolbar.setSubtitle(
+            final var interaction =
                     UIHelper.lastUserInteraction(
-                            requireContext(), contact.getLastUserInteraction()));
+                            requireContext(), contact.getLastUserInteraction());
+            final var userState = UserStates.inlineSummary(requireContext(), contact);
+            if (userState == null) {
+                this.binding.toolbar.setSubtitle(interaction);
+            } else if (interaction == null) {
+                this.binding.toolbar.setSubtitle(userState);
+            } else {
+                this.binding.toolbar.setSubtitle(interaction + ", " + userState);
+            }
         } else if (c.getMode() == Conversation.MODE_MULTI) {
             final var mucOptions = conversation.getMucOptions();
             final var userCount = mucOptions.getUserCount();
@@ -4080,6 +4198,12 @@ public class ConversationFragment extends XmppFragment
                     }
                     return false;
                 });
+        // the send button sits right above the keyboard; dismiss it first so the
+        // popup has room to anchor without overlapping the IME
+        final InputMethodManager imm =
+                (InputMethodManager)
+                        requireContext().getSystemService(Context.INPUT_METHOD_SERVICE);
+        imm.hideSoftInputFromWindow(binding.textInput.getWindowToken(), 0);
         popupMenu.show();
         return true;
     }
@@ -4201,6 +4325,7 @@ public class ConversationFragment extends XmppFragment
                                 scheduledAt,
                                 c.getNextEncryption()));
         binding.textInput.setText("");
+        setReplyTo(null);
         UIHelper.performConfirmHaptic(binding.getRoot());
         Toast.makeText(
                         requireContext(),

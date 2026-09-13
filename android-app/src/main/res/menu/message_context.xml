@@ -12,6 +12,11 @@
         android:visible="false" />
 
     <item
+        android:id="@+id/retract_message"
+        android:title="@string/delete_for_everyone"
+        android:visible="false" />
+
+    <item
         android:id="@+id/action_report_and_block"
         android:title="@string/report_spam"
         android:visible="false" />

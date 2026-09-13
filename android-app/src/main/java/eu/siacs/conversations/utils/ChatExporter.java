@@ -63,6 +63,9 @@ public class ChatExporter {
     }
 
     private static String bodyOf(final Message message) {
+        if (message.isRetracted()) {
+            return "[retracted]";
+        }
         if (message.isDeleted()) {
             return "[deleted]";
         }

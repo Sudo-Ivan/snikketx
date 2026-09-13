@@ -138,7 +138,15 @@ public final class Namespace {
     public static final String STICKERS = "urn:xmpp:stickers:0";
     public static final String SFS = "urn:xmpp:sfs:0";
     public static final String FILE_METADATA = "urn:xmpp:file:metadata:0";
+    public static final String THUMBS = "urn:xmpp:thumbs:1";
     public static final String URL_DATA = "http://jabber.org/protocol/url-data";
     public static final String FASTEN = "urn:xmpp:fasten:0";
     public static final String SNIKKETX_FOLDERS = "org.snikketx.folders:0";
+    public static final String SPOILER = "urn:xmpp:spoiler:0";
+    public static final String VOICE_MESSAGE = "urn:xmpp:voice-message";
+    public static final String ATTENTION = "urn:xmpp:attention:0";
+    public static final String REPLY = "urn:xmpp:reply:0";
+    public static final String MOOD = "http://jabber.org/protocol/mood";
+    public static final String ACTIVITY = "http://jabber.org/protocol/activity";
+    public static final String TUNE = "http://jabber.org/protocol/tune";
 }

@@ -24,6 +24,7 @@ import eu.siacs.conversations.entities.Message;
 import eu.siacs.conversations.parser.IqParser;
 import eu.siacs.conversations.services.XmppConnectionService;
 import eu.siacs.conversations.utils.CryptoHelper;
+import eu.siacs.conversations.utils.ReplyUtils;
 import eu.siacs.conversations.utils.SerialSingleThreadExecutor;
 import eu.siacs.conversations.xml.Element;
 import eu.siacs.conversations.xml.Namespace;
@@ -1617,7 +1618,9 @@ public class AxolotlService implements OnAdvancedStreamFeaturesLoaded {
         if (message.hasFileOnRemoteHost()) {
             content = message.getFileParams().url;
         } else {
-            content = message.getBody();
+            content =
+                    ReplyUtils.fallbackQuote(mXmppConnectionService, message.getInReplyTo())
+                            + message.getBody();
         }
         try {
             axolotlMessage.encrypt(content);

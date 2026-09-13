@@ -167,6 +167,61 @@
 
                         </androidx.recyclerview.widget.RecyclerView>
 
+                        <LinearLayout
+                            android:id="@+id/reply_preview"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="4dp"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:visibility="gone"
+                            tools:visibility="visible">
+
+                            <View
+                                android:layout_width="3dp"
+                                android:layout_height="match_parent"
+                                android:layout_marginEnd="8dp"
+                                android:background="?colorOnTertiaryContainer" />
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:id="@+id/reply_preview_author"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:ellipsize="end"
+                                    android:maxLines="1"
+                                    android:textAppearance="?textAppearanceBodySmall"
+                                    android:textColor="?colorOnTertiaryContainer"
+                                    android:textStyle="bold"
+                                    tools:text="Replying to Anna" />
+
+                                <TextView
+                                    android:id="@+id/reply_preview_body"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:ellipsize="end"
+                                    android:maxLines="1"
+                                    android:textAppearance="?textAppearanceBodySmall"
+                                    android:textColor="?colorOnTertiaryContainer"
+                                    tools:text="We should bake a cake" />
+                            </LinearLayout>
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/reply_preview_close"
+                                style="?attr/materialIconButtonStyle"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:contentDescription="@string/cancel_reply"
+                                app:icon="@drawable/ic_close_24dp"
+                                app:iconSize="18dp"
+                                app:iconTint="?colorOnTertiaryContainer" />
+                        </LinearLayout>
+
                         <eu.siacs.conversations.ui.widget.EditMessage
 
                             android:id="@+id/text_input"

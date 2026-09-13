@@ -47,12 +47,38 @@ public class Fallback extends Extension {
 
     public sealed interface Range permits StartEndRange, FullRange {
         boolean isEntire(final LocalizedContent content);
+
+        /** Returns the content with the indicated fallback range removed. */
+        String removeFrom(final String content);
+
+        /** Returns the part of the content covered by the fallback range. */
+        String substringOf(final String content);
+    }
+
+    private static int toIndex(final String content, final int codePointOffset) {
+        final var total = content.codePointCount(0, content.length());
+        final var clamped = Math.max(0, Math.min(codePointOffset, total));
+        return content.offsetByCodePoints(0, clamped);
     }
 
     private record StartEndRange(int start, int end) implements Range {
         @Override
         public boolean isEntire(final LocalizedContent content) {
             return start == 0 && end >= content.content.length() - 1;
+        }
+
+        @Override
+        public String removeFrom(final String content) {
+            final var s = toIndex(content, start);
+            final var e = Math.max(s, toIndex(content, end));
+            return content.substring(0, s) + content.substring(e);
+        }
+
+        @Override
+        public String substringOf(final String content) {
+            final var s = toIndex(content, start);
+            final var e = Math.max(s, toIndex(content, end));
+            return content.substring(s, e);
         }
     }
 
@@ -61,6 +87,16 @@ public class Fallback extends Extension {
         @Override
         public boolean isEntire(LocalizedContent content) {
             return true;
+        }
+
+        @Override
+        public String removeFrom(final String content) {
+            return "";
+        }
+
+        @Override
+        public String substringOf(final String content) {
+            return content;
         }
     }
     ;

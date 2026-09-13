@@ -18,6 +18,11 @@ public class LocalizedContent {
         this.count = count;
     }
 
+    public static LocalizedContent of(
+            final String content, final String language, final int count) {
+        return new LocalizedContent(content, language, count);
+    }
+
     public static LocalizedContent get(final Map<String, String> contents) {
         if (contents.isEmpty()) {
             return null;

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="replying_to">Replying to %s</string>
+    <string name="cancel_reply">Cancel reply</string>
+    <string name="reply_fallback_header">%s wrote:</string>
+    <string name="reply_not_loaded">Original message</string>
+</resources>

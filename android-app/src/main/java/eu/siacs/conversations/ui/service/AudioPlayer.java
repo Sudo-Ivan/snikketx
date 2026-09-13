@@ -160,7 +160,9 @@ public class AudioPlayer
             viewHolder.progress.setAmplitudes(null);
             return;
         }
-        if (file == null || !FileBackend.Cache.isRecordingFilenamePattern(file.getName())) {
+        if (file == null
+                || !(message.isVoiceMessage()
+                        || FileBackend.Cache.isRecordingFilenamePattern(file.getName()))) {
             viewHolder.speed.setVisibility(View.GONE);
             viewHolder.progress.setAmplitudes(null);
             return;

@@ -83,9 +83,12 @@ public class MessageUtils {
                 return false;
             }
         }
+        // a downloadable body can carry file params as pipe separated suffix
+        final String firstLine = lines[0];
+        final int pipe = firstLine.indexOf('|');
         final URI uri;
         try {
-            uri = new URI(lines[0]);
+            uri = new URI(pipe < 0 ? firstLine : firstLine.substring(0, pipe));
         } catch (final URISyntaxException e) {
             return false;
         }

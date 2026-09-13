@@ -146,32 +146,37 @@ public class IndividualMessage extends Message {
         } catch (IllegalArgumentException e) {
             trueCounterpart = null;
         }
-        return new IndividualMessage(
-                conversation,
-                cursor.getString(cursor.getColumnIndexOrThrow(UUID)),
-                cursor.getString(cursor.getColumnIndexOrThrow(CONVERSATION)),
-                jid,
-                trueCounterpart,
-                cursor.getString(cursor.getColumnIndexOrThrow(BODY)),
-                cursor.getLong(cursor.getColumnIndexOrThrow(TIME_SENT)),
-                cursor.getInt(cursor.getColumnIndexOrThrow(ENCRYPTION)),
-                cursor.getInt(cursor.getColumnIndexOrThrow(STATUS)),
-                cursor.getInt(cursor.getColumnIndexOrThrow(TYPE)),
-                cursor.getInt(cursor.getColumnIndexOrThrow(CARBON)) > 0,
-                cursor.getString(cursor.getColumnIndexOrThrow(REMOTE_MSG_ID)),
-                storageLocationFromCursor(context, cursor),
-                cursor.getString(cursor.getColumnIndexOrThrow(SERVER_MSG_ID)),
-                cursor.getString(cursor.getColumnIndexOrThrow(FINGERPRINT)),
-                cursor.getInt(cursor.getColumnIndexOrThrow(READ)) > 0,
-                Edit.ofString(cursor.getString(cursor.getColumnIndexOrThrow(EDITED))),
-                cursor.getInt(cursor.getColumnIndexOrThrow(OOB)) > 0,
-                cursor.getString(cursor.getColumnIndexOrThrow(ERROR_MESSAGE)),
-                ReadByMarker.fromJsonString(
-                        cursor.getString(cursor.getColumnIndexOrThrow(READ_BY_MARKERS))),
-                cursor.getInt(cursor.getColumnIndexOrThrow(MARKABLE)) > 0,
-                cursor.getInt(cursor.getColumnIndexOrThrow(DELETED)) > 0,
-                cursor.getString(cursor.getColumnIndexOrThrow(BODY_LANGUAGE)),
-                cursor.getString(cursor.getColumnIndexOrThrow(OCCUPANT_ID)),
-                Reaction.fromString(cursor.getString(cursor.getColumnIndexOrThrow(REACTIONS))));
+        final var message =
+                new IndividualMessage(
+                        conversation,
+                        cursor.getString(cursor.getColumnIndexOrThrow(UUID)),
+                        cursor.getString(cursor.getColumnIndexOrThrow(CONVERSATION)),
+                        jid,
+                        trueCounterpart,
+                        cursor.getString(cursor.getColumnIndexOrThrow(BODY)),
+                        cursor.getLong(cursor.getColumnIndexOrThrow(TIME_SENT)),
+                        cursor.getInt(cursor.getColumnIndexOrThrow(ENCRYPTION)),
+                        cursor.getInt(cursor.getColumnIndexOrThrow(STATUS)),
+                        cursor.getInt(cursor.getColumnIndexOrThrow(TYPE)),
+                        cursor.getInt(cursor.getColumnIndexOrThrow(CARBON)) > 0,
+                        cursor.getString(cursor.getColumnIndexOrThrow(REMOTE_MSG_ID)),
+                        storageLocationFromCursor(context, cursor),
+                        cursor.getString(cursor.getColumnIndexOrThrow(SERVER_MSG_ID)),
+                        cursor.getString(cursor.getColumnIndexOrThrow(FINGERPRINT)),
+                        cursor.getInt(cursor.getColumnIndexOrThrow(READ)) > 0,
+                        Edit.ofString(cursor.getString(cursor.getColumnIndexOrThrow(EDITED))),
+                        cursor.getInt(cursor.getColumnIndexOrThrow(OOB)) > 0,
+                        cursor.getString(cursor.getColumnIndexOrThrow(ERROR_MESSAGE)),
+                        ReadByMarker.fromJsonString(
+                                cursor.getString(cursor.getColumnIndexOrThrow(READ_BY_MARKERS))),
+                        cursor.getInt(cursor.getColumnIndexOrThrow(MARKABLE)) > 0,
+                        cursor.getInt(cursor.getColumnIndexOrThrow(DELETED)) > 0,
+                        cursor.getString(cursor.getColumnIndexOrThrow(BODY_LANGUAGE)),
+                        cursor.getString(cursor.getColumnIndexOrThrow(OCCUPANT_ID)),
+                        Reaction.fromString(
+                                cursor.getString(cursor.getColumnIndexOrThrow(REACTIONS))));
+        message.setSpoilerHint(cursor.getString(cursor.getColumnIndexOrThrow(SPOILER_HINT)));
+        message.setWireFlags(cursor.getInt(cursor.getColumnIndexOrThrow(WIRE_FLAGS)));
+        return message;
     }
 }

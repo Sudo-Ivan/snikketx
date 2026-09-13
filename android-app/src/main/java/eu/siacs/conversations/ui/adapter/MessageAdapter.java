@@ -6,6 +6,7 @@ import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Build;
@@ -13,9 +14,11 @@ import android.text.Spannable;
 import android.text.SpannableString;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
+import android.text.TextPaint;
 import android.text.TextUtils;
 import android.text.format.DateFormat;
 import android.text.format.DateUtils;
+import android.text.style.ClickableSpan;
 import android.text.style.ForegroundColorSpan;
 import android.text.style.RelativeSizeSpan;
 import android.text.style.StyleSpan;
@@ -63,6 +66,7 @@ import eu.siacs.conversations.databinding.ItemMessageStatusBinding;
 import eu.siacs.conversations.entities.Account;
 import eu.siacs.conversations.entities.Conversation;
 import eu.siacs.conversations.entities.Conversational;
+import eu.siacs.conversations.entities.InReplyTo;
 import eu.siacs.conversations.entities.Message;
 import eu.siacs.conversations.entities.Message.FileParams;
 import eu.siacs.conversations.entities.RtpSessionStatus;
@@ -101,8 +105,10 @@ import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -123,8 +129,12 @@ public class MessageAdapter extends ArrayAdapter<Message> {
     private final DisplayMetrics metrics;
     private OnContactPictureClicked mOnContactPictureClickedListener;
     private OnContactPictureLongClicked mOnContactPictureLongClickedListener;
+    private OnReplyClicked mOnReplyClickedListener;
     private BubbleDesign bubbleDesign = new BubbleDesign(false, false, false, true, true);
     private final boolean mForceNames;
+    // uuids of XEP-0382 spoilers the user tapped open; intentionally not persisted so the
+    // spoiler is concealed again as soon as the view is recreated
+    private final Set<String> revealedSpoilers = new HashSet<>();
 
     public MessageAdapter(
             final XmppActivity activity, final List<Message> messages, final boolean forceNames) {
@@ -168,6 +178,10 @@ public class MessageAdapter extends ArrayAdapter<Message> {
 
     public void setOnContactPictureLongClicked(OnContactPictureLongClicked listener) {
         this.mOnContactPictureLongClickedListener = listener;
+    }
+
+    public void setOnReplyClicked(final OnReplyClicked listener) {
+        this.mOnReplyClickedListener = listener;
     }
 
     @Override
@@ -376,6 +390,94 @@ public class MessageAdapter extends ArrayAdapter<Message> {
         return additionalStatusInfo;
     }
 
+    private void displayReplyQuote(
+            final BubbleMessageItemViewHolder viewHolder,
+            final Message message,
+            final BubbleColor bubbleColor) {
+        final var inReplyTo = message.getInReplyTo();
+        final var quote = viewHolder.replyQuote();
+        if (inReplyTo == null || inReplyTo.id() == null) {
+            quote.setVisibility(View.GONE);
+            return;
+        }
+        final var referenced = findReferencedMessage(message, inReplyTo.id());
+        final var author = replyAuthor(message, inReplyTo, referenced);
+        final CharSequence snippet;
+        if (referenced != null) {
+            snippet = UIHelper.getMessagePreview(activity, referenced).first;
+        } else {
+            snippet = inReplyTo.preview();
+        }
+        if (author == null && TextUtils.isEmpty(snippet)) {
+            quote.setVisibility(View.GONE);
+            return;
+        }
+        quote.setVisibility(View.VISIBLE);
+        final var variantColor = bubbleToOnSurfaceVariant(quote, bubbleColor);
+        viewHolder.replyQuoteIndicator().setBackgroundColor(variantColor);
+        if (author == null) {
+            viewHolder.replyQuoteAuthor().setVisibility(View.GONE);
+        } else {
+            viewHolder.replyQuoteAuthor().setVisibility(View.VISIBLE);
+            viewHolder.replyQuoteAuthor().setText(author);
+            viewHolder
+                    .replyQuoteAuthor()
+                    .setTextColor(bubbleToOnSurfaceColor(quote, bubbleColor));
+        }
+        if (TextUtils.isEmpty(snippet)) {
+            viewHolder.replyQuoteBody().setVisibility(View.GONE);
+        } else {
+            viewHolder.replyQuoteBody().setVisibility(View.VISIBLE);
+            viewHolder.replyQuoteBody().setText(snippet);
+            viewHolder.replyQuoteBody().setTextColor(variantColor);
+        }
+        if (referenced != null && mOnReplyClickedListener != null) {
+            quote.setOnClickListener(v -> mOnReplyClickedListener.onReplyClicked(referenced));
+        } else {
+            quote.setOnClickListener(null);
+        }
+    }
+
+    @Nullable
+    private static Message findReferencedMessage(final Message message, final String id) {
+        if (message.getConversation() instanceof Conversation conversation) {
+            final var byStanzaId = conversation.findMessageWithServerMsgId(id);
+            if (byStanzaId != null) {
+                return byStanzaId;
+            }
+            return conversation.findMessageWithUuidOrRemoteId(id, null, null);
+        }
+        return null;
+    }
+
+    @Nullable
+    private String replyAuthor(
+            final Message message, final InReplyTo inReplyTo, final Message referenced) {
+        if (referenced != null) {
+            return UIHelper.getMessageDisplayName(referenced);
+        }
+        if (inReplyTo.author() != null) {
+            return inReplyTo.author();
+        }
+        final var to = inReplyTo.to();
+        if (to == null) {
+            return null;
+        }
+        final var conversational = message.getConversation();
+        if (conversational.getMode() == Conversational.MODE_MULTI) {
+            return to.isBareJid() ? to.toString() : to.getResource();
+        }
+        if (to.asBareJid().equals(conversational.getAccount().getJid().asBareJid())) {
+            final var displayName = conversational.getAccount().getDisplayName();
+            return Strings.isNullOrEmpty(displayName) ? to.getLocal() : displayName;
+        }
+        final var contact = conversational.getContact();
+        if (contact != null && contact.getAddress().equals(to.asBareJid())) {
+            return contact.getDisplayName();
+        }
+        return to.getLocal() == null ? to.toString() : to.getLocal();
+    }
+
     private void displayInfoMessage(
             BubbleMessageItemViewHolder viewHolder,
             CharSequence text,
@@ -504,6 +606,10 @@ public class MessageAdapter extends ArrayAdapter<Message> {
         setTextSize(viewHolder.messageBody(), this.bubbleDesign.largeFont);
         viewHolder.messageBody().setTypeface(null, Typeface.NORMAL);
         final var rawBody = message.getBody();
+        if (message.isSpoiler() && !revealedSpoilers.contains(message.getUuid())) {
+            displayConcealedSpoiler(viewHolder, message, bubbleColor);
+            return;
+        }
         if (Strings.isNullOrEmpty(rawBody)) {
             viewHolder.messageBody().setText("");
             viewHolder.messageBody().setTextIsSelectable(false);
@@ -611,6 +717,89 @@ public class MessageAdapter extends ArrayAdapter<Message> {
         viewHolder.messageBody().setMovementMethod(ClickableMovementMethod.getInstance());
     }
 
+    /**
+     * Renders a XEP-0382 spoiler as the hint plus a tap to reveal link. The actual body is
+     * only shown after the tap; the reveal is tracked in memory and forgotten as soon as the
+     * adapter is recreated.
+     */
+    private void displayConcealedSpoiler(
+            final BubbleMessageItemViewHolder viewHolder,
+            final Message message,
+            final BubbleColor bubbleColor) {
+        final String hint = message.getSpoilerHint();
+        final String concealed =
+                hint == null
+                        ? activity.getString(R.string.spoiler_hidden)
+                        : activity.getString(R.string.spoiler_hidden_hint, hint);
+        final String action = activity.getString(R.string.spoiler_tap_to_reveal);
+        final var body = new SpannableStringBuilder(concealed + " " + action);
+        body.setSpan(
+                new StyleSpan(Typeface.ITALIC),
+                0,
+                concealed.length(),
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        final int actionColor = bubbleToOnSurfaceVariant(viewHolder.messageBody(), bubbleColor);
+        body.setSpan(
+                new ClickableSpan() {
+                    @Override
+                    public void onClick(@NonNull final View widget) {
+                        revealedSpoilers.add(message.getUuid());
+                        displayTextMessage(viewHolder, message, bubbleColor);
+                    }
+
+                    @Override
+                    public void updateDrawState(@NonNull final TextPaint ds) {
+                        super.updateDrawState(ds);
+                        ds.setColor(actionColor);
+                        ds.setUnderlineText(true);
+                    }
+                },
+                concealed.length() + 1,
+                body.length(),
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        viewHolder.messageBody().setTextIsSelectable(false);
+        viewHolder.messageBody().setText(body);
+        viewHolder.messageBody().setMovementMethod(ClickableMovementMethod.getInstance());
+    }
+
+    /**
+     * Renders a XEP-0224 attention request as a distinct nudge row. Any body the sender
+     * included is shown below the label.
+     */
+    private void displayAttentionMessage(
+            final BubbleMessageItemViewHolder viewHolder,
+            final Message message,
+            final BubbleColor bubbleColor) {
+        viewHolder.downloadButton().setVisibility(View.GONE);
+        viewHolder.image().setVisibility(View.GONE);
+        viewHolder.audioPlayer().setVisibility(View.GONE);
+        viewHolder.messageBody().setVisibility(View.VISIBLE);
+        setTextColor(viewHolder.messageBody(), bubbleColor);
+        setTextSize(viewHolder.messageBody(), this.bubbleDesign.largeFont);
+        final String label;
+        if (message.getStatus() == Message.STATUS_RECEIVED) {
+            label =
+                    activity.getString(
+                            R.string.nudge_received, UIHelper.getMessageDisplayName(message));
+        } else {
+            label = activity.getString(R.string.nudge_sent);
+        }
+        final var body = new SpannableStringBuilder(label);
+        body.setSpan(
+                new StyleSpan(Typeface.BOLD_ITALIC),
+                0,
+                label.length(),
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        final var rawBody = message.getBody();
+        if (!Strings.isNullOrEmpty(rawBody)) {
+            body.append('\n').append(rawBody.trim());
+        }
+        viewHolder.messageBody().setTypeface(null, Typeface.NORMAL);
+        viewHolder.messageBody().setTextIsSelectable(false);
+        viewHolder.messageBody().setText(body);
+        viewHolder.messageBody().setMovementMethod(ClickableMovementMethod.getInstance());
+    }
+
     private void displayDownloadableMessage(
             final BubbleMessageItemViewHolder viewHolder,
             final Message message,
@@ -710,7 +899,26 @@ public class MessageAdapter extends ArrayAdapter<Message> {
         final LinearLayout.LayoutParams layoutParams =
                 new LinearLayout.LayoutParams(scaledW, scaledH);
         viewHolder.image().setLayoutParams(layoutParams);
-        activity.loadBitmap(message, viewHolder.image());
+        // with file sharing metadata a received file message can be sized before the download
+        // has started; in that case show the inline thumbnail as placeholder and let a tap
+        // start the download instead of trying to open a file that does not exist yet
+        final var file = activity.xmppConnectionService.getFileBackend().getFile(message);
+        if (file != null && file.exists()) {
+            activity.loadBitmap(message, viewHolder.image());
+            viewHolder.image().setOnClickListener(v -> openDownloadable(message));
+        } else {
+            final var placeholder = inlineThumbnail(message);
+            if (placeholder == null) {
+                activity.loadBitmap(message, viewHolder.image());
+            } else {
+                XmppActivity.cancelPotentialWork(message, viewHolder.image());
+                viewHolder.image().setBackgroundColor(0x00000000);
+                viewHolder.image().setImageBitmap(placeholder);
+            }
+            viewHolder
+                    .image()
+                    .setOnClickListener(v -> ConversationFragment.downloadFile(activity, message));
+        }
         if (message.isSticker()) {
             final String stickerDescription = message.getStickerDescription();
             viewHolder
@@ -720,7 +928,29 @@ public class MessageAdapter extends ArrayAdapter<Message> {
                                     ? activity.getString(R.string.sticker_content_description)
                                     : stickerDescription);
         }
-        viewHolder.image().setOnClickListener(v -> openDownloadable(message));
+    }
+
+    /**
+     * Decodes (and caches) the XEP-0264 data uri thumbnail that file sharing metadata may have
+     * attached to a not yet downloaded file.
+     */
+    private Bitmap inlineThumbnail(final Message message) {
+        final String dataUri = message.getInlineThumbnail();
+        if (dataUri == null) {
+            return null;
+        }
+        final var cache = activity.xmppConnectionService.getBitmapCache();
+        final String key = "sfs_thumbnail_" + message.getUuid();
+        final Bitmap cached = cache.get(key);
+        if (cached != null) {
+            return cached;
+        }
+        final Bitmap decoded =
+                FileBackend.decodeInlineThumbnail(dataUri, (int) (metrics.density * 288));
+        if (decoded != null) {
+            cache.put(key, decoded);
+        }
+        return decoded;
     }
 
     private void toggleWhisperInfo(
@@ -913,7 +1143,10 @@ public class MessageAdapter extends ArrayAdapter<Message> {
         setAvatarDistance(viewHolder.messageBox(), viewHolder.getClass(), showAvatar);
         viewHolder.messageBox().setClipToOutline(true);
 
-        resetClickListener(viewHolder.messageBox(), viewHolder.messageBody());
+        resetClickListener(
+                viewHolder.messageBox(), viewHolder.messageBody(), viewHolder.replyQuote());
+
+        displayReplyQuote(viewHolder, message, bubbleColor);
 
         viewHolder
                 .contactPicture()
@@ -939,7 +1172,10 @@ public class MessageAdapter extends ArrayAdapter<Message> {
 
         final Transferable transferable = message.getTransferable();
         final boolean unInitiatedButKnownSize = MessageUtils.unInitiatedButKnownSize(message);
-        if (unInitiatedButKnownSize
+        if (message.isRetracted()) {
+            displayInfoMessage(
+                    viewHolder, activity.getString(R.string.message_retracted), bubbleColor);
+        } else if (unInitiatedButKnownSize
                 || message.isDeleted()
                 || (transferable != null
                         && transferable.getStatus() != Transferable.STATUS_UPLOADING)) {
@@ -1008,7 +1244,9 @@ public class MessageAdapter extends ArrayAdapter<Message> {
             displayInfoMessage(
                     viewHolder, activity.getString(R.string.omemo_decryption_failed), bubbleColor);
         } else {
-            if (message.isGeoUri()) {
+            if (message.isAttention()) {
+                displayAttentionMessage(viewHolder, message, bubbleColor);
+            } else if (message.isGeoUri()) {
                 displayLocationMessage(viewHolder, message, bubbleColor);
             } else if (message.bodyIsOnlyEmojis() && message.getType() != Message.TYPE_PRIVATE) {
                 displayEmojiMessage(viewHolder, message.getBody().trim(), bubbleColor);
@@ -1461,6 +1699,10 @@ public class MessageAdapter extends ArrayAdapter<Message> {
         void onContactPictureLongClicked(View v, Message message);
     }
 
+    public interface OnReplyClicked {
+        void onReplyClicked(Message referenced);
+    }
+
     public static void setBackgroundTint(final ViewGroup view, final BubbleColor bubbleColor) {
         view.setBackgroundTintList(bubbleToColorStateList(view, bubbleColor));
     }
@@ -1626,6 +1868,14 @@ public class MessageAdapter extends ArrayAdapter<Message> {
         protected abstract ImageView contactPicture();
 
         protected abstract ChipGroup reactions();
+
+        protected abstract LinearLayout replyQuote();
+
+        protected abstract View replyQuoteIndicator();
+
+        protected abstract TextView replyQuoteAuthor();
+
+        protected abstract TextView replyQuoteBody();
     }
 
     private static class StartBubbleMessageItemViewHolder extends BubbleMessageItemViewHolder {
@@ -1699,6 +1949,26 @@ public class MessageAdapter extends ArrayAdapter<Message> {
         protected ChipGroup reactions() {
             return this.binding.reactions;
         }
+
+        @Override
+        protected LinearLayout replyQuote() {
+            return this.binding.messageContent.replyQuote;
+        }
+
+        @Override
+        protected View replyQuoteIndicator() {
+            return this.binding.messageContent.replyQuoteIndicator;
+        }
+
+        @Override
+        protected TextView replyQuoteAuthor() {
+            return this.binding.messageContent.replyQuoteAuthor;
+        }
+
+        @Override
+        protected TextView replyQuoteBody() {
+            return this.binding.messageContent.replyQuoteBody;
+        }
     }
 
     private static class EndBubbleMessageItemViewHolder extends BubbleMessageItemViewHolder {
@@ -1768,6 +2038,26 @@ public class MessageAdapter extends ArrayAdapter<Message> {
         @Override
         protected ChipGroup reactions() {
             return this.binding.reactions;
+        }
+
+        @Override
+        protected LinearLayout replyQuote() {
+            return this.binding.messageContent.replyQuote;
+        }
+
+        @Override
+        protected View replyQuoteIndicator() {
+            return this.binding.messageContent.replyQuoteIndicator;
+        }
+
+        @Override
+        protected TextView replyQuoteAuthor() {
+            return this.binding.messageContent.replyQuoteAuthor;
+        }
+
+        @Override
+        protected TextView replyQuoteBody() {
+            return this.binding.messageContent.replyQuoteBody;
         }
     }
 

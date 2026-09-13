@@ -67,11 +67,19 @@ public class DiscoManager extends AbstractManager {
                     Namespace.DISCO_INFO,
                     notify(Namespace.AVATAR_METADATA),
                     notify(Namespace.NICK),
+                    notify(Namespace.MOOD),
+                    notify(Namespace.ACTIVITY),
+                    notify(Namespace.TUNE),
                     Namespace.PING,
                     Namespace.VERSION,
                     Namespace.CHAT_STATES,
                     Namespace.REACTIONS,
-                    Namespace.STICKERS);
+                    Namespace.REPLY,
+                    Namespace.RETRACTION,
+                    Namespace.STICKERS,
+                    Namespace.SPOILER,
+                    Namespace.VOICE_MESSAGE,
+                    Namespace.ATTENTION);
     private final List<String> MESSAGE_CONFIRMATION_FEATURES =
             Arrays.asList(Namespace.CHAT_MARKERS, Namespace.DELIVERY_RECEIPTS);
     private final List<String> MESSAGE_CORRECTION_FEATURES =

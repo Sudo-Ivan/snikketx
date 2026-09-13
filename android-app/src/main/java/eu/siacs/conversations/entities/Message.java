@@ -93,8 +93,14 @@ public class Message extends AbstractEntity
     public static final String READ_BY_MARKERS = "readByMarkers";
     public static final String MARKABLE = "markable";
     public static final String DELETED = "deleted";
+    public static final String RETRACTED = "retracted";
     public static final String OCCUPANT_ID = "occupantId";
     public static final String REACTIONS = "reactions";
+    public static final String IN_REPLY_TO = "inReplyTo";
+    public static final String SPOILER_HINT = "spoilerHint";
+    public static final String WIRE_FLAGS = "wireFlags";
+    public static final int WIRE_FLAG_VOICE_MESSAGE = 1;
+    public static final int WIRE_FLAG_ATTENTION = 2;
     public static final String ME_COMMAND = "/me ";
 
     public static final String ERROR_MESSAGE_CANCELLED = "eu.siacs.conversations.cancelled";
@@ -110,6 +116,7 @@ public class Message extends AbstractEntity
     protected int status;
     protected int type;
     protected boolean deleted = false;
+    protected boolean retracted = false;
     protected boolean carbon = false;
     protected boolean oob = false;
     protected List<Edit> edits = Collections.emptyList();
@@ -128,7 +135,11 @@ public class Message extends AbstractEntity
     private String occupantId;
     private String stickerPackId = null;
     private String stickerDescription = null;
+    private String inlineThumbnail = null;
     private Collection<Reaction> reactions = Collections.emptyList();
+    private InReplyTo inReplyTo = null;
+    private String spoilerHint = null;
+    private int wireFlags = 0;
 
     private Boolean isGeoUri = null;
     private Boolean isEmojisOnly = null;
@@ -265,33 +276,42 @@ public class Message extends AbstractEntity
 
     public static Message fromCursor(
             final Context context, final Cursor cursor, final Conversation conversation) {
-        return new Message(
-                conversation,
-                cursor.getString(cursor.getColumnIndexOrThrow(UUID)),
-                cursor.getString(cursor.getColumnIndexOrThrow(CONVERSATION)),
-                fromString(cursor.getString(cursor.getColumnIndexOrThrow(COUNTERPART))),
-                fromString(cursor.getString(cursor.getColumnIndexOrThrow(TRUE_COUNTERPART))),
-                cursor.getString(cursor.getColumnIndexOrThrow(BODY)),
-                cursor.getLong(cursor.getColumnIndexOrThrow(TIME_SENT)),
-                cursor.getInt(cursor.getColumnIndexOrThrow(ENCRYPTION)),
-                cursor.getInt(cursor.getColumnIndexOrThrow(STATUS)),
-                cursor.getInt(cursor.getColumnIndexOrThrow(TYPE)),
-                cursor.getInt(cursor.getColumnIndexOrThrow(CARBON)) > 0,
-                cursor.getString(cursor.getColumnIndexOrThrow(REMOTE_MSG_ID)),
-                storageLocationFromCursor(context, cursor),
-                cursor.getString(cursor.getColumnIndexOrThrow(SERVER_MSG_ID)),
-                cursor.getString(cursor.getColumnIndexOrThrow(FINGERPRINT)),
-                cursor.getInt(cursor.getColumnIndexOrThrow(READ)) > 0,
-                Edit.ofString(cursor.getString(cursor.getColumnIndexOrThrow(EDITED))),
-                cursor.getInt(cursor.getColumnIndexOrThrow(OOB)) > 0,
-                cursor.getString(cursor.getColumnIndexOrThrow(ERROR_MESSAGE)),
-                ReadByMarker.fromJsonString(
-                        cursor.getString(cursor.getColumnIndexOrThrow(READ_BY_MARKERS))),
-                cursor.getInt(cursor.getColumnIndexOrThrow(MARKABLE)) > 0,
-                cursor.getInt(cursor.getColumnIndexOrThrow(DELETED)) > 0,
-                cursor.getString(cursor.getColumnIndexOrThrow(BODY_LANGUAGE)),
-                cursor.getString(cursor.getColumnIndexOrThrow(OCCUPANT_ID)),
-                Reaction.fromString(cursor.getString(cursor.getColumnIndexOrThrow(REACTIONS))));
+        final var message =
+                new Message(
+                        conversation,
+                        cursor.getString(cursor.getColumnIndexOrThrow(UUID)),
+                        cursor.getString(cursor.getColumnIndexOrThrow(CONVERSATION)),
+                        fromString(cursor.getString(cursor.getColumnIndexOrThrow(COUNTERPART))),
+                        fromString(
+                                cursor.getString(cursor.getColumnIndexOrThrow(TRUE_COUNTERPART))),
+                        cursor.getString(cursor.getColumnIndexOrThrow(BODY)),
+                        cursor.getLong(cursor.getColumnIndexOrThrow(TIME_SENT)),
+                        cursor.getInt(cursor.getColumnIndexOrThrow(ENCRYPTION)),
+                        cursor.getInt(cursor.getColumnIndexOrThrow(STATUS)),
+                        cursor.getInt(cursor.getColumnIndexOrThrow(TYPE)),
+                        cursor.getInt(cursor.getColumnIndexOrThrow(CARBON)) > 0,
+                        cursor.getString(cursor.getColumnIndexOrThrow(REMOTE_MSG_ID)),
+                        storageLocationFromCursor(context, cursor),
+                        cursor.getString(cursor.getColumnIndexOrThrow(SERVER_MSG_ID)),
+                        cursor.getString(cursor.getColumnIndexOrThrow(FINGERPRINT)),
+                        cursor.getInt(cursor.getColumnIndexOrThrow(READ)) > 0,
+                        Edit.ofString(cursor.getString(cursor.getColumnIndexOrThrow(EDITED))),
+                        cursor.getInt(cursor.getColumnIndexOrThrow(OOB)) > 0,
+                        cursor.getString(cursor.getColumnIndexOrThrow(ERROR_MESSAGE)),
+                        ReadByMarker.fromJsonString(
+                                cursor.getString(cursor.getColumnIndexOrThrow(READ_BY_MARKERS))),
+                        cursor.getInt(cursor.getColumnIndexOrThrow(MARKABLE)) > 0,
+                        cursor.getInt(cursor.getColumnIndexOrThrow(DELETED)) > 0,
+                        cursor.getString(cursor.getColumnIndexOrThrow(BODY_LANGUAGE)),
+                        cursor.getString(cursor.getColumnIndexOrThrow(OCCUPANT_ID)),
+                        Reaction.fromString(
+                                cursor.getString(cursor.getColumnIndexOrThrow(REACTIONS))));
+        message.retracted = cursor.getInt(cursor.getColumnIndexOrThrow(RETRACTED)) > 0;
+        message.inReplyTo =
+                InReplyTo.ofString(cursor.getString(cursor.getColumnIndexOrThrow(IN_REPLY_TO)));
+        message.spoilerHint = cursor.getString(cursor.getColumnIndexOrThrow(SPOILER_HINT));
+        message.wireFlags = cursor.getInt(cursor.getColumnIndexOrThrow(WIRE_FLAGS));
+        return message;
     }
 
     protected static StorageLocation storageLocationFromCursor(
@@ -375,9 +395,13 @@ public class Message extends AbstractEntity
         values.put(READ_BY_MARKERS, Services.GSON.toJson(readByMarkers));
         values.put(MARKABLE, markable ? 1 : 0);
         values.put(DELETED, deleted ? 1 : 0);
+        values.put(RETRACTED, retracted ? 1 : 0);
         values.put(BODY_LANGUAGE, bodyLanguage);
         values.put(OCCUPANT_ID, occupantId);
         values.put(REACTIONS, Reaction.toString(this.reactions));
+        values.put(IN_REPLY_TO, inReplyTo == null ? null : inReplyTo.toJson());
+        values.put(SPOILER_HINT, spoilerHint);
+        values.put(WIRE_FLAGS, wireFlags);
         return values;
     }
 
@@ -519,6 +543,27 @@ public class Message extends AbstractEntity
         this.deleted = deleted;
     }
 
+    public boolean isRetracted() {
+        return this.retracted;
+    }
+
+    /**
+     * Marks this message as retracted (XEP-0424). The body, edit history and file reference are
+     * removed so that only a tombstone remains.
+     */
+    public void markRetracted() {
+        this.retracted = true;
+        this.setBody("");
+        this.encryptedBody = null;
+        this.axolotlFingerprint = null;
+        this.edits = Collections.emptyList();
+        this.storageLocation = null;
+        this.oob = false;
+        this.errorMessage = null;
+        this.reactions = Collections.emptyList();
+        this.markRead();
+    }
+
     public void markRead() {
         this.read = true;
     }
@@ -571,6 +616,72 @@ public class Message extends AbstractEntity
 
     public String getStickerDescription() {
         return stickerDescription;
+    }
+
+    /**
+     * Remembers a XEP-0264 data uri thumbnail received via stateless file sharing so the media
+     * bubble can show a blurry placeholder before the actual file is downloaded. Transient like
+     * the sticker flags and intentionally not persisted.
+     */
+    public void setInlineThumbnail(final String dataUri) {
+        this.inlineThumbnail = dataUri;
+    }
+
+    public String getInlineThumbnail() {
+        return this.inlineThumbnail;
+    }
+
+    /**
+     * Marks this message as a XEP-0382 spoiler. A non-null hint (including the empty string)
+     * indicates a spoiler; the empty string means no hint was provided. Persisted in the
+     * spoilerHint column so a spoiler stays hidden across restarts.
+     */
+    public void setSpoilerHint(final String hint) {
+        this.spoilerHint = hint;
+    }
+
+    public boolean isSpoiler() {
+        return spoilerHint != null;
+    }
+
+    public String getSpoilerHint() {
+        return Strings.emptyToNull(spoilerHint);
+    }
+
+    /**
+     * XEP-0224 attention request (nudge) received or sent with this message. Persisted via the
+     * wireFlags column.
+     */
+    public void setAttention(final boolean attention) {
+        setWireFlag(WIRE_FLAG_ATTENTION, attention);
+    }
+
+    public boolean isAttention() {
+        return (wireFlags & WIRE_FLAG_ATTENTION) != 0;
+    }
+
+    /**
+     * Proto-XEP voice message marker (urn:xmpp:voice-message). Persisted via the wireFlags column
+     * so flagged audio keeps rendering as a voice note after a restart.
+     */
+    public void setVoiceMessage(final boolean voiceMessage) {
+        setWireFlag(WIRE_FLAG_VOICE_MESSAGE, voiceMessage);
+    }
+
+    public boolean isVoiceMessage() {
+        return (wireFlags & WIRE_FLAG_VOICE_MESSAGE) != 0;
+    }
+
+    public void setWireFlags(final int wireFlags) {
+        this.wireFlags = wireFlags;
+    }
+
+    private void setWireFlag(final int flag, final boolean enabled) {
+        if (enabled) {
+            this.wireFlags |= flag;
+        } else {
+            this.wireFlags &= ~flag;
+        }
     }
 
     // TODO carbons is mostly unused these days (only the inValidSession() is still using this)
@@ -826,7 +937,10 @@ public class Message extends AbstractEntity
     }
 
     public boolean acceptMessageCorrection() {
-        return type == Message.TYPE_TEXT && !this.isGeoUri() && !this.treatAsDownloadable();
+        return type == Message.TYPE_TEXT
+                && !this.retracted
+                && !this.isGeoUri()
+                && !this.treatAsDownloadable();
     }
 
     public void setCounterparts(List<MucOptions.User> counterparts) {
@@ -869,6 +983,14 @@ public class Message extends AbstractEntity
 
     public String getOccupantId() {
         return this.occupantId;
+    }
+
+    public void setInReplyTo(final InReplyTo inReplyTo) {
+        this.inReplyTo = inReplyTo;
+    }
+
+    public InReplyTo getInReplyTo() {
+        return this.inReplyTo;
     }
 
     public Collection<Reaction> getReactions() {
@@ -923,7 +1045,10 @@ public class Message extends AbstractEntity
         if (storageLocation != null) {
             extension = MimeUtils.extractRelevantExtension(storageLocation.file().getName());
         } else {
-            final String url = URL.tryParse(body.split("\n")[0]);
+            // a downloadable body can carry file params as pipe separated suffix
+            final String firstLine = body.split("\n")[0];
+            final int pipe = firstLine.indexOf('|');
+            final String url = URL.tryParse(pipe < 0 ? firstLine : firstLine.substring(0, pipe));
             if (url == null) {
                 return null;
             }

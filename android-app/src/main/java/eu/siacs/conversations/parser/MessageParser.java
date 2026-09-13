@@ -1,8 +1,13 @@
 package eu.siacs.conversations.parser;
 
+import android.content.Context;
+import android.os.Build;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
 import android.util.Log;
 import android.util.Pair;
 import com.google.common.base.Strings;
+import com.google.common.primitives.Longs;
 import eu.siacs.conversations.AppSettings;
 import eu.siacs.conversations.Config;
 import eu.siacs.conversations.crypto.axolotl.AxolotlService;
@@ -14,10 +19,12 @@ import eu.siacs.conversations.entities.Account;
 import eu.siacs.conversations.entities.Contact;
 import eu.siacs.conversations.entities.Conversation;
 import eu.siacs.conversations.entities.Conversational;
+import eu.siacs.conversations.entities.InReplyTo;
 import eu.siacs.conversations.entities.Message;
 import eu.siacs.conversations.http.HttpConnectionManager;
 import eu.siacs.conversations.services.XmppConnectionService;
 import eu.siacs.conversations.utils.CryptoHelper;
+import eu.siacs.conversations.utils.ReplyUtils;
 import eu.siacs.conversations.xml.Element;
 import eu.siacs.conversations.xml.LocalizedContent;
 import eu.siacs.conversations.xml.Namespace;
@@ -57,7 +64,9 @@ import im.conversations.android.xmpp.model.occupant.OccupantId;
 import im.conversations.android.xmpp.model.oob.OutOfBandData;
 import im.conversations.android.xmpp.model.pubsub.event.Event;
 import im.conversations.android.xmpp.model.reactions.Reactions;
+import im.conversations.android.xmpp.model.reply.Reply;
 import im.conversations.android.xmpp.model.retraction.Retract;
+import im.conversations.android.xmpp.model.retraction.Retracted;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -211,7 +220,6 @@ public class MessageParser extends AbstractParser
 
     @Override
     public void accept(final im.conversations.android.xmpp.model.stanza.Message original) {
-        final var originalFrom = original.getFrom();
         final var account = this.getAccount();
         if (handleErrorMessage(account, original)) {
             return;
@@ -292,6 +300,16 @@ public class MessageParser extends AbstractParser
         final var replace = packet.getExtension(Replace.class);
         final var replacementId = replace == null ? null : replace.getId();
         final var axolotlEncrypted = packet.getOnlyExtension(Encrypted.class);
+        final var reply = packet.getExtension(Reply.class);
+        final var replyId = reply == null ? null : reply.getId();
+        final Element spoilerElement = packet.findChild("spoiler", Namespace.SPOILER);
+        final boolean hasVoiceMessage =
+                packet.findChild("voice-message", Namespace.VOICE_MESSAGE) != null;
+        // XEP-0224 asks for attention requests in delayed or archived stanzas to be ignored
+        final boolean liveAttention =
+                packet.findChild("attention", Namespace.ATTENTION) != null
+                        && query == null
+                        && !packet.hasChild("delay", "urn:xmpp:delay");
         // TODO this can probably be refactored to be final
         int status;
         final Jid counterpart;
@@ -363,6 +381,29 @@ public class MessageParser extends AbstractParser
             bodyIsFallback = false;
         }
 
+        final Fallback.Range replyFallbackRange;
+        if (replyId != null && body != null) {
+            final var range = Fallback.get(packet, Reply.class, Body.class);
+            replyFallbackRange = range.isPresent() ? range.get() : null;
+        } else {
+            replyFallbackRange = null;
+        }
+        // the body stripped of an XEP-0428 reply fallback quote; for pgp or omemo encrypted
+        // messages the fallback applies to the decrypted payload instead of this body
+        final String bodyContent;
+        final String replyPreview;
+        if (replyFallbackRange != null && axolotlEncrypted == null && pgpEncrypted == null) {
+            replyPreview = ReplyUtils.unquote(replyFallbackRange.substringOf(body.content));
+            bodyContent = replyFallbackRange.removeFrom(body.content).stripLeading();
+        } else {
+            replyPreview = null;
+            bodyContent = body == null ? null : body.content;
+        }
+        final LocalizedContent effectiveBody =
+                body == null
+                        ? null
+                        : LocalizedContent.of(bodyContent, body.language, body.count);
+
         if ((body != null && !bodyIsFallback)
                 || pgpEncrypted != null
                 || (axolotlEncrypted != null && axolotlEncrypted.hasExtension(Payload.class))
@@ -419,11 +460,16 @@ public class MessageParser extends AbstractParser
                     final var reflectedServerMsgId =
                             Strings.isNullOrEmpty(replacementId) ? serverMsgId : null;
                     if (mXmppConnectionService.markMessage(
-                            conversation, remoteMsgId, status, reflectedServerMsgId, body)) {
+                            conversation,
+                            remoteMsgId,
+                            status,
+                            reflectedServerMsgId,
+                            effectiveBody)) {
                         return;
                     } else if (remoteMsgId == null || Config.IGNORE_ID_REWRITE_IN_MUC) {
-                        if (body != null) {
-                            Message message = conversation.findSentMessageWithBody(body.content);
+                        if (bodyContent != null) {
+                            Message message =
+                                    conversation.findSentMessageWithBody(bodyContent);
                             if (message != null) {
                                 mXmppConnectionService.markMessage(message, status);
                                 return;
@@ -521,7 +567,8 @@ public class MessageParser extends AbstractParser
                 message = new Message(conversation, stickerSource, Message.ENCRYPTION_NONE, status);
                 message.setOob(true);
             } else {
-                message = new Message(conversation, body.content, Message.ENCRYPTION_NONE, status);
+                message =
+                        new Message(conversation, bodyContent, Message.ENCRYPTION_NONE, status);
                 if (body.count > 1) {
                     message.setBodyLanguage(body.language);
                 }
@@ -532,7 +579,21 @@ public class MessageParser extends AbstractParser
             message.setServerMsgId(serverMsgId);
             message.setCarbon(isCarbon);
             message.setTime(timestamp);
-            if (body != null && body.content != null && body.content.equals(oobUrl)) {
+            if (replyId != null) {
+                var preview = replyPreview;
+                if (preview == null
+                        && replyFallbackRange != null
+                        && message.getEncryption() == Message.ENCRYPTION_AXOLOTL) {
+                    // for omemo the fallback range applies to the decrypted plaintext
+                    preview =
+                            ReplyUtils.unquote(
+                                    replyFallbackRange.substringOf(message.getBody()));
+                    message.setBody(
+                            replyFallbackRange.removeFrom(message.getBody()).stripLeading());
+                }
+                message.setInReplyTo(new InReplyTo(reply.getTo(), replyId, null, preview));
+            }
+            if (body != null && bodyContent != null && bodyContent.equals(oobUrl)) {
                 message.setOob(true);
                 if (CryptoHelper.isPgpEncryptedUrl(oobUrl)) {
                     message.setEncryption(Message.ENCRYPTION_DECRYPTED);
@@ -552,6 +613,18 @@ public class MessageParser extends AbstractParser
                 }
             }
             message.markable = packet.hasExtension(Markable.class);
+            if (spoilerElement != null) {
+                message.setSpoilerHint(Strings.nullToEmpty(spoilerElement.getContent()));
+            }
+            if (hasVoiceMessage) {
+                message.setVoiceMessage(true);
+            }
+            if (liveAttention) {
+                message.setAttention(true);
+                if (status == Message.STATUS_RECEIVED && !selfAddressed) {
+                    notifyAttention(conversation);
+                }
+            }
             if (conversationMultiMode) {
                 final var mucOptions =
                         getManager(MultiUserChatManager.class).getOrCreateState(conversation);
@@ -569,6 +642,8 @@ public class MessageParser extends AbstractParser
             } else {
                 updateLastseen(account, from);
             }
+
+            applyFileSharingMetadata(message, packet);
 
             if (replacementId != null
                     && message.acceptMessageCorrection()
@@ -789,6 +864,39 @@ public class MessageParser extends AbstractParser
                 getManager(ChatStateManager.class).process(packet);
             }
 
+            if (liveAttention && status == Message.STATUS_RECEIVED && !selfAddressed) {
+                // a bare XEP-0224 attention request without a body still produces a visible row
+                final Conversation attentionConversation =
+                        conversation != null
+                                ? conversation
+                                : mXmppConnectionService.findOrCreateConversation(
+                                        account,
+                                        counterpart.asBareJid(),
+                                        isTypeGroupChat || mucUserElement != null,
+                                        false,
+                                        query,
+                                        false);
+                final var attentionMessage =
+                        new Message(
+                                attentionConversation, "", Message.ENCRYPTION_NONE, status);
+                attentionMessage.setCounterpart(counterpart);
+                attentionMessage.setRemoteMsgId(remoteMsgId);
+                attentionMessage.setServerMsgId(serverMsgId);
+                attentionMessage.setCarbon(isCarbon);
+                attentionMessage.setTime(timestamp);
+                attentionMessage.setAttention(true);
+                if (attentionConversation.getMode() == Conversational.MODE_MULTI
+                        && !isTypeGroupChat) {
+                    attentionMessage.setType(Message.TYPE_PRIVATE);
+                }
+                attentionMessage.markUnread();
+                attentionConversation.add(attentionMessage);
+                mXmppConnectionService.databaseBackend.createMessage(attentionMessage);
+                mXmppConnectionService.getNotificationService().push(attentionMessage);
+                notifyAttention(attentionConversation);
+                mXmppConnectionService.updateConversationUi();
+            }
+
             if (isTypeGroupChat) {
                 if (packet.hasChild("subject")
                         && !packet.hasChild("thread")) { // We already know it has no body per above
@@ -833,13 +941,36 @@ public class MessageParser extends AbstractParser
                 getManager(ReactionManager.class).processReactions(packet, counterpart, query);
             }
 
-            if (original.hasExtension(Retract.class)
-                    && originalFrom != null
-                    && originalFrom.isBareJid()) {
-                getManager(ModerationManager.class).handleRetraction(original);
+            if (packet.hasExtension(Retracted.class) && query != null && conversation != null) {
+                // the archive already replaced the original message with a tombstone
+                final var tombstone =
+                        new Message(conversation, "", Message.ENCRYPTION_NONE, status);
+                tombstone.setCounterpart(counterpart);
+                tombstone.setRemoteMsgId(remoteMsgId);
+                tombstone.setServerMsgId(serverMsgId);
+                tombstone.setCarbon(isCarbon);
+                tombstone.setTime(timestamp);
+                tombstone.markRetracted();
+                final var existing = conversation.findDuplicateMessage(tombstone);
+                if (existing != null) {
+                    getManager(ModerationManager.class).applyRetraction(conversation, existing);
+                } else {
+                    if (query.getPagingOrder() == MessageArchiveManager.PagingOrder.REVERSE) {
+                        conversation.prepend(query.getActualInThisQuery(), tombstone);
+                    } else {
+                        conversation.add(tombstone);
+                    }
+                    query.incrementActualMessageCount();
+                    mXmppConnectionService.databaseBackend.createMessage(tombstone);
+                    mXmppConnectionService.updateConversationUi();
+                }
             }
 
             // end no body
+        }
+
+        if (packet.hasExtension(Retract.class)) {
+            getManager(ModerationManager.class).handleRetraction(packet, counterpart);
         }
 
         if (original.hasExtension(Event.class)) {
@@ -856,6 +987,31 @@ public class MessageParser extends AbstractParser
                 connection.getManager(RosterManager.class).writeToDatabaseAsync();
                 mXmppConnectionService.getAvatarService().clear(contact);
             }
+        }
+    }
+
+    /**
+     * Gives a XEP-0224 attention request its distinct buzz. Skipped entirely for muted
+     * conversations and when the user turned notification vibration off, so a nudge can never
+     * become more annoying than a regular message alert.
+     */
+    private void notifyAttention(final Conversation conversation) {
+        if (conversation.isMuted()) {
+            return;
+        }
+        if (!new AppSettings(mXmppConnectionService).isVibrateOnNotification()) {
+            return;
+        }
+        final var vibrator =
+                (Vibrator) mXmppConnectionService.getSystemService(Context.VIBRATOR_SERVICE);
+        if (vibrator == null || !vibrator.hasVibrator()) {
+            return;
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            vibrator.vibrate(
+                    VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE));
+        } else {
+            vibrator.vibrate(500);
         }
     }
 
@@ -927,6 +1083,107 @@ public class MessageParser extends AbstractParser
                     && target != null
                     && (target.startsWith("https://") || target.startsWith("http://"))) {
                 return target;
+            }
+        }
+        return null;
+    }
+
+    private static final int MAX_SFS_THUMBNAIL_URI_LENGTH = 64 * 1024;
+
+    /**
+     * Applies XEP-0447 stateless file sharing metadata to a freshly received file message.
+     * Stores a known size and image dimensions in the file params so the bubble can be sized
+     * before the download starts and remembers a data uri thumbnail (XEP-0264) for the
+     * placeholder. Malformed values are ignored.
+     */
+    private static void applyFileSharingMetadata(
+            final Message message,
+            final im.conversations.android.xmpp.model.stanza.Message packet) {
+        final int encryption = message.getEncryption();
+        final boolean axolotl = encryption == Message.ENCRYPTION_AXOLOTL;
+        if (encryption != Message.ENCRYPTION_NONE
+                && encryption != Message.ENCRYPTION_DECRYPTED
+                && !axolotl) {
+            return;
+        }
+        final var sharing = packet.findChild("file-sharing", Namespace.SFS);
+        final var file =
+                sharing == null ? null : sharing.findChild("file", Namespace.FILE_METADATA);
+        if (file == null) {
+            return;
+        }
+        if (!message.isOOb() && !axolotl) {
+            // some senders skip the oob element and only use the body as a fallback that
+            // repeats the file-sharing source
+            final var source = findFileSharingSource(packet);
+            if (source != null && source.equals(message.getBody())) {
+                message.setOob(true);
+            } else {
+                return;
+            }
+        }
+        final var params = message.getFileParams();
+        if (params.url == null) {
+            return;
+        }
+        final Long size = parseSfsSize(file.findChildContent("size"));
+        final int[] dimensions = parseSfsDimensions(file.findChildContent("dimensions"));
+        if (size != null) {
+            final var body = new StringBuilder(params.url).append('|').append(size);
+            if (dimensions != null) {
+                body.append('|').append(dimensions[0]).append('|').append(dimensions[1]);
+            }
+            message.setBody(body.toString());
+        }
+        if (dimensions != null) {
+            message.setType(
+                    message.isPrivateMessage()
+                            ? Message.TYPE_PRIVATE_FILE
+                            : Message.TYPE_FILE);
+        }
+        final var thumbnail = findThumbnailDataUri(file);
+        if (thumbnail != null) {
+            message.setInlineThumbnail(thumbnail);
+        }
+    }
+
+    private static Long parseSfsSize(final String content) {
+        final Long size = Longs.tryParse(Strings.nullToEmpty(content));
+        return size != null && size > 0 ? size : null;
+    }
+
+    private static int[] parseSfsDimensions(final String content) {
+        if (Strings.isNullOrEmpty(content)) {
+            return null;
+        }
+        final var parts = content.trim().split("x");
+        if (parts.length != 2) {
+            return null;
+        }
+        try {
+            final int width = Integer.parseInt(parts[0].trim());
+            final int height = Integer.parseInt(parts[1].trim());
+            if (width > 0 && height > 0 && width <= 0x8000 && height <= 0x8000) {
+                return new int[] {width, height};
+            }
+        } catch (final NumberFormatException e) {
+            // malformed metadata is ignored
+        }
+        return null;
+    }
+
+    private static String findThumbnailDataUri(final Element file) {
+        for (final Element child : file.getChildren()) {
+            if (!"thumbnail".equals(child.getName())
+                    || !Namespace.THUMBS.equals(child.getNamespace())) {
+                continue;
+            }
+            final var uri = child.getAttribute("uri");
+            if (uri != null
+                    && uri.length() <= MAX_SFS_THUMBNAIL_URI_LENGTH
+                    && uri.startsWith("data:image/")
+                    && uri.contains(";base64,")) {
+                return uri;
             }
         }
         return null;

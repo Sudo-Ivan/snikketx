@@ -198,6 +198,8 @@ public class UIHelper {
                 default:
                     return new Pair<>("", false);
             }
+        } else if (message.isRetracted()) {
+            return new Pair<>(context.getString(R.string.message_retracted), true);
         } else if (message.isFileOrImage() && message.isDeleted()) {
             return new Pair<>(context.getString(R.string.file_deleted), true);
         } else if (message.getEncryption() == Message.ENCRYPTION_PGP) {
@@ -220,6 +222,15 @@ public class UIHelper {
                         context.getString(
                                 received ? R.string.incoming_call : R.string.outgoing_call),
                         true);
+            }
+        } else if (message.isAttention()) {
+            if (message.getStatus() == Message.STATUS_RECEIVED) {
+                return new Pair<>(
+                        context.getString(
+                                R.string.nudge_received, getMessageDisplayName(message)),
+                        true);
+            } else {
+                return new Pair<>(context.getString(R.string.nudge_sent), true);
             }
         } else {
             final String body = MessageUtils.filterLtrRtl(message.getBody());

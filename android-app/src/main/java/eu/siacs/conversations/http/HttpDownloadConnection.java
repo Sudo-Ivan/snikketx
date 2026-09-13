@@ -393,6 +393,9 @@ public class HttpDownloadConnection implements Transferable {
 
     private void persistFileSize(final long size) {
         final Message.FileParams fileParams = message.getFileParams();
+        if (fileParams.url == null) {
+            return;
+        }
         if (message.getEncryption() == Message.ENCRYPTION_AXOLOTL && transportSecurity != null) {
             // store the file size of the clear text file. If we resume the download we will add the
             // auth tag size again
@@ -503,12 +506,10 @@ public class HttpDownloadConnection implements Transferable {
                         Log.d(Config.LOGTAG, "no content-length in GET response (probably gzip)");
                     } else {
                         if (expected != size) {
-                            if (expected == 0) {
-                                // this means we got 0 (unknown) on HEAD. We won't download the file
-                                // but we update the file size so the user can try it again now that
-                                // the actual file size is known
-                                persistFileSize(size);
-                            }
+                            // the advertised size (file params or file sharing metadata) can be
+                            // unknown (0) or wrong. remember the actual size so a retry can
+                            // succeed instead of failing permanently
+                            persistFileSize(size);
                             throw new IOException(
                                     "Content-Length in GET response did not match expected size");
                         }

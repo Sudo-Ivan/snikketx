@@ -253,6 +253,10 @@ public class AppSettings {
                 NOTIFICATIONS_FROM_STRANGERS, R.bool.notifications_from_strangers);
     }
 
+    public boolean isVibrateOnNotification() {
+        return getBooleanPreference(NOTIFICATION_VIBRATE, R.bool.vibrate_on_notification);
+    }
+
     public boolean isKeepForegroundService() {
         return Compatibility.twentySix()
                 || getBooleanPreference(KEEP_FOREGROUND_SERVICE, R.bool.enable_foreground_service);

@@ -11,8 +11,17 @@ public class Retract extends Extension {
         super(Retract.class);
     }
 
+    public Retract(final String id) {
+        this();
+        this.setId(id);
+    }
+
     public String getId() {
         return this.getAttribute("id");
+    }
+
+    public void setId(final String id) {
+        this.setAttribute("id", id);
     }
 
     public Moderated getModerated() {

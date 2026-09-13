@@ -77,7 +77,7 @@ import org.whispersystems.libsignal.state.SignedPreKeyRecord;
 public class DatabaseBackend extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "history";
-    private static final int DATABASE_VERSION = 57;
+    private static final int DATABASE_VERSION = 60;
 
     private static boolean requiresMessageIndexRebuild = false;
     private static DatabaseBackend instance = null;
@@ -528,12 +528,20 @@ public class DatabaseBackend extends SQLiteOpenHelper {
                         + " NUMBER DEFAULT 0,"
                         + Message.DELETED
                         + " NUMBER DEFAULT 0,"
+                        + Message.RETRACTED
+                        + " NUMBER DEFAULT 0,"
                         + Message.BODY_LANGUAGE
                         + " TEXT,"
                         + Message.OCCUPANT_ID
                         + " TEXT,"
                         + Message.REACTIONS
                         + " TEXT,"
+                        + Message.IN_REPLY_TO
+                        + " TEXT,"
+                        + Message.SPOILER_HINT
+                        + " TEXT,"
+                        + Message.WIRE_FLAGS
+                        + " NUMBER DEFAULT 0,"
                         + Message.REMOTE_MSG_ID
                         + " TEXT, FOREIGN KEY("
                         + Message.CONVERSATION
@@ -1153,6 +1161,36 @@ public class DatabaseBackend extends SQLiteOpenHelper {
         if (oldVersion < 57 && newVersion >= 57) {
             db.execSQL(CREATE_MESSAGE_CONVERSATION_TIME_INDEX);
             db.execSQL(CREATE_IDENTITIES_FINGERPRINT_INDEX);
+        }
+        if (oldVersion < 58 && newVersion >= 58) {
+            db.execSQL(
+                    "ALTER TABLE "
+                            + Message.TABLENAME
+                            + " ADD COLUMN "
+                            + Message.RETRACTED
+                            + " NUMBER DEFAULT 0");
+        }
+        if (oldVersion < 59 && newVersion >= 59) {
+            db.execSQL(
+                    "ALTER TABLE "
+                            + Message.TABLENAME
+                            + " ADD COLUMN "
+                            + Message.IN_REPLY_TO
+                            + " TEXT");
+        }
+        if (oldVersion < 60 && newVersion >= 60) {
+            db.execSQL(
+                    "ALTER TABLE "
+                            + Message.TABLENAME
+                            + " ADD COLUMN "
+                            + Message.SPOILER_HINT
+                            + " TEXT");
+            db.execSQL(
+                    "ALTER TABLE "
+                            + Message.TABLENAME
+                            + " ADD COLUMN "
+                            + Message.WIRE_FLAGS
+                            + " NUMBER DEFAULT 0");
         }
     }
 
