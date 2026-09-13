@@ -63,6 +63,7 @@ import eu.siacs.conversations.utils.Compatibility;
 import eu.siacs.conversations.utils.Emoticons;
 import eu.siacs.conversations.utils.IrregularUnicodeDetector;
 import eu.siacs.conversations.utils.PhoneNumberUtilWrapper;
+import eu.siacs.conversations.utils.UserStates;
 import eu.siacs.conversations.xmpp.Jid;
 import eu.siacs.conversations.xmpp.OnKeyStatusUpdated;
 import eu.siacs.conversations.xmpp.OnUpdateBlocklist;
@@ -464,6 +465,14 @@ public class ContactDetailsActivity extends OmemoActivity
                 binding.statusMessage.setText(Joiner.on('\n').join(statusMessages));
             }
 
+            final var userState = UserStates.details(this, contact);
+            if (userState.isEmpty()) {
+                binding.pepState.setVisibility(View.GONE);
+            } else {
+                binding.pepState.setVisibility(View.VISIBLE);
+                binding.pepState.setText(Joiner.on('\n').join(userState));
+            }
+
             if (contact.getOption(Contact.Options.FROM)) {
                 binding.detailsSendPresence.setText(R.string.send_presence_updates);
                 binding.detailsSendPresence.setChecked(true);
@@ -497,6 +506,7 @@ public class ContactDetailsActivity extends OmemoActivity
             binding.detailsSendPresence.setVisibility(View.GONE);
             binding.detailsReceivePresence.setVisibility(View.GONE);
             binding.statusMessage.setVisibility(View.GONE);
+            binding.pepState.setVisibility(View.GONE);
         }
         binding.detailsContactXmppAddress.setText(
                 IrregularUnicodeDetector.style(this, contact.getAddress()));

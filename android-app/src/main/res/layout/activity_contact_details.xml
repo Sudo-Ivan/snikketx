@@ -134,6 +134,15 @@
                                 android:textAppearance="?textAppearanceBodyMedium"
                                 tools:text="Hey there! I’m using Conversations" />
 
+                            <TextView
+                                android:id="@+id/pep_state"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginBottom="8sp"
+                                android:textAppearance="?textAppearanceBodyMedium"
+                                android:visibility="gone"
+                                tools:text="Mood: happy" />
+
                             <CheckBox
                                 android:id="@+id/details_send_presence"
                                 android:layout_width="wrap_content"

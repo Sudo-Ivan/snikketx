@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="set_mood">Set mood</string>
+    <string name="set_mood_title">Set mood</string>
+    <string name="mood_label">Mood</string>
+    <string name="mood_note_hint">Note (optional)</string>
+    <string name="activity_label">Activity</string>
+    <string name="listening_to_hint">Listening to (Artist - Title)</string>
+    <string name="pep_publish_failed">Could not publish. Check PEP support</string>
+    <string name="contact_mood">Mood: %1$s</string>
+    <string name="contact_activity">Activity: %1$s</string>
+    <string name="contact_tune">Listening to %1$s</string>
+    <string name="feeling_mood">feeling %1$s</string>
+    <string name="none">None</string>
+    <string-array name="mood_values">
+        <item></item>
+        <item>angry</item>
+        <item>anxious</item>
+        <item>bored</item>
+        <item>curious</item>
+        <item>excited</item>
+        <item>grumpy</item>
+        <item>happy</item>
+        <item>in_love</item>
+        <item>proud</item>
+        <item>relaxed</item>
+        <item>sad</item>
+        <item>sick</item>
+        <item>stressed</item>
+        <item>thankful</item>
+        <item>tired</item>
+        <item>worried</item>
+    </string-array>
+    <string-array name="mood_names">
+        <item>@string/none</item>
+        <item>Angry</item>
+        <item>Anxious</item>
+        <item>Bored</item>
+        <item>Curious</item>
+        <item>Excited</item>
+        <item>Grumpy</item>
+        <item>Happy</item>
+        <item>In love</item>
+        <item>Proud</item>
+        <item>Relaxed</item>
+        <item>Sad</item>
+        <item>Sick</item>
+        <item>Stressed</item>
+        <item>Thankful</item>
+        <item>Tired</item>
+        <item>Worried</item>
+    </string-array>
+    <string-array name="activity_values">
+        <item></item>
+        <item>doing_chores</item>
+        <item>drinking</item>
+        <item>eating</item>
+        <item>exercising</item>
+        <item>grooming</item>
+        <item>having_appointment</item>
+        <item>inactive</item>
+        <item>relaxing</item>
+        <item>talking</item>
+        <item>traveling</item>
+        <item>working</item>
+    </string-array>
+    <string-array name="activity_names">
+        <item>@string/none</item>
+        <item>Doing chores</item>
+        <item>Drinking</item>
+        <item>Eating</item>
+        <item>Exercising</item>
+        <item>Grooming</item>
+        <item>Having an appointment</item>
+        <item>Inactive</item>
+        <item>Relaxing</item>
+        <item>Talking</item>
+        <item>Traveling</item>
+        <item>Working</item>
+    </string-array>
+</resources>

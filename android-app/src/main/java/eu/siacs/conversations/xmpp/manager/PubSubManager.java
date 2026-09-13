@@ -199,6 +199,18 @@ public class PubSubManager extends AbstractManager {
             getManager(NickManager.class).handleItems(from, items);
             return;
         }
+        if (isFromBare && Namespace.MOOD.equals(node)) {
+            getManager(UserStateManager.class).handleMoodItems(from, items);
+            return;
+        }
+        if (isFromBare && Namespace.ACTIVITY.equals(node)) {
+            getManager(UserStateManager.class).handleActivityItems(from, items);
+            return;
+        }
+        if (isFromBare && Namespace.TUNE.equals(node)) {
+            getManager(UserStateManager.class).handleTuneItems(from, items);
+            return;
+        }
         if (isFromBare && Namespace.AXOLOTL_DEVICE_LIST.equals(node)) {
             getManager(AxolotlManager.class).handleItems(from, items);
         }
@@ -214,6 +226,12 @@ public class PubSubManager extends AbstractManager {
         if (isFromBare && Namespace.AVATAR_METADATA.equals(node)) {
             // purge (delete all items in a node) is functionally equivalent to delete
             getManager(AvatarManager.class).handleDelete(from);
+        }
+        if (isFromBare
+                && (Namespace.MOOD.equals(node)
+                        || Namespace.ACTIVITY.equals(node)
+                        || Namespace.TUNE.equals(node))) {
+            getManager(UserStateManager.class).handleDelete(from, node);
         }
     }
 
@@ -231,6 +249,12 @@ public class PubSubManager extends AbstractManager {
         }
         if (isFromBare && Namespace.NICK.equals(node)) {
             getManager(NickManager.class).handleDelete(from);
+        }
+        if (isFromBare
+                && (Namespace.MOOD.equals(node)
+                        || Namespace.ACTIVITY.equals(node)
+                        || Namespace.TUNE.equals(node))) {
+            getManager(UserStateManager.class).handleDelete(from, node);
         }
     }
 

@@ -73,6 +73,14 @@ public class Contact implements ListItem, Blockable, MucOptions.IdentifiableUser
     private String mLastPresence = null;
     private RtpCapability.Capability rtpCapability;
 
+    // XEP-0107/0108/0118 PEP user state. in-memory only; re-notified on (re)connect
+    private String mood;
+    private String moodText;
+    private String activity;
+    private String activitySpecific;
+    private String activityText;
+    private String tune;
+
     public Contact(
             final String account,
             final String systemName,
@@ -539,6 +547,54 @@ public class Contact implements ListItem, Blockable, MucOptions.IdentifiableUser
     @Override
     public String mucUserOccupantId() {
         return null;
+    }
+
+    public String getMood() {
+        return this.mood;
+    }
+
+    public void setMood(final String mood) {
+        this.mood = mood;
+    }
+
+    public String getMoodText() {
+        return this.moodText;
+    }
+
+    public void setMoodText(final String moodText) {
+        this.moodText = moodText;
+    }
+
+    public String getActivity() {
+        return this.activity;
+    }
+
+    public void setActivity(final String activity) {
+        this.activity = activity;
+    }
+
+    public String getActivitySpecific() {
+        return this.activitySpecific;
+    }
+
+    public void setActivitySpecific(final String activitySpecific) {
+        this.activitySpecific = activitySpecific;
+    }
+
+    public String getActivityText() {
+        return this.activityText;
+    }
+
+    public void setActivityText(final String activityText) {
+        this.activityText = activityText;
+    }
+
+    public String getTune() {
+        return this.tune;
+    }
+
+    public void setTune(final String tune) {
+        this.tune = tune;
     }
 
     public static class Attributes {

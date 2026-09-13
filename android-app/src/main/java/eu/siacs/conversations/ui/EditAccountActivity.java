@@ -28,6 +28,7 @@ import android.widget.CheckBox;
 import android.widget.CompoundButton.OnCheckedChangeListener;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
@@ -57,6 +58,7 @@ import eu.siacs.conversations.crypto.axolotl.AxolotlService;
 import eu.siacs.conversations.crypto.axolotl.FingerprintStatus;
 import eu.siacs.conversations.crypto.axolotl.XmppAxolotlSession;
 import eu.siacs.conversations.databinding.ActivityEditAccountBinding;
+import eu.siacs.conversations.databinding.DialogMoodBinding;
 import eu.siacs.conversations.databinding.DialogPresenceBinding;
 import eu.siacs.conversations.entities.Account;
 import eu.siacs.conversations.entities.PresenceTemplate;
@@ -96,6 +98,7 @@ import eu.siacs.conversations.xmpp.manager.PresenceManager;
 import eu.siacs.conversations.xmpp.manager.PushNotificationManager;
 import eu.siacs.conversations.xmpp.manager.RegistrationManager;
 import eu.siacs.conversations.xmpp.manager.RosterManager;
+import eu.siacs.conversations.xmpp.manager.UserStateManager;
 import im.conversations.android.xmpp.model.data.Data;
 import im.conversations.android.xmpp.model.mam.Preferences;
 import im.conversations.android.xmpp.model.stanza.Presence;
@@ -787,6 +790,7 @@ public class EditAccountActivity extends OmemoActivity
         final MenuItem renewCertificate = menu.findItem(R.id.action_renew_certificate);
         final MenuItem mamPrefs = menu.findItem(R.id.action_mam_prefs);
         final MenuItem changePresence = menu.findItem(R.id.action_change_presence);
+        final MenuItem setMood = menu.findItem(R.id.action_set_mood);
         final MenuItem share = menu.findItem(R.id.action_share);
         renewCertificate.setVisible(mAccount != null && mAccount.getPrivateKeyAlias() != null);
 
@@ -806,6 +810,12 @@ public class EditAccountActivity extends OmemoActivity
                             .getManager(MessageArchiveManager.class)
                             .hasFeature());
             changePresence.setVisible(!mInitMode);
+            setMood.setVisible(
+                    !mInitMode
+                            && mAccount
+                                    .getXmppConnection()
+                                    .getManager(PepManager.class)
+                                    .isAvailable());
         } else {
             showBlocklist.setVisible(false);
             showMoreInfo.setVisible(false);
@@ -813,6 +823,7 @@ public class EditAccountActivity extends OmemoActivity
             deleteAccount.setVisible(false);
             mamPrefs.setVisible(false);
             changePresence.setVisible(false);
+            setMood.setVisible(false);
         }
         return super.onCreateOptionsMenu(menu);
     }
@@ -1052,6 +1063,9 @@ public class EditAccountActivity extends OmemoActivity
         } else if (itemId == R.id.action_change_presence) {
             changePresence();
             return true;
+        } else if (itemId == R.id.action_set_mood) {
+            changeMood();
+            return true;
         } else {
             return super.onOptionsItemSelected(item);
         }
@@ -1187,6 +1201,87 @@ public class EditAccountActivity extends OmemoActivity
                     }
                 });
         builder.create().show();
+    }
+
+    private void changeMood() {
+        final var connection = mAccount.getXmppConnection();
+        if (connection == null) {
+            return;
+        }
+        final var userStateManager = connection.getManager(UserStateManager.class);
+        final DialogMoodBinding binding =
+                DataBindingUtil.inflate(getLayoutInflater(), R.layout.dialog_mood, null, false);
+        final var self = mAccount.getSelfContact();
+        final String[] moodValues = getResources().getStringArray(R.array.mood_values);
+        final String[] activityValues = getResources().getStringArray(R.array.activity_values);
+        selectSpinnerValue(binding.mood, moodValues, self.getMood());
+        selectSpinnerValue(binding.activity, activityValues, self.getActivity());
+        binding.moodText.append(Strings.nullToEmpty(self.getMoodText()));
+        binding.tune.append(Strings.nullToEmpty(self.getTune()));
+        final MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
+        builder.setTitle(R.string.set_mood_title);
+        builder.setView(binding.getRoot());
+        builder.setNegativeButton(R.string.cancel, null);
+        builder.setPositiveButton(
+                R.string.confirm,
+                (dialog, which) -> {
+                    final String mood = valueAt(moodValues, binding.mood.getSelectedItemPosition());
+                    final String moodText = binding.moodText.getText().toString().trim();
+                    final String activity =
+                            valueAt(activityValues, binding.activity.getSelectedItemPosition());
+                    final String tune = binding.tune.getText().toString().trim();
+                    final int separator = tune.indexOf(" - ");
+                    final String artist;
+                    final String title;
+                    if (separator > 0) {
+                        artist = tune.substring(0, separator).trim();
+                        title = tune.substring(separator + 3).trim();
+                    } else {
+                        artist = null;
+                        title = Strings.emptyToNull(tune);
+                    }
+                    publishUserState(userStateManager.publishMood(mood, moodText));
+                    publishUserState(userStateManager.publishActivity(activity, null, null));
+                    publishUserState(userStateManager.publishTune(artist, title));
+                });
+        builder.create().show();
+    }
+
+    private void publishUserState(final ListenableFuture<Void> future) {
+        Futures.addCallback(
+                future,
+                new FutureCallback<>() {
+                    @Override
+                    public void onSuccess(final Void result) {}
+
+                    @Override
+                    public void onFailure(@NonNull final Throwable t) {
+                        Log.d(Config.LOGTAG, "could not publish PEP user state", t);
+                        Toast.makeText(
+                                        EditAccountActivity.this,
+                                        R.string.pep_publish_failed,
+                                        Toast.LENGTH_SHORT)
+                                .show();
+                    }
+                },
+                ContextCompat.getMainExecutor(this));
+    }
+
+    private static void selectSpinnerValue(
+            final Spinner spinner, final String[] values, final String current) {
+        if (Strings.isNullOrEmpty(current)) {
+            return;
+        }
+        for (int i = 0; i < values.length; ++i) {
+            if (current.equals(values[i])) {
+                spinner.setSelection(i);
+                return;
+            }
+        }
+    }
+
+    private static String valueAt(final String[] values, final int position) {
+        return position >= 0 && position < values.length ? values[position] : null;
     }
 
     private void generateSignature(final Intent intent, final PresenceTemplate template) {
