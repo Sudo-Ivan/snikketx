@@ -65,3 +65,50 @@ SNIKKET_LETSENCRYPT_TOS_AGREE=N
 # Optional: maximum contact invites a single user may create per UTC day
 # (default 20). Admin users are exempt. Limits abuse of in-app invites.
 # SNIKKET_TWEAK_CONTACT_INVITES_PER_DAY=20
+
+# Optional: virtual bot identities (mod_snikketx_bots). Bots live at
+# name@bots.DOMAIN, join chats and groups, and are driven through a JSON
+# API, webhooks, SSE or WebSocket. Users manage their own bots from the
+# web portal (Bots page).
+# The admin token must be a long random secret shared by the server and
+# the web portal. Generate one with: openssl rand -hex 32
+# WARNING: a static admin token can manage every bot. Keep it secret,
+# rotate it regularly and never commit it to git.
+# SNIKKET_TWEAK_BOTS=1
+# SNIKKET_TWEAK_BOTS_ADMIN_TOKEN=change-me-long-random
+# SNIKKET_WEB_BOTS_ADMIN_TOKEN=change-me-long-random
+
+# Optional: single sign-on for the web portal (OIDC, for example
+# PocketID). Sign-in users get an XMPP account provisioned on first
+# login; issuer and redirect URL must be https.
+# SNIKKET_WEB_OIDC_ISSUER=https://id.example.com
+# SNIKKET_WEB_OIDC_CLIENT_ID=snikket-portal
+# SNIKKET_WEB_OIDC_CLIENT_SECRET=change-me
+# SNIKKET_WEB_OIDC_REDIRECT_URL=https://chat.example.com/auth/oidc/callback
+# SNIKKET_WEB_OIDC_USERNAME_CLAIM=preferred_username
+# SNIKKET_WEB_OIDC_SCOPES="openid profile email"
+
+# Required for OIDC account provisioning and app bootstrap: a dedicated
+# Prosody account with the prosody:admin role. Create it with
+#   prosodyctl adduser portal-service@DOMAIN
+# and grant the role by adding the account to the server admins list or
+# via prosodyctl shell: roles.grant("portal-service@DOMAIN", "prosody:admin").
+# SNIKKET_WEB_SERVICE_ADDRESS=portal-service@DOMAIN
+# SNIKKET_WEB_SERVICE_PASSWORD=change-me
+
+# Optional: XMPP-level OAuth login (XEP-0493) so OAuth capable clients
+# like Badinage can sign in with the same identity provider instead of a
+# password. Adds SASL OAUTHBEARER on top of the existing password auth;
+# tokens are validated against the IdP userinfo endpoint and mapped to
+# localparts through SNIKKET_OAUTH_USERNAME_FIELD.
+# SNIKKET_TWEAK_OAUTH=1
+# SNIKKET_OAUTH_DISCOVERY_URL=https://id.example.com/.well-known/openid-configuration
+# SNIKKET_OAUTH_VALIDATION_ENDPOINT=https://id.example.com/api/oidc/userinfo
+# SNIKKET_OAUTH_USERNAME_FIELD=preferred_username
+# SNIKKET_OAUTH_SCOPE="openid profile"
+
+# Optional: server-side link previews for the Android app. The portal
+# fetches OpenGraph metadata through an authenticated, SSRF hardened
+# proxy instead of letting every client contact third-party sites.
+# Enabled by default; set to 0 to disable.
+# SNIKKET_WEB_LINK_PREVIEW=1

@@ -12,10 +12,11 @@
 
 local lfs = require "lfs";
 local http_files = require "prosody.net.http.files";
-local urldecode = require "prosody.util.http".urldecode;
 
 local open = io.open;
-local stat = lfs.attributes;
+-- symlinkattributes does not follow links: anything that is not a real
+-- regular file inside the app tree is never served.
+local stat = lfs.symlinkattributes;
 local t_concat = table.concat;
 
 module:depends "http";
@@ -57,28 +58,34 @@ local security_headers = {
 	x_content_type_options = "nosniff";
 	x_frame_options = "DENY";
 	referrer_policy = "no-referrer";
-	permissions_policy = "camera=(), microphone=(), geolocation=()";
+	permissions_policy = "camera=(), microphone=(self), geolocation=()";
 	content_security_policy = content_security_policy;
 };
 
 local serve_files = http_files.serve({ path = base_path; mime_map = mime_map });
 
 local index_html;
-do
-	local f, err = open(base_path.."/index.html", "rb");
-	if f then
-		index_html = f:read("*a");
-		f:close();
-	else
-		module:log("error", "Could not read %s/index.html: %s", base_path, err);
+local function load_index()
+	if index_html then
+		return index_html;
 	end
+	local f, err = open(base_path.."/index.html", "rb");
+	if not f then
+		module:log("error", "Could not read %s/index.html: %s", base_path, err);
+		return nil;
+	end
+	index_html = f:read("*a");
+	f:close();
+	return index_html;
 end
 
+-- The request path arrives already URL-decoded by the HTTP parser, so
+-- components are never decoded again here. Anything that still maps onto
+-- ".." is rejected and percent signs stay literal.
 local function sanitize_path(path)
 	local out = {};
 	local c = 0;
 	for component in path:gmatch("[^/]+") do
-		component = urldecode(component);
 		if component:find("[/%z]") then
 			return nil;
 		elseif component == ".." then
@@ -104,12 +111,13 @@ local function apply_headers(response, cache_control)
 end
 
 local function serve_app(event)
-	if not index_html then
+	local html = load_index();
+	if not html then
 		return 503;
 	end
 	apply_headers(event.response, "no-cache");
 	event.response.headers.content_type = "text/html";
-	return index_html;
+	return html;
 end
 
 local function serve(event, path)
