@@ -11,5 +11,5 @@ docker exec "$SNIKKETX_CONTAINER_CERTS" /etc/cron.daily/certbot
 echo "Reloading Prosody..."
 docker exec "$SNIKKETX_CONTAINER_SERVER" supervisorctl signal hup prosody
 
-echo "HTTP TLS is managed by RavenGuard ACME. No nginx proxy reload is required."
+echo "HTTP TLS is managed by Traefik ACME. No nginx proxy reload is required."
 echo "Complete."

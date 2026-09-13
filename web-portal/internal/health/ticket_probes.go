@@ -180,7 +180,7 @@ func ProbeTURN(ctx context.Context, domain, prosodyEndpoint string) Component {
 }
 
 // ProbeXMPPTLS upgrades a c2s connection with STARTTLS and reads the Prosody
-// leaf certificate. This is distinct from RavenGuard HTTPS on port 443.
+// leaf certificate. This is distinct from Traefik HTTPS on port 443.
 func ProbeXMPPTLS(ctx context.Context, domain, prosodyEndpoint string) Component {
 	start := time.Now()
 	component := Component{Name: "XMPP TLS (Prosody)"}
@@ -232,7 +232,7 @@ func fillCertDetail(component *Component, cert peerCert) {
 	if cert.DaysLeft <= 0 {
 		component.OK = false
 		component.Detail += ", expired"
-		component.Hint = "Renew the XMPP certificate under Prosody certs (distinct from RavenGuard :443)"
+		component.Hint = "Renew the XMPP certificate under Prosody certs (distinct from Traefik :443)"
 	}
 }
 

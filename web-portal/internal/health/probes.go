@@ -49,7 +49,7 @@ func ProbeDomain(ctx context.Context, domain string) Component {
 	return component
 }
 
-// ProbeTLS dials the domain on port 443 (RavenGuard / edge HTTPS) and reports
+// ProbeTLS dials the domain on port 443 (Traefik / edge HTTPS) and reports
 // certificate validity. Use ProbeXMPPTLS for the Prosody STARTTLS leaf.
 func ProbeTLS(ctx context.Context, domain string) Component {
 	start := time.Now()
@@ -75,7 +75,7 @@ func ProbeTLS(ctx context.Context, domain string) Component {
 	component.Latency = time.Since(start).Round(time.Millisecond).String()
 	if err != nil {
 		component.Detail = err.Error()
-		component.Hint = "Fix DNS for " + domain + " and open TCP 443 to RavenGuard"
+		component.Hint = "Fix DNS for " + domain + " and open TCP 443 to the Traefik edge"
 		return component
 	}
 	defer conn.Close()
@@ -83,7 +83,7 @@ func ProbeTLS(ctx context.Context, domain string) Component {
 	state := conn.ConnectionState()
 	if len(state.PeerCertificates) == 0 {
 		component.Detail = "no peer certificate"
-		component.Hint = "Check RavenGuard TLS termination on :443"
+		component.Hint = "Check Traefik TLS termination on :443"
 		return component
 	}
 	cert := state.PeerCertificates[0]

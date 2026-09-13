@@ -11,7 +11,7 @@ SNIKKET_ADMIN_EMAIL=admin@example.com
 # If you agree to the terms, change N to Y
 SNIKKET_LETSENCRYPT_TOS_AGREE=N
 
-# Compose secrets (RavenGuard, updater) live in .env
+# Compose secrets (updater, backup) live in .env
 # (see .env.example). ./scripts/init.sh writes both files.
 # Local quick path: ./scripts/init.sh --dev
 
@@ -22,7 +22,7 @@ SNIKKET_LETSENCRYPT_TOS_AGREE=N
 # SNIKKET_WEB_ANDROID_CERT_SHA256=
 
 # Optional: SCRAM password storage hash. SHA-256 is stronger but MUST be set
-# before the first account exists; enabling it later invalidates all stored
+# before the first account exists. Enabling it later invalidates all stored
 # passwords.
 # SNIKKET_TWEAK_PASSWORD_HASH=SHA-256
 
@@ -35,7 +35,7 @@ SNIKKET_LETSENCRYPT_TOS_AGREE=N
 # registration does not apply while this is enabled.
 # WARNING: LDAP auth uses a simple bind, so passwords reach Prosody and the
 # LDAP server in plaintext. They are only protected by TLS on the wire
-# (c2s_require_encryption stays enabled); there is no SCRAM hashing.
+# (c2s_require_encryption stays enabled). There is no SCRAM hashing.
 # SNIKKET_TWEAK_LDAP=1
 # SNIKKET_LDAP_HOST=ldap.example.com
 # SNIKKET_LDAP_PORT=389
@@ -53,8 +53,8 @@ SNIKKET_LETSENCRYPT_TOS_AGREE=N
 
 # Optional: allow regular users to create contact invites from their
 # client (XEP-0401). Disabled by default because unrestricted invite
-# creation can be abused to mass-invite contacts; combine with the daily
-# quota below when enabling.
+# creation can be abused to mass-invite contacts. Combine it with the
+# daily quota below when enabling.
 # SNIKKET_TWEAK_CONTACT_INVITES=1
 
 # Optional: allow regular users to create invites that can register new
@@ -80,7 +80,7 @@ SNIKKET_LETSENCRYPT_TOS_AGREE=N
 
 # Optional: single sign-on for the web portal (OIDC, for example
 # PocketID). Sign-in users get an XMPP account provisioned on first
-# login; issuer and redirect URL must be https.
+# login. Issuer and redirect URL must be https.
 # SNIKKET_WEB_OIDC_ISSUER=https://id.example.com
 # SNIKKET_WEB_OIDC_CLIENT_ID=snikket-portal
 # SNIKKET_WEB_OIDC_CLIENT_SECRET=change-me
@@ -98,8 +98,8 @@ SNIKKET_LETSENCRYPT_TOS_AGREE=N
 
 # Optional: XMPP-level OAuth login (XEP-0493) so OAuth capable clients
 # like Badinage can sign in with the same identity provider instead of a
-# password. Adds SASL OAUTHBEARER on top of the existing password auth;
-# tokens are validated against the IdP userinfo endpoint and mapped to
+# password. Adds SASL OAUTHBEARER on top of the existing password auth.
+# Tokens are validated against the IdP userinfo endpoint and mapped to
 # localparts through SNIKKET_OAUTH_USERNAME_FIELD.
 # SNIKKET_TWEAK_OAUTH=1
 # SNIKKET_OAUTH_DISCOVERY_URL=https://id.example.com/.well-known/openid-configuration
@@ -110,5 +110,5 @@ SNIKKET_LETSENCRYPT_TOS_AGREE=N
 # Optional: server-side link previews for the Android app. The portal
 # fetches OpenGraph metadata through an authenticated, SSRF hardened
 # proxy instead of letting every client contact third-party sites.
-# Enabled by default; set to 0 to disable.
+# Enabled by default. Set to 0 to disable.
 # SNIKKET_WEB_LINK_PREVIEW=1

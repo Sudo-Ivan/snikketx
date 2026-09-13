@@ -109,7 +109,7 @@ check_port() {
 	local label="$2"
 	if port_in_use "$port"; then
 		# Allow if our containers already own it
-		if docker ps --format '{{.Names}} {{.Ports}}' 2>/dev/null | grep -E "snikket|ravenguard" | grep -q ":${port}->\|:${port}-"; then
+		if docker ps --format '{{.Names}} {{.Ports}}' 2>/dev/null | grep -E "snikket|traefik" | grep -q ":${port}->\|:${port}-"; then
 			ok "Port ${port} (${label}) owned by SnikketX containers"
 		else
 			warn "Port ${port} (${label}) already listening (may conflict)"

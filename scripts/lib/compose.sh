@@ -13,16 +13,17 @@ export SNIKKETX_CONTAINER_CERTS="snikket-certs"
 export SNIKKETX_CONTAINER_PORTAL="snikket-portal"
 export SNIKKETX_CONTAINER_UPDATER="snikket-updater"
 export SNIKKETX_CONTAINER_BACKUP="snikket-backup"
-export SNIKKETX_CONTAINER_RAVENGUARD="snikketx-ravenguard"
+export SNIKKETX_CONTAINER_TRAEFIK="snikketx-traefik"
 
 export SNIKKETX_VOL_SNIKKET_DATA="snikketx_snikket_data"
 export SNIKKETX_VOL_PORTAL_DATA="snikketx_portal_data"
-export SNIKKETX_VOL_RAVENGUARD_DATA="snikketx_ravenguard_data"
+export SNIKKETX_VOL_TRAEFIK_DATA="snikketx_traefik_data"
 export SNIKKETX_VOL_UPDATER_DATA="snikketx_updater_data"
 export SNIKKETX_VOL_BACKUP_DATA="snikketx_backup_data"
 export SNIKKETX_VOL_PORTAL_DATA_CLASSIC="snikket_portal_data"
 
 export SNIKKETX_PORTAL_ENDPOINT="http://snikket_portal:5765"
+export SNIKKETX_PROSODY_ENDPOINT="http://snikket_server:5280"
 export SNIKKETX_UPDATER_ENDPOINT="http://snikket_updater:9191"
 export SNIKKETX_BACKUP_ENDPOINT="http://snikket_backup:9292"
 export SNIKKETX_BACKUP_ENDPOINT_LOCAL="http://127.0.0.1:9292"
@@ -45,7 +46,7 @@ snikketx_cd_root() {
 }
 
 # Sets COMPOSE_MODE (prod|dev) and COMPOSE_ARGS from args or COMPOSE_MODE env.
-# Consumes leading --dev|dev| --prod|prod from "$@"; remaining args stay in COMPOSE_EXTRA_ARGS.
+# Consumes leading --dev|dev|--prod|prod from "$@". Remaining args stay in COMPOSE_EXTRA_ARGS.
 snikketx_parse_mode() {
 	COMPOSE_MODE="${COMPOSE_MODE:-prod}"
 	COMPOSE_EXTRA_ARGS=()
@@ -120,26 +121,17 @@ snikketx_env_ensure() {
 
 # Ensure .env exists for compose interpolation.
 snikketx_ensure_env() {
-	local domain email secret admin_pw
+	local domain email
 	if [[ ! -f .env ]]; then
 		domain="$(snikketx_conf_get SNIKKET_DOMAIN || true)"
 		email="$(snikketx_conf_get SNIKKET_ADMIN_EMAIL || true)"
-		secret="$(snikketx_random 32)"
-		admin_pw="$(snikketx_random 24)"
 		cat >.env <<EOF
 SNIKKET_DOMAIN=${domain}
 SNIKKET_ADMIN_EMAIL=${email}
-RG_CHALLENGE_SECRET=${secret}
-RG_ADMIN_BOOTSTRAP_PASSWORD=${admin_pw}
 SNIKKET_UPDATER_TOKEN=$(snikketx_random 32)
 SNIKKET_BACKUP_TOKEN=$(snikketx_random 32)
 EOF
 		echo "Wrote .env from snikket.conf"
-	fi
-	if ! grep -q '^RG_ADMIN_BOOTSTRAP_PASSWORD=' .env 2>/dev/null; then
-		admin_pw="$(snikketx_random 24)"
-		printf 'RG_ADMIN_BOOTSTRAP_PASSWORD=%s\n' "$admin_pw" >>.env
-		echo "Appended RG_ADMIN_BOOTSTRAP_PASSWORD to .env"
 	fi
 	if ! grep -q '^SNIKKET_UPDATER_TOKEN=' .env 2>/dev/null; then
 		printf 'SNIKKET_UPDATER_TOKEN=%s\n' "$(snikketx_random 32)" >>.env
@@ -156,6 +148,15 @@ snikketx_export_build_meta() {
 
 snikketx_compose() {
 	snikketx_docker_compose "${COMPOSE_ARGS[@]}" "$@"
+}
+
+# Remove the retired RavenGuard edge container from installs that ran it.
+# Called by start.sh and update.sh after compose up.
+snikketx_cleanup_legacy_edge() {
+	if docker container inspect snikketx-ravenguard >/dev/null 2>&1; then
+		docker rm -f snikketx-ravenguard >/dev/null 2>&1 \
+			&& echo "Removed old ravenguard edge container"
+	fi
 }
 
 snikketx_require_conf() {

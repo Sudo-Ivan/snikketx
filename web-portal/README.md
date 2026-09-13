@@ -26,7 +26,7 @@ Fuzz: `make fuzz`. Bench: `make bench`.
 
 ## Endpoints
 
-- `/_health` — liveness (RavenGuard)
+- `/_health` — liveness (Traefik edge)
 - `/_health/ready` — Prosody reachability
 - `/metrics` — Prometheus text (optional `SNIKKET_WEB_METRICS_TOKEN`)
 - `/admin/` — admin panel with ops summary

@@ -98,8 +98,8 @@ if [[ -z "$LATEST" ]]; then
 	echo "Backup failed to produce a directory." >&2
 	exit 1
 fi
-# backup.sh copies this checkout's snikket.conf; overwrite with the classic
-# files so the archive can fully restore the classic install.
+# backup.sh copies this checkout's snikket.conf. Overwrite it with the
+# classic files so the archive can fully restore the classic install.
 if [[ -f "$FROM_DIR/snikket.conf" ]]; then
 	cp -a "$FROM_DIR/snikket.conf" "$LATEST/snikket.conf"
 fi
@@ -114,7 +114,7 @@ printf '%s\n' "$LATEST" >"$BACKUP_DIR/LAST_PRE_MIGRATE"
 printf '%s\n' "$FROM_DIR" >"$BACKUP_DIR/LAST_CLASSIC_FROM"
 
 echo "== 2/6 Locate classic data volume =="
-# Must run before `docker compose down`, which removes the classic containers.
+# Must run before docker compose down removes the classic containers.
 CLASSIC_VOL=""
 CLASSIC_BIND=""
 CLASSIC_PROJECT=""
@@ -137,8 +137,8 @@ if [[ -z "$CLASSIC_VOL" && -z "$CLASSIC_BIND" ]]; then
 fi
 if [[ -z "$CLASSIC_VOL" && -z "$CLASSIC_BIND" ]]; then
 	# Last resort: scan *_snikket_data volumes. Prefer the one whose compose
-	# project label matches the classic project; take it when it is the only
-	# candidate on the host.
+	# project label matches the classic project, or take it when it is the
+	# only candidate on the host.
 	mapfile -t vols < <(docker volume ls --format '{{.Name}}' | grep '_snikket_data$' || true)
 	for v in "${vols[@]:-}"; do
 		[[ -z "$v" ]] && continue
@@ -205,7 +205,7 @@ if [[ "$CLASSIC_HAS_COMPOSE" -eq 1 ]]; then
 		echo "classic compose down reported errors; continuing" >&2
 fi
 # Remove leftover classic containers that still hold the shared names
-# (snikket, snikket-portal, ...) and would block `compose up`.
+# (snikket, snikket-portal, ...) and would block compose up.
 for c in snikket snikket-proxy snikket-portal snikket-certs snikket-web-proxy; do
 	if docker container inspect "$c" >/dev/null 2>&1; then
 		proj=$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project"}}' "$c" 2>/dev/null || true)
@@ -243,8 +243,6 @@ snikketx_env_set SNIKKET_DOMAIN "$domain"
 if [[ -n "$email" ]]; then
 	snikketx_env_set SNIKKET_ADMIN_EMAIL "$email"
 fi
-snikketx_env_ensure RG_CHALLENGE_SECRET "$(snikketx_random 32)"
-snikketx_env_ensure RG_ADMIN_BOOTSTRAP_PASSWORD "$(snikketx_random 24)"
 snikketx_env_ensure SNIKKET_UPDATER_TOKEN "$(snikketx_random 32)"
 snikketx_env_ensure SNIKKET_BACKUP_TOKEN "$(snikketx_random 32)"
 echo "Updated .env for domain ${domain}"
@@ -264,7 +262,7 @@ Backup kept at: ${LATEST}
 Classic compose kept at: ${FROM_DIR}
 
 Log in at https://${domain}/ with your existing admin XMPP account.
-The first HTTPS hit can take a minute while RavenGuard finishes ACME issuance.
+The first HTTPS hit can take a minute while Traefik finishes ACME issuance.
 
 If something is wrong:
   ./scripts/rollback-to-snikket.sh --from ${FROM_DIR} --backup-dir ${LATEST}

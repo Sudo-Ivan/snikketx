@@ -562,7 +562,7 @@
 			{ title: "Updates", href: "/admin/updates", group: "Operations", keywords: "cosign signatures pin digests apply" },
 			{ title: "Apps", href: "/admin/apps", group: "Operations", keywords: "android apk download" },
 			{ title: "Backup", href: "/admin/backup/", group: "Operations", keywords: "restic restore retention schedule disaster" },
-			{ title: "Logs", href: "/admin/logs/", group: "System", keywords: "prosody portal docker container ravenguard" },
+			{ title: "Logs", href: "/admin/logs/", group: "System", keywords: "prosody portal docker container traefik" },
 			{ title: "System", href: "/admin/system/", group: "System", keywords: "announce announcement metrics version" },
 			{ title: "Health", href: "/admin/health/", group: "System", keywords: "probes errors status" },
 			{ title: "Audit log", href: "/admin/audit/", group: "System", keywords: "events security trail" }

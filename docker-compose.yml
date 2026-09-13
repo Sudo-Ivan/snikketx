@@ -8,7 +8,7 @@ networks:
 volumes:
   snikket_data:
   acme_challenges:
-  ravenguard_data:
+  traefik_data:
   portal_data:
   updater_data:
   backup_data:
@@ -37,59 +37,41 @@ x-tmpfs: &tmpfs
     - /tmp:size=64m,mode=1777
 
 services:
-  ravenguard:
+  traefik:
     <<: [*defaults, *cap-drop, *read-only, *tmpfs]
-    image: ghcr.io/quad4-software/ravenguard:edge@sha256:55597ca6eb9de4b5b68f72ed745d2fc3ac789b3fa2f9af009f1baeb62ea9a01d
-    container_name: snikketx-ravenguard
-    user: "65532:65532"
+    image: docker.io/library/traefik:v3.7.13@sha256:f86a2cab1b5c649070c49f883c743dd32d8485a56e3368c5f93b9e91f1e91259
+    container_name: snikketx-traefik
     cap_add:
       - NET_BIND_SERVICE
-    env_file:
-      - .env
-      - snikket.conf
     environment:
-      RG_CHALLENGE_SECRET: ${RG_CHALLENGE_SECRET}
-      RG_TLS_MODE: acme
-      RG_ACME_EMAIL: ${SNIKKET_ADMIN_EMAIL}
-      RG_ACME_AGREE_TOS: "true"
-      RG_ACME_HOSTS: ${SNIKKET_DOMAIN},share.${SNIKKET_DOMAIN},groups.${SNIKKET_DOMAIN}
-      RG_ACME_STORAGE_DIR: /data/certs
-      RG_TRUST_MODE: edge
-      RG_SANDBOX_MODE: best_effort
-      RG_UPSTREAM_URL: http://snikket_portal:5765
-      RG_ADMIN_ENABLED: "true"
-      RG_ADMIN_LISTEN: 0.0.0.0:9090
-      RG_ADMIN_DATA_DIR: /data/admin
-      RG_ADMIN_BOOTSTRAP_USER: admin
-      RG_ADMIN_BOOTSTRAP_PASSWORD: ${RG_ADMIN_BOOTSTRAP_PASSWORD}
+      TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_EMAIL: ${SNIKKET_ADMIN_EMAIL}
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./deploy/ravenguard/ravenguard.toml:/config/ravenguard.toml:ro
-      - ./deploy/ravenguard/blocklists:/blocklists:ro
-      - ravenguard_data:/data
-    command: ["-config", "/config/ravenguard.toml"]
+      - ./deploy/traefik:/etc/traefik:ro
+      - traefik_data:/data
     depends_on:
-      bootstrap_ravenguard:
+      bootstrap_traefik:
         condition: service_completed_successfully
       snikket_portal:
         condition: service_started
 
-  bootstrap_ravenguard:
+  bootstrap_traefik:
     <<: *defaults
     image: docker.io/library/alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
-    container_name: snikketx-bootstrap-ravenguard
+    container_name: snikketx-bootstrap-traefik
     restart: "no"
     volumes:
-      - ravenguard_data:/data
+      - traefik_data:/data
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
         set -eu
-        mkdir -p /data/admin /data/certs
-        chown -R 65532:65532 /data
-        echo "ravenguard data owned by 65532"
+        # Traefik skips the ACME resolver when acme.json is missing.
+        touch /data/acme.json
+        chmod 600 /data/acme.json
+        echo "acme.json ready"
 
   acme_webroot:
     <<: [*defaults, *cap-drop, *read-only]

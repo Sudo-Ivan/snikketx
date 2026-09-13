@@ -12,3 +12,5 @@ deploy/migrate/docker-compose.migrate.yml
 deploy/migrate/state.env
 updater/updater
 backup/backup
+deploy/traefik/dynamic.yml
+post-check.log

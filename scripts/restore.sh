@@ -20,7 +20,7 @@ Usage: ./scripts/restore.sh /absolute/path/to/snikket-data-*.tar.gz [flags]
 Restores Prosody /snikket from a backup tarball into container snikket
 (accounts, MAM chats, MUCs, uploads). Stack should be stopped or snikket stopped.
 
---full      Also restore portal/ravenguard/updater sibling tarballs and host conf
+--full      Also restore portal/traefik/updater sibling tarballs and host conf
 --yes       Skip confirmation prompt
 --dry-run   Validate the archive and print the restore plan without writing
 --dev/--prod  Accepted for compose mode compatibility
@@ -87,7 +87,7 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
 		echo "  Full restore enabled"
 		for f in \
 			"${SRC_DIR}/portal-data-${stamp}.tar.gz" \
-			"${SRC_DIR}/ravenguard-data-${stamp}.tar.gz" \
+			"${SRC_DIR}/traefik-data-${stamp}.tar.gz" \
 			"${SRC_DIR}/updater-data-${stamp}.tar.gz" \
 			"${SRC_DIR}/backup-data-${stamp}.tar.gz"; do
 			if [[ -f "$f" ]]; then
@@ -152,7 +152,12 @@ restore_vol() {
 
 if [[ "$FULL" -eq 1 ]]; then
 	restore_vol "${SRC_DIR}/portal-data-${stamp}.tar.gz" "$SNIKKETX_VOL_PORTAL_DATA"
-	restore_vol "${SRC_DIR}/ravenguard-data-${stamp}.tar.gz" "$SNIKKETX_VOL_RAVENGUARD_DATA"
+	if [[ -f "${SRC_DIR}/traefik-data-${stamp}.tar.gz" ]]; then
+		restore_vol "${SRC_DIR}/traefik-data-${stamp}.tar.gz" "$SNIKKETX_VOL_TRAEFIK_DATA"
+	else
+		# Pre-Traefik backups used the ravenguard-data label.
+		restore_vol "${SRC_DIR}/ravenguard-data-${stamp}.tar.gz" "$SNIKKETX_VOL_TRAEFIK_DATA"
+	fi
 	restore_vol "${SRC_DIR}/updater-data-${stamp}.tar.gz" "$SNIKKETX_VOL_UPDATER_DATA"
 	restore_vol "${SRC_DIR}/backup-data-${stamp}.tar.gz" "$SNIKKETX_VOL_BACKUP_DATA"
 	if [[ -f "${SRC_DIR}/snikket.conf" ]]; then

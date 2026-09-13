@@ -1,0 +1,43 @@
+# Traefik static config for SnikketX edge (production).
+# ACME email comes from TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_EMAIL.
+# Routers are rendered into dynamic.yml by scripts/render-edge.sh.
+
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+api:
+  dashboard: false
+
+ping:
+  entryPoint: web
+
+providers:
+  file:
+    filename: /etc/traefik/dynamic.yml
+    watch: true
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      aliasHeadersStrategy: delete
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+  websecure:
+    address: ":443"
+    http:
+      aliasHeadersStrategy: delete
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      storage: /data/acme.json
+      tlsChallenge: {}
+
+log:
+  level: INFO
+
+accessLog: {}

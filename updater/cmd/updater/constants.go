@@ -82,7 +82,7 @@ const (
 var allowedLogServices = []logService{
 	{ID: "snikket_server", Label: "Chat server (Prosody)"},
 	{ID: "snikket_portal", Label: "Web portal"},
-	{ID: "ravenguard", Label: "Edge (RavenGuard)"},
+	{ID: "traefik", Label: "Edge (Traefik)"},
 	{ID: "snikket_updater", Label: "Updater"},
 	{ID: "snikket_backup", Label: "Backup"},
 	{ID: "snikket_certs", Label: "Cert manager"},

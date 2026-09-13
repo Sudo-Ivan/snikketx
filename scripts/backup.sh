@@ -19,7 +19,7 @@ Creates a backup directory containing:
   snikket-data-TIMESTAMP.tar.gz  Prosody /snikket (accounts, MAM chats, MUCs, uploads, XMPP certs)
   snikket.conf / .env            Host config copies when present
   portal-data-*.tar.gz           Portal state (SnikketX, when volume exists)
-  ravenguard-data-*.tar.gz       RavenGuard ACME/admin (when volume exists)
+  traefik-data-*.tar.gz          Traefik ACME account and certs (when volume exists)
   updater-data-*.tar.gz          Updater state (when volume exists)
   MANIFEST.txt
 
@@ -103,7 +103,7 @@ backup_via_service() {
 		echo "Backup service produced no archive" >&2
 		return 1
 	fi
-	# Archives live in the backup_data volume; copy via docker.
+	# Archives live in the backup_data volume, copied out via docker.
 	local vol="$SNIKKETX_VOL_BACKUP_DATA"
 	if ! docker volume inspect "$vol" >/dev/null 2>&1; then
 		echo "Backup volume ${vol} missing" >&2
@@ -158,13 +158,13 @@ archive_named_volume() {
 }
 
 MODE=classic
-if docker volume inspect "$SNIKKETX_VOL_PORTAL_DATA" >/dev/null 2>&1 || docker volume inspect "$SNIKKETX_VOL_RAVENGUARD_DATA" >/dev/null 2>&1; then
+if docker volume inspect "$SNIKKETX_VOL_PORTAL_DATA" >/dev/null 2>&1 || docker volume inspect "$SNIKKETX_VOL_TRAEFIK_DATA" >/dev/null 2>&1; then
 	MODE=snikketx
 fi
 
 if [[ "$FULL" -eq 1 ]]; then
 	archive_named_volume "$SNIKKETX_VOL_PORTAL_DATA" portal-data
-	archive_named_volume "$SNIKKETX_VOL_RAVENGUARD_DATA" ravenguard-data
+	archive_named_volume "$SNIKKETX_VOL_TRAEFIK_DATA" traefik-data
 	archive_named_volume "$SNIKKETX_VOL_UPDATER_DATA" updater-data
 	archive_named_volume "$SNIKKETX_VOL_BACKUP_DATA" backup-data
 	archive_named_volume "$SNIKKETX_VOL_PORTAL_DATA_CLASSIC" portal-data-classic

@@ -32,7 +32,7 @@ rewrite_local_url() {
 	printf '%s' "$url"
 }
 
-# In-image helper already uses `prosodyctl shell invite`.
+# In-image helper already uses prosodyctl shell invite.
 if docker exec "$SNIKKETX_CONTAINER_SERVER" test -x /usr/local/bin/create-invite; then
 	output=$(docker exec -i -e "SNIKKET_DOMAIN=$SNIKKET_DOMAIN" "$SNIKKETX_CONTAINER_SERVER" create-invite "$@" || true)
 	if [[ -z "$output" ]]; then

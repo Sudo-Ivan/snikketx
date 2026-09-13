@@ -86,19 +86,9 @@ write_config() {
 	local domain="$1"
 	local email="$2"
 	local tos="$3"
-	local rg_secret rg_admin updater_token backup_token
-	rg_secret=$(snikketx_random 32)
-	if [ "${#rg_secret}" -lt 16 ]; then
-		rg_secret="rg-replace-this-secret!!"
-	fi
-	rg_admin=$(snikketx_random 24)
+	local updater_token backup_token
 	updater_token=$(snikketx_random 32)
 	backup_token=$(snikketx_random 32)
-
-	if [[ "$DEV_MODE" -eq 1 ]]; then
-		rg_secret="rg-dev-local-secret!!"
-		rg_admin="rg-dev-admin-password!!"
-	fi
 
 	sed \
 		-e 's/^\(SNIKKET_DOMAIN\)=.*$/\1='"$domain"'/;' \
@@ -109,8 +99,6 @@ write_config() {
 	cat >.env <<EOF
 SNIKKET_DOMAIN=${domain}
 SNIKKET_ADMIN_EMAIL=${email}
-RG_CHALLENGE_SECRET=${rg_secret}
-RG_ADMIN_BOOTSTRAP_PASSWORD=${rg_admin}
 SNIKKET_UPDATER_TOKEN=${updater_token}
 SNIKKET_BACKUP_TOKEN=${backup_token}
 EOF

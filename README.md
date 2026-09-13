@@ -1,7 +1,7 @@
 # snikketx
 
 Fork of the Snikket stack as SnikketX (eXtended) in one repo: Prosody server image, web
-portal, cert manager, Android client, plus RavenGuard on the HTTP edge.
+portal, cert manager, Android client, plus Traefik on the HTTP edge.
 
 Upstream lives at [snikket-im](https://github.com/snikket-im). This fork
 publishes SnikketX images to GHCR under `ghcr.io/sudo-ivan/snikketx/`.
@@ -34,7 +34,7 @@ DNS must point the domain plus `share.` and `groups.` at this host. Ports **80/4
 ### Migrate from classic Snikket
 
 Works with the stock docker compose install from
-<https://snikket.org/service/quickstart/> — a directory like `/etc/snikket`
+<https://snikket.org/service/quickstart/>, a directory like `/etc/snikket`
 holding `docker-compose.yml` and `snikket.conf`. Keeps Prosody data
 (accounts, MAM chats, MUCs, uploads). A full backup runs first, always.
 
@@ -62,7 +62,7 @@ Both `docker compose` (plugin) and `docker-compose` (v1 binary) are
 supported. Add `MIGRATE_FLAGS=--yes` to skip the confirmation prompt.
 
 After start, log in at `https://<domain>/` with your existing admin XMPP
-account. The first HTTPS request can take a minute while RavenGuard finishes
+account. The first HTTPS request can take a minute while Traefik finishes
 ACME issuance. `make invite` still works for new users.
 
 Keep the classic directory until you trust the new stack. If migration fails:
@@ -71,7 +71,7 @@ Keep the classic directory until you trust the new stack. If migration fails:
 make rollback FROM=/etc/snikket BACKUP_DIR=/var/backups/snikketx
 ```
 
-`BACKUP_DIR` may point at a `snikketx-backup-*` dir or its parent; the newest
+`BACKUP_DIR` may point at a `snikketx-backup-*` dir or its parent. The newest
 usable backup is picked automatically. Without flags, rollback falls back to
 `deploy/migrate/state.env`.
 
@@ -97,13 +97,13 @@ usable backup is picked automatically. Without flags, rollback falls back to
 
 Config files:
 
-- `snikket.conf` — domain, admin email, LE TOS (from `snikket.conf.example`)
-- `.env` — RavenGuard/updater secrets for Compose (from `.env.example` or `init`)
+- `snikket.conf`: domain, admin email, LE TOS (from `snikket.conf.example`)
+- `.env`: updater/backup secrets for Compose (from `.env.example` or `init`)
 
 ## Major changes from upstream
 
 - One monorepo instead of separate Snikket packages (server, portal, cert-manager).
-- HTTP edge is RavenGuard alone (TLS via ACME in prod). Traefik and the legacy nginx `web-proxy/` tree are not part of the default stack or publish pipeline.
+- HTTP edge is Traefik (TLS via ACME in prod). The legacy nginx `web-proxy/` tree is not part of the default stack or publish pipeline.
 - Server and cert-manager images build on Alpine 3.24. Prosody comes from apk (13.x), not Debian nightlies.
 - Web portal is a stdlib Go single binary on distroless, not the upstream Python/Quart app, with a refreshed dark-mode admin panel (footer shows build metadata, uptime, and Healthy / Degraded / Down).
 - Optional self-hosted Android APK on the portal (`Admin → Apps`, public `/download/android.apk`) with cache refresh, source override for forks, and per-IP download limits.
@@ -116,26 +116,27 @@ Config files:
 HTTP path:
 
 ```
-Client -> RavenGuard (ACME TLS) -> web-portal
-                                \-> Prosody HTTP (upload, BOSH, websocket)
+Client -> Traefik (ACME TLS) -> web-portal
+                              \-> Prosody HTTP (upload, BOSH, websocket)
+                              \-> acme_webroot (certbot HTTP-01)
 XMPP/STUN/TURN -> snikket_server (direct ports)
 ```
 
-RavenGuard runs as the first hop with `trust.mode = edge` and Let's Encrypt
-(`tls.mode = acme`, TLS-ALPN-01). Path routes for Prosody and the certbot
-HTTP-01 webroot are seeded into the RavenGuard admin store by
-`scripts/seed-ravenguard-routes.sh`. The JS challenge stays off so XMPP
-WebSocket clients are not blocked. See the
-[intro](https://ravenguard.quad4.io/docs/intro) and
-[configuration](https://ravenguard.quad4.io/docs/configuration) docs.
+Traefik runs as the first hop and terminates TLS. Certificates come from
+Let's Encrypt via TLS-ALPN-01 and are stored in the `traefik_data` volume.
+Routes live in `deploy/traefik/dynamic.yml`, rendered by
+`scripts/render-edge.sh` from `snikket.conf`, and the file provider
+hot-reloads them. Prosody HTTP paths (upload, BOSH, websocket, invite APIs)
+go to the server container and the certbot `/.well-known/acme-challenge`
+path goes to `acme_webroot` so `snikket_certs` can keep issuing XMPP certs.
 
 ## Backup scope
 
 `make backup DEST=/abs/dir` or the `snikket_backup` sidecar writes a timestamped directory with:
 
-- `snikket-data-*.tar.gz` — entire `/snikket` volume (accounts, message archives, group chats, uploads, XMPP LE material)
+- `snikket-data-*.tar.gz`: entire `/snikket` volume (accounts, message archives, group chats, uploads, XMPP LE material)
 - copies of `snikket.conf` and `.env`
-- SnikketX-only volumes when present: portal, RavenGuard, updater, backup state
+- SnikketX-only volumes when present: portal, Traefik, updater, backup state
 - optional Restic push to an S3-compatible (or other) repository
 
 Configure schedule, retention, and offsite under **Admin → Backup**. Use `./scripts/restore.sh … --dry-run` to validate an archive without writing.
@@ -151,10 +152,10 @@ Classic Snikket used the same `/snikket` layout and container name `snikket`, so
 - `backup/` - scheduled backup / retention / Restic sidecar
 - `web-proxy/` - legacy nginx front door (archive only, not published)
 - `cert-manager/` - Let's Encrypt for XMPP TLS (prod)
-- `deploy/ravenguard/` - RavenGuard TOML and blocklists
+- `deploy/traefik/` - Traefik static config and rendered dynamic routes
 - `deploy/migrate/` - volume override + rollback state written by migrate script
 - `scripts/` - install and ops helpers
-- `docker-compose.yml` - production stack (pull GHCR + RavenGuard edge)
+- `docker-compose.yml` - production stack (pull GHCR + Traefik edge)
 - `docker-compose.dev.yml` - local builds, no certs package
 
 ## Build images only

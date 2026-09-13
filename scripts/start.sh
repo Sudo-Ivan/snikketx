@@ -11,13 +11,15 @@ snikketx_require_conf
 snikketx_ensure_env
 snikketx_export_build_meta
 
+./scripts/render-edge.sh "$COMPOSE_MODE"
+
 if [[ "$COMPOSE_MODE" == "dev" ]]; then
 	snikketx_compose up -d --build
 else
 	snikketx_compose up -d
 fi
 
-./scripts/seed-ravenguard-routes.sh "$COMPOSE_MODE"
+snikketx_cleanup_legacy_edge
 
 if [[ "$COMPOSE_MODE" == "dev" ]]; then
 	./scripts/bootstrap-admin.sh --dev || true

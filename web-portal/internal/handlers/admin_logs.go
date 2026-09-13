@@ -51,7 +51,7 @@ const (
 	logSourcePortalErrors = "portal-errors"
 	logSourceServer       = "snikket_server"
 	logSourcePortal       = "snikket_portal"
-	logSourceEdge         = "ravenguard"
+	logSourceEdge         = "traefik"
 	logSourceUpdater      = "snikket_updater"
 	logSourceBackup       = "snikket_backup"
 	logSourceCerts        = "snikket_certs"
@@ -70,7 +70,7 @@ func fallbackLogSources() []logSource {
 		{ID: logSourcePortalErrors, Label: "Portal errors (in memory)"},
 		{ID: logSourceServer, Label: "Chat server (Prosody)"},
 		{ID: logSourcePortal, Label: "Web portal"},
-		{ID: logSourceEdge, Label: "Edge (RavenGuard)"},
+		{ID: logSourceEdge, Label: "Edge (Traefik)"},
 		{ID: logSourceUpdater, Label: "Updater"},
 		{ID: logSourceBackup, Label: "Backup"},
 		{ID: logSourceCerts, Label: "Cert manager"},

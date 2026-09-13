@@ -211,7 +211,7 @@ def fetch_xmpp_cert(domain, port, namespace, timeout):
             hint = banner[:200].decode("utf-8", "replace").strip()
             raise OSError(f"server did not offer STARTTLS ({hint or 'no banner'})")
         raw.sendall(
-            b"<starttls xmlns='urn:ietf:params:xml:tls:xmpp-tls'/>")
+            b"<starttls xmlns='urn:ietf:params:xml:ns:xmpp-tls'/>")
         reply = raw.recv(4096)
         if b"<proceed" not in reply:
             hint = reply[:200].decode("utf-8", "replace").strip()

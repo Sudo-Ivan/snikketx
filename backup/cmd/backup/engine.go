@@ -45,7 +45,7 @@ func (s *server) createBackup(ctx context.Context) (string, error) {
 	if scope == scopeFull {
 		vols := []struct{ vol, label string }{
 			{volPortalData, labelPortalData},
-			{volRavenguardData, labelRavenguardData},
+			{volTraefikData, labelTraefikData},
 			{volUpdaterData, labelUpdaterData},
 			{volBackupData, labelBackupData},
 			{volPortalClassic, labelPortalClassic},
@@ -70,7 +70,7 @@ func (s *server) createBackup(ctx context.Context) (string, error) {
 	}
 
 	mode := modeClassic
-	if s.volumeExists(volPortalData) || s.volumeExists(volRavenguardData) {
+	if s.volumeExists(volPortalData) || s.volumeExists(volTraefikData) {
 		mode = modeSnikketX
 	}
 	entries, _ := os.ReadDir(out)
@@ -149,7 +149,7 @@ func (s *server) listArchivesLocked() []archiveInfo {
 		}
 		info.SizeBytes = dirSize(path)
 		info.HasData = hasPrefixFile(path, dataArchivePrefix)
-		info.HasFull = hasPrefixFile(path, labelPortalData+"-") || hasPrefixFile(path, labelRavenguardData+"-")
+		info.HasFull = hasPrefixFile(path, labelPortalData+"-") || hasPrefixFile(path, labelTraefikData+"-")
 		out = append(out, info)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name > out[j].Name })
@@ -205,8 +205,8 @@ func (s *server) dryRunRestore(archiveDir string) dryRunResult {
 	if hasPrefixFile(archiveDir, labelPortalData+"-") {
 		res.Messages = append(res.Messages, labelPortalData+" archive present (use --full to restore)")
 	}
-	if hasPrefixFile(archiveDir, labelRavenguardData+"-") {
-		res.Messages = append(res.Messages, labelRavenguardData+" archive present (use --full to restore)")
+	if hasPrefixFile(archiveDir, labelTraefikData+"-") {
+		res.Messages = append(res.Messages, labelTraefikData+" archive present (use --full to restore)")
 	}
 	if hasPrefixFile(archiveDir, labelUpdaterData+"-") {
 		res.Messages = append(res.Messages, labelUpdaterData+" archive present (use --full to restore)")

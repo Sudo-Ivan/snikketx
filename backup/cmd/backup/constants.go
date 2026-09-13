@@ -108,7 +108,7 @@ const (
 // Docker volumes archived in full scope.
 const (
 	volPortalData     = "snikketx_portal_data"
-	volRavenguardData = "snikketx_ravenguard_data"
+	volTraefikData    = "snikketx_traefik_data"
 	volUpdaterData    = "snikketx_updater_data"
 	volBackupData     = "snikketx_backup_data"
 	volPortalClassic  = "snikket_portal_data"
@@ -118,7 +118,7 @@ const (
 // File name prefixes for per-volume archives inside a backup directory.
 const (
 	labelPortalData     = "portal-data"
-	labelRavenguardData = "ravenguard-data"
+	labelTraefikData    = "traefik-data"
 	labelUpdaterData    = "updater-data"
 	labelBackupData     = "backup-data"
 	labelPortalClassic  = "portal-data-classic"

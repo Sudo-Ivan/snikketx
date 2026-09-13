@@ -52,6 +52,7 @@ snikketx_ensure_env
 snikketx_export_build_meta
 
 echo "== compose update (${COMPOSE_MODE}) =="
+./scripts/render-edge.sh "$COMPOSE_MODE"
 if [[ "$COMPOSE_MODE" == "dev" ]]; then
 	snikketx_compose up -d --build
 else
@@ -59,5 +60,6 @@ else
 	snikketx_compose up -d
 fi
 
-./scripts/seed-ravenguard-routes.sh "$COMPOSE_MODE"
+snikketx_cleanup_legacy_edge
+
 ./scripts/postcheck.sh "$COMPOSE_MODE" "${COMPOSE_EXTRA_ARGS[@]}"
