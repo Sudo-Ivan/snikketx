@@ -187,6 +187,12 @@ android {
         }
     }
 
+    testOptions {
+        unitTests {
+            includeAndroidResources = true
+        }
+    }
+
 
     if (new File("signing.properties").exists()) {
         Properties props = new Properties()
