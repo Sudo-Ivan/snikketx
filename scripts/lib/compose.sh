@@ -73,6 +73,9 @@ snikketx_parse_mode() {
 	if [[ -f deploy/migrate/docker-compose.migrate.yml ]]; then
 		COMPOSE_ARGS+=(-f deploy/migrate/docker-compose.migrate.yml)
 	fi
+	if [[ "$COMPOSE_MODE" == "prod" && -f deploy/acme-dns/docker-compose.acme-dns.yml ]]; then
+		COMPOSE_ARGS+=(-f deploy/acme-dns/docker-compose.acme-dns.yml)
+	fi
 }
 
 snikketx_conf_get() {

@@ -1,6 +1,7 @@
-# Traefik static config for SnikketX edge (production).
-# ACME email comes from TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_EMAIL.
-# Routers are rendered into dynamic.yml by scripts/render-edge.sh.
+# Traefik static config for SnikketX edge (production, DNS-01 ACME).
+# Used instead of traefik.yml when deploy/acme-dns/docker-compose.acme-dns.yml
+# is active. Certificates are issued through the Cloudflare DNS provider.
+# CF_DNS_API_TOKEN must be set in .env.
 
 global:
   checkNewVersion: false
@@ -29,7 +30,6 @@ entryPoints:
           permanent: true
     transport:
       respondingTimeouts:
-        # Default is 60s, too tight for large uploads on slow links.
         readTimeout: 600s
   websecure:
     address: ":443"
@@ -45,7 +45,13 @@ certificatesResolvers:
   letsencrypt:
     acme:
       storage: /data/acme.json
-      tlsChallenge: {}
+      dnsChallenge:
+        provider: cloudflare
+        propagation:
+          delayBeforeChecks: 10
+        resolvers:
+          - "1.1.1.1:53"
+          - "1.0.0.1:53"
 
 log:
   level: INFO

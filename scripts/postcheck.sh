@@ -169,14 +169,76 @@ fi
 
 if docker logs snikket --since 60m 2>&1 | grep -q "turndb"; then
 	warn "prosody TURN database error seen in the last hour (turndb)"
-	hint "check /snikket/prosody/turndb permissions inside container snikket"
+	hint "check /snikket/turnserver/turndb permissions inside container snikket"
+fi
+
+echo ""
+echo "== Calls, STUN and TURN =="
+
+# These are configuration checks. A real media test still needs two
+# XMPP clients to place a call, ideally one behind a restrictive NAT.
+if docker exec snikket pidof turnserver >/dev/null 2>&1; then
+	ok "coturn (turnserver) is running inside container snikket"
+else
+	fail "turnserver is not running inside container snikket"
+	hint "check: docker logs snikket | grep -i turn"
+fi
+
+if docker exec snikket test -f /snikket/turnserver/turndb 2>/dev/null; then
+	ok "TURN credential database exists (/snikket/turnserver/turndb)"
+else
+	warn "TURN credential database missing"
+	hint "turnserver creates it on first credential. check: docker logs snikket | grep -i turn"
+fi
+
+turn_min="${SNIKKET_TURN_MIN_PORT:-49152}"
+turn_max="${SNIKKET_TURN_MAX_PORT:-49251}"
+# coturn gets the range as --min-port/--max-port command line args.
+turn_args=$(docker exec snikket sh -c \
+	'tr "\0" " " < /proc/$(pidof turnserver | tr " " "\n" | head -1)/cmdline' \
+	2>/dev/null || true)
+conf_min=$(printf '%s' "$turn_args" | sed -n 's/.*--min-port \([0-9]*\).*/\1/p')
+conf_max=$(printf '%s' "$turn_args" | sed -n 's/.*--max-port \([0-9]*\).*/\1/p')
+if [[ -n "$conf_min" && -n "$conf_max" ]]; then
+	if [[ "$conf_min" == "$turn_min" && "$conf_max" == "$turn_max" ]]; then
+		ok "coturn relay range ${conf_min}-${conf_max} matches published range"
+	else
+		fail "coturn relay range ${conf_min}-${conf_max} differs from published ${turn_min}-${turn_max}"
+		hint "set SNIKKET_TURN_MIN_PORT/SNIKKET_TURN_MAX_PORT in .env or fix turnserver.conf"
+	fi
+else
+	warn "could not read --min-port/--max-port from the turnserver process"
+fi
+
+# Port ranges may be published as a range or expanded per port by
+# Compose, so the range endpoints are checked instead.
+for spec in "3478/udp" "3478/tcp" "5349/tcp" "5349/udp" \
+	"${turn_min}/udp" "${turn_max}/udp"; do
+	if docker inspect snikket --format '{{json .HostConfig.PortBindings}}' 2>/dev/null \
+		| grep -q "${spec}"; then
+		ok "container publishes ${spec}"
+	else
+		warn "container does not publish ${spec}"
+		hint "check the ports section of the server service in docker-compose.yml"
+	fi
+done
+
+# UDP relay range must also be open on the host firewall for calls to
+# get relay candidates when peers cannot connect directly.
+if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: active"; then
+	if ufw status 2>/dev/null | grep -qE "${turn_min}:${turn_max}/udp"; then
+		ok "ufw allows TURN relay range ${turn_min}:${turn_max}/udp"
+	else
+		fail "ufw does not allow TURN relay range ${turn_min}:${turn_max}/udp"
+		hint "allow it: ufw allow ${turn_min}:${turn_max}/udp"
+	fi
 fi
 
 echo ""
 echo "== Host firewall =="
 
-required_ports_tcp="80 443 5222 5269 3478 5349"
-required_ports_udp="3478 5349"
+required_ports_tcp="80 443 5222 5223 5269 3478 5349"
+required_ports_udp="443 3478 5349"
 
 if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: active"; then
 	echo "ufw is active, checking required ports"

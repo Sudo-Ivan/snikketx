@@ -1,0 +1,16 @@
+# Optional override that switches the Traefik ACME resolver from the default
+# TLS-ALPN-01 challenge to DNS-01 through Cloudflare.
+#
+# Activated by scripts/enable-dns-acme.sh, which copies this file to
+# docker-compose.acme-dns.yml in this directory and stores CF_DNS_API_TOKEN
+# in .env. The token needs Zone:Read and DNS:Edit on the zone that owns the
+# XMPP domain. Remove the copied file and re-run compose to switch back.
+
+services:
+  traefik:
+    # The whole deploy/traefik directory is already mounted read only, so
+    # the alternate static config just needs a different --configFile.
+    command:
+      - "--configFile=/etc/traefik/traefik.dns.yml"
+    environment:
+      CF_DNS_API_TOKEN: ${CF_DNS_API_TOKEN}

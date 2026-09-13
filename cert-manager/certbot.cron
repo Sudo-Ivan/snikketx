@@ -12,13 +12,25 @@ export SNIKKET_DOMAIN_ASCII
 
 SNIKKET_CERTBOT_KEY_OPTIONS=${SNIKKET_CERTBOT_KEY_OPTIONS:---reuse-key}
 
+# Default is HTTP-01 through the shared webroot. When a Cloudflare token
+# is present the DNS-01 plugin is used instead, which also works when
+# port 80 is not reachable.
+AUTH_ARGS="--webroot --webroot-path /var/www"
+if [ -n "${CF_DNS_API_TOKEN-}" ]; then
+	CF_CREDS=/snikket/letsencrypt/cloudflare-credentials.ini
+	install -o letsencrypt -g letsencrypt -m 600 /dev/null "$CF_CREDS"
+	printf 'dns_cloudflare_api_token = %s\n' "$CF_DNS_API_TOKEN" > "$CF_CREDS"
+	AUTH_ARGS="--dns-cloudflare --dns-cloudflare-credentials $CF_CREDS \
+	  --dns-cloudflare-propagation-seconds ${CF_DNS_PROPAGATION_SECONDS:-30}"
+fi
+
 has_errors () {
 	test -s /var/log/letsencrypt/errors.log;
 	return;
 }
 
 try_cert () {
-	if su letsencrypt -- -c "certbot certonly -n --webroot --webroot-path /var/www \
+	if su -s /bin/bash letsencrypt -c "certbot certonly -n $AUTH_ARGS \
 	  --cert-path /etc/ssl/certbot \
 	  --keep ${SNIKKET_CERTBOT_OPTIONS-} $SNIKKET_CERTBOT_KEY_OPTIONS \
 	  --agree-tos --email \"$SNIKKET_ADMIN_EMAIL\" --expand \

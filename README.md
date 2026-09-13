@@ -29,7 +29,11 @@ make up
 ./scripts/new-invite.sh --admin --group default
 ```
 
-DNS must point the domain plus `share.` and `groups.` at this host. Ports **80/443** (HTTP), **5222/5269** (XMPP), **3478/5349** (STUN/TURN).
+DNS must point the domain plus `share.` and `groups.` at this host.
+Ports **80+443** TCP and **443** UDP (HTTP and HTTP/3), **5222/5223/5269**
+(XMPP), **3478/5349** TCP and UDP (STUN/TURN), and the UDP relay range
+**49152-49251** for calls. On Cloudflare this can be set up automatically,
+see [DNS setup with Cloudflare](#dns-setup-with-cloudflare).
 
 ### Migrate from classic Snikket
 
@@ -75,6 +79,53 @@ make rollback FROM=/etc/snikket BACKUP_DIR=/var/backups/snikketx
 usable backup is picked automatically. Without flags, rollback falls back to
 `deploy/migrate/state.env`.
 
+## DNS setup with Cloudflare
+
+`scripts/dns-setup.py` creates and verifies every record SnikketX needs on
+Cloudflare. It only ever touches records inside the XMPP domain subtree
+(for `chat.example.com` that is the name itself, `share.`/`groups.` and the
+`_xmpp-*._tcp` SRV names). It never deletes records, and it writes a full
+backup of the zone before changing anything.
+
+Create a scoped API token at <https://dash.cloudflare.com/profile/api-tokens>
+with `Zone:Read` and `DNS:Edit` on your zone only, then:
+
+```
+./scripts/dns-setup.py --domain chat.example.com --token <token>
+```
+
+It prints each step, shows the plan (keep / create / update per record),
+asks before writing, and verifies the result through the API. `--dry-run`
+shows the plan without writing. `--ipv4` / `--ipv6` override autodetected
+addresses and `--no-caa` skips the CAA `letsencrypt.org` records.
+
+Backups land in the repo root as `dns-backup-<zone>-<timestamp>.json` and
+`.zone`. Restore by hand from the zone file if needed.
+
+## Optional DNS-01 certificates
+
+By default HTTPS certificates come from Let's Encrypt via TLS-ALPN-01 at
+the edge and HTTP-01 for XMPP. If DNS is hosted on Cloudflare, DNS-01
+covers both and works even when port 80 is not reachable. To switch:
+
+```
+./scripts/enable-dns-acme.sh
+```
+
+It verifies the token, locates the zone, writes `CF_DNS_API_TOKEN` to
+`.env`, activates `deploy/acme-dns/docker-compose.acme-dns.yml`, and
+restarts Traefik and cert-manager. Existing certificates stay valid and
+renew through DNS-01 from then on.
+
+To switch back to TLS-ALPN-01:
+
+```
+rm deploy/acme-dns/docker-compose.acme-dns.yml
+./scripts/update.sh
+```
+
+Then remove `CF_DNS_API_TOKEN` from `.env`.
+
 ## Other Commands
 
 | Command | Purpose |
@@ -106,8 +157,8 @@ Config files:
 - HTTP edge is Traefik (TLS via ACME in prod). The legacy nginx `web-proxy/` tree is not part of the default stack or publish pipeline.
 - Server and cert-manager images build on Alpine 3.24. Prosody comes from apk (13.x), not Debian nightlies.
 - Web portal is a stdlib Go single binary on distroless, not the upstream Python/Quart app, with a refreshed dark-mode admin panel (footer shows build metadata, uptime, and Healthy / Degraded / Down).
-- Optional self-hosted Android APK on the portal (`Admin → Apps`, public `/download/android.apk`) with cache refresh, source override for forks, and per-IP download limits.
-- Backup sidecar schedules local archives, retention, dry-run restore checks, and optional Restic offsite (`Admin → Backup`).
+- Optional self-hosted Android APK on the portal (`Admin -> Apps`, public `/download/android.apk`) with cache refresh, source override for forks, and per-IP download limits.
+- Backup sidecar schedules local archives, retention, dry-run restore checks, and optional Restic offsite (`Admin -> Backup`).
 - Invite helpers use `prosodyctl shell invite` (create_account / create_reset). The old `mod_invites generate` path is gone.
 - Publish pipeline signs images keyless with Cosign, attaches Syft SPDX SBOMs, runs Trivy and container smoke tests. Production compose requires Cosign verification before applying updates.
 - Security additions: SASL SCRAM downgrade protection (XEP-0474 via mod_sasl_ssdp), XEP-0424 tombstoning of retracted 1:1 archive entries, XEP-0334 no-store hints in MUC archives, MUC log retention matching RETENTION_DAYS, a published XEP-0504 data policy form, explicit push payload minimization, and opt-in SCRAM-SHA-256 password storage (SNIKKET_TWEAK_PASSWORD_HASH, new installs only).
@@ -139,7 +190,7 @@ path goes to `acme_webroot` so `snikket_certs` can keep issuing XMPP certs.
 - SnikketX-only volumes when present: portal, Traefik, updater, backup state
 - optional Restic push to an S3-compatible (or other) repository
 
-Configure schedule, retention, and offsite under **Admin → Backup**. Use `./scripts/restore.sh … --dry-run` to validate an archive without writing.
+Configure schedule, retention, and offsite under **Admin -> Backup**. Use `./scripts/restore.sh ... --dry-run` to validate an archive without writing.
 
 Classic Snikket used the same `/snikket` layout and container name `snikket`, so the data tarball is compatible for migrate/rollback.
 

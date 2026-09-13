@@ -347,6 +347,62 @@ def check_tcp(domain, port, label, timeout):
         report(WARN, f"TCP {domain}:{port} ({label}) unreachable ({exc})")
 
 
+def check_tls_port(domain, port, label, timeout):
+    """Direct TLS listener check (no STARTTLS), for TURN-TLS and c2s 5223."""
+    try:
+        info, _der = fetch_tls_cert(domain, port, timeout)
+    except ssl.SSLCertVerificationError as exc:
+        report(FAIL, f"{label} {domain}:{port} cert invalid "
+                     f"({exc.verify_message})")
+        return
+    except Exception as exc:
+        report(FAIL, f"{label} {domain}:{port} failed ({exc})")
+        return
+    days, issuer, sans = cert_summary(info)
+    level = PASS if days > 14 else WARN if days > 0 else FAIL
+    report(level, f"{label} {domain}:{port} valid, {days}d left, "
+                  f"issuer {issuer}, SANs {','.join(sans) or '-'}")
+
+
+def check_stun(domain, timeout):
+    """Send a real RFC 5389 binding request to the STUN port."""
+    tid = os.urandom(12)
+    req = struct.pack(">HHI12s", 0x0001, 0, 0x2112A442, tid)
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.settimeout(timeout)
+            sock.sendto(req, (domain, 3478))
+            data, _ = sock.recvfrom(2048)
+    except Exception as exc:
+        report(FAIL, f"STUN {domain}:3478/udp no answer ({exc})")
+        return
+    if len(data) < 20:
+        report(FAIL, f"STUN {domain}:3478/udp short reply")
+        return
+    rtype, _rlen, magic = struct.unpack(">HHI", data[:8])
+    if rtype != 0x0101 or magic != 0x2112A442:
+        report(FAIL, f"STUN {domain}:3478/udp bad response "
+                     f"(type 0x{rtype:04x})")
+        return
+    mapped = ""
+    off = 20
+    while off + 4 <= len(data):
+        atype, alen = struct.unpack(">HH", data[off:off + 4])
+        aval = data[off + 4:off + 4 + alen]
+        if atype == 0x0020 and len(aval) >= 8 and aval[1] == 0x01:
+            port = struct.unpack(">H", aval[2:4])[0] ^ (0x2112A442 >> 16)
+            addr = bytes(b ^ c for b, c in
+                         zip(aval[4:8], struct.pack(">I", 0x2112A442)))
+            mapped = f" mapped {socket.inet_ntoa(addr)}:{port}"
+            break
+        if atype == 0x0001 and len(aval) >= 8 and aval[1] == 0x01:
+            port = struct.unpack(">H", aval[2:4])[0]
+            mapped = f" mapped {socket.inet_ntoa(aval[4:8])}:{port}"
+            break
+        off += 4 + alen + (-alen % 4)
+    report(PASS, f"STUN {domain}:3478/udp binding response ok{mapped}")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--domain", default=os.environ.get("SNIKKET_DOMAIN", ""))
@@ -386,8 +442,10 @@ def main():
         check_tlsa(443, domain, nameserver, args.timeout, leaf_443)
         check_tlsa(5222, domain, nameserver, args.timeout, der_5222)
         check_tlsa(5269, domain, nameserver, args.timeout, der_5269)
+        check_tls_port(domain, 5223, "XMPP direct TLS", args.timeout)
+        check_stun(domain, args.timeout)
         check_tcp(domain, 3478, "STUN/TURN", args.timeout)
-        check_tcp(domain, 5349, "TURN TLS", args.timeout)
+        check_tls_port(domain, 5349, "TURN TLS", args.timeout)
 
     print(f"\nSummary: {counts[PASS]} pass, {counts[WARN]} warn, "
           f"{counts[FAIL]} fail")

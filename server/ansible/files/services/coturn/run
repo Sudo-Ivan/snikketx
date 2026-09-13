@@ -18,10 +18,17 @@ TURN_EXTERNAL_IP="$(snikket-turn-addresses "$SNIKKET_DOMAIN_ASCII")"
 
 install -d -o turnserver -g turnserver /snikket/turnserver
 
+# The imported key is only readable by the prosody user. The turnserver
+# user joins the prosody group and the files are opened up for group read
+# so the TLS and DTLS listeners can start.
+addgroup turnserver prosody 2>/dev/null || true
+chmod g+r "$CERTFILE" "$KEYFILE" 2>/dev/null || true
+
 min_port="${SNIKKET_TWEAK_TURNSERVER_MIN_PORT:-49152}"
 max_port="${SNIKKET_TWEAK_TURNSERVER_MAX_PORT:-65535}"
 
-exec s6-setuidgid turnserver /usr/bin/turnserver -c /etc/turnserver.conf \
+exec s6-envuidgid turnserver s6-applyuidgid -U /usr/bin/turnserver \
+     -c /etc/turnserver.conf \
      --static-auth-secret="$(cat /snikket/prosody/turn-auth-secret-v2)" \
      --cert="$CERTFILE" --pkey "$KEYFILE" -r "$SNIKKET_DOMAIN_ASCII" \
      --min-port "$min_port" --max-port "$max_port" \

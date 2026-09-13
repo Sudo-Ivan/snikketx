@@ -68,6 +68,8 @@ ${tls_block}
         - ${entrypoint}
       priority: 10
       service: snikket-web
+      middlewares:
+        - snikket-compress
 ${tls_block}
 
   services:
@@ -88,6 +90,10 @@ ${tls_block}
         passHostHeader: true
         servers:
           - url: http://acme_webroot:8080
+
+  middlewares:
+    snikket-compress:
+      compress: {}
 EOF
 
 echo "Wrote ${OUT} (${MODE}, domain ${domain})"

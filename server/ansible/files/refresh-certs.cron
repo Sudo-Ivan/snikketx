@@ -1,3 +1,18 @@
 #!/bin/sh
 
 prosodyctl --root cert import /snikket/letsencrypt/live
+
+# coturn reads the key through the prosody group. The import resets
+# permissions each run so group read is restored here.
+chmod g+r /etc/prosody/certs/*.key /etc/prosody/certs/*.crt 2>/dev/null || true
+
+# coturn keeps certs in memory. Restart it only when the material actually
+# changed so renewals do not drop calls on every cron run.
+stamp=/snikket/turnserver/.cert-sha
+new=$(cat /etc/prosody/certs/*.crt 2>/dev/null | sha256sum | cut -d' ' -f1)
+old=$(cat "$stamp" 2>/dev/null || true)
+if [ -n "$new" ] && [ "$new" != "$old" ]; then
+	install -d -o turnserver -g turnserver /snikket/turnserver 2>/dev/null || true
+	echo "$new" > "$stamp" 2>/dev/null || true
+	s6-svc -t /etc/sv/coturn 2>/dev/null || true
+fi
