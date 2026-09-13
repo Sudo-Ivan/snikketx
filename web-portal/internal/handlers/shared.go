@@ -81,6 +81,23 @@ func (a *App) requireSession(w http.ResponseWriter, r *http.Request) (session.Da
 	return sess, true
 }
 
+// requireTokenSession returns the caller's session when it carries a Prosody
+// token. Single sign-on sessions have a JID but no token, so pages that need
+// the backend send them to the app bootstrap page instead.
+func (a *App) requireTokenSession(w http.ResponseWriter, r *http.Request) (session.Data, bool) {
+	sess, ok := a.requireSession(w, r)
+	if !ok {
+		return nil, false
+	}
+	if sess.IsOIDC() {
+		a.flashRedirect(w, r, sess,
+			"This area needs a chat account password. Single sign-on accounts can connect an app instead.",
+			"info", pathUserApp)
+		return nil, false
+	}
+	return sess, true
+}
+
 // requireAdmin returns the caller's session when it carries the admin scope.
 func (a *App) requireAdmin(w http.ResponseWriter, r *http.Request) (session.Data, bool) {
 	sess, ok := a.requireSession(w, r)
@@ -128,6 +145,8 @@ func (a *App) newPage(w http.ResponseWriter, r *http.Request, sess session.Data,
 		Uptime:        formatUptime(time.Since(a.Started)),
 		HasSession:    sess.HasSession(),
 		IsAdmin:       sess.IsAdmin(),
+		IsOIDC:        sess.IsOIDC(),
+		OIDCEnabled:   a.OIDC != nil,
 		ShowMetrics:   a.Cfg.ShowMetrics,
 		TOSURI:        a.Cfg.TOSURI,
 		PrivacyURI:    a.Cfg.PrivacyURI,

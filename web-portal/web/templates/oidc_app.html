@@ -1,0 +1,12 @@
+{{define "content"}}
+<section class="card card-narrow">
+	<h1>Connect an app</h1>
+	<p class="muted">Your account <span class="mono">{{.JID}}</span> is ready to use.</p>
+	{{if .XMPPURI}}
+	<p><a class="btn btn-primary btn-block" href="{{.XMPPURI}}">{{template "icon" "log-in"}}<span>Open in app</span></a></p>
+	<p class="muted">If the app does not open, finish setup in your browser: <a href="{{.ResetURL}}">{{.ResetURL}}</a></p>
+	{{end}}
+	{{if .Note}}<p class="muted">{{.Note}}</p>{{end}}
+	<p class="muted">Single sign-on accounts have no password. New devices are added from this page; each link works once.</p>
+</section>
+{{end}}

@@ -53,6 +53,22 @@ type Config struct {
 	LogLevel        slog.Level
 	InsecureCookies bool
 
+	// OIDC carries the external identity provider settings. Nil disables
+	// single sign-on; it stays nil unless SNIKKET_WEB_OIDC_ISSUER is set.
+	OIDC *OIDCConfig
+
+	// ServiceAddress and ServicePassword are the credentials of a dedicated
+	// Prosody account the portal uses for operator level calls that no
+	// signed in user can authorise, like creating the XMPP account of a
+	// single sign-on user and minting its app bootstrap invitation. The
+	// account needs the prosody:admin role. Optional, but OIDC account
+	// provisioning and app bootstrap do not work without it.
+	ServiceAddress  string
+	ServicePassword string
+	// LinkPreviewEnabled gates the authenticated /api/link-preview
+	// endpoints used by the Android app.
+	LinkPreviewEnabled bool
+
 	// Android host defaults seed portal_data/android/settings.json on first boot.
 	AndroidHostEnabled       bool
 	AndroidAPKSource         string
@@ -138,6 +154,14 @@ func Load(version, commit, buildDate string) (*Config, error) {
 
 	metricsToken := os.Getenv("SNIKKET_WEB_METRICS_TOKEN")
 
+	linkPreview := true
+	if v := os.Getenv("SNIKKET_WEB_LINK_PREVIEW"); v != "" {
+		linkPreview, err = strconv.ParseBool(v)
+		if err != nil {
+			return nil, fmt.Errorf("SNIKKET_WEB_LINK_PREVIEW: %w", err)
+		}
+	}
+
 	apple := os.Getenv("SNIKKET_WEB_APPLE_STORE_URL")
 	if apple == "" {
 		apple = defaultAppleStore
@@ -205,6 +229,17 @@ func Load(version, commit, buildDate string) (*Config, error) {
 	iface := envOr("SNIKKET_TWEAK_PORTAL_INTERNAL_HTTP_INTERFACE", "0.0.0.0")
 	port := envOr("SNIKKET_TWEAK_PORTAL_INTERNAL_HTTP_PORT", "5765")
 
+	oidcCfg, err := loadOIDC(domain)
+	if err != nil {
+		return nil, err
+	}
+
+	serviceAddress := strings.TrimSpace(os.Getenv("SNIKKET_WEB_SERVICE_ADDRESS"))
+	servicePassword := os.Getenv("SNIKKET_WEB_SERVICE_PASSWORD")
+	if (serviceAddress == "") != (servicePassword == "") {
+		return nil, fmt.Errorf("SNIKKET_WEB_SERVICE_ADDRESS and SNIKKET_WEB_SERVICE_PASSWORD must be set together")
+	}
+
 	if commit == "" {
 		commit = "unknown"
 	}
@@ -213,30 +248,34 @@ func Load(version, commit, buildDate string) (*Config, error) {
 	}
 
 	return &Config{
-		SecretKey:       secret,
-		ProsodyEndpoint: endpoint,
-		Domain:          domain,
-		SiteName:        siteName,
-		AvatarCacheTTL:  time.Duration(avatarTTL) * time.Second,
-		AppleStoreURL:   apple,
-		MaxAvatarSize:   maxAvatar,
-		ShowMetrics:     showMetrics,
-		TOSURI:          tos,
-		PrivacyURI:      privacy,
-		AbuseEmail:      os.Getenv("SNIKKET_WEB_ABUSE_EMAIL"),
-		SecurityEmail:   os.Getenv("SNIKKET_WEB_SECURITY_EMAIL"),
-		ListenAddr:      iface + ":" + port,
-		MetricsToken:    metricsToken,
-		UpdaterEndpoint: strings.TrimRight(envOr("SNIKKET_WEB_UPDATER_ENDPOINT", "http://snikket_updater:9191"), "/"),
-		UpdaterToken:    envOr("SNIKKET_WEB_UPDATER_TOKEN", envOr("SNIKKET_UPDATER_TOKEN", "snikket-updater-local")),
-		BackupEndpoint:  strings.TrimRight(envOr("SNIKKET_WEB_BACKUP_ENDPOINT", "http://snikket_backup:9292"), "/"),
-		BackupToken:     envOr("SNIKKET_WEB_BACKUP_TOKEN", envOr("SNIKKET_BACKUP_TOKEN", "snikket-backup-local")),
-		Version:         version,
-		BuildCommit:     commit,
-		BuildDate:       buildDate,
-		StateDir:        stateDir,
-		LogLevel:        logLevel,
-		InsecureCookies: insecureCookies,
+		SecretKey:          secret,
+		ProsodyEndpoint:    endpoint,
+		Domain:             domain,
+		SiteName:           siteName,
+		AvatarCacheTTL:     time.Duration(avatarTTL) * time.Second,
+		AppleStoreURL:      apple,
+		MaxAvatarSize:      maxAvatar,
+		ShowMetrics:        showMetrics,
+		TOSURI:             tos,
+		PrivacyURI:         privacy,
+		AbuseEmail:         os.Getenv("SNIKKET_WEB_ABUSE_EMAIL"),
+		SecurityEmail:      os.Getenv("SNIKKET_WEB_SECURITY_EMAIL"),
+		ListenAddr:         iface + ":" + port,
+		MetricsToken:       metricsToken,
+		UpdaterEndpoint:    strings.TrimRight(envOr("SNIKKET_WEB_UPDATER_ENDPOINT", "http://snikket_updater:9191"), "/"),
+		UpdaterToken:       envOr("SNIKKET_WEB_UPDATER_TOKEN", envOr("SNIKKET_UPDATER_TOKEN", "snikket-updater-local")),
+		BackupEndpoint:     strings.TrimRight(envOr("SNIKKET_WEB_BACKUP_ENDPOINT", "http://snikket_backup:9292"), "/"),
+		BackupToken:        envOr("SNIKKET_WEB_BACKUP_TOKEN", envOr("SNIKKET_BACKUP_TOKEN", "snikket-backup-local")),
+		Version:            version,
+		BuildCommit:        commit,
+		BuildDate:          buildDate,
+		StateDir:           stateDir,
+		LogLevel:           logLevel,
+		InsecureCookies:    insecureCookies,
+		OIDC:               oidcCfg,
+		ServiceAddress:     serviceAddress,
+		ServicePassword:    servicePassword,
+		LinkPreviewEnabled: linkPreview,
 
 		AndroidHostEnabled:       androidEnabled,
 		AndroidAPKSource:         androidSource,
@@ -246,6 +285,69 @@ func Load(version, commit, buildDate string) (*Config, error) {
 		AndroidDownloadLimitHour: androidLimit,
 		AndroidRefreshHours:      androidRefresh,
 		AndroidCertSHA256:        androidCertSHA256,
+	}, nil
+}
+
+// OIDCConfig is the external identity provider configuration.
+type OIDCConfig struct {
+	Issuer        string
+	ClientID      string
+	ClientSecret  string
+	RedirectURL   string
+	UsernameClaim string
+	Scopes        []string
+}
+
+// loadOIDC reads the single sign-on environment. It returns nil when the
+// feature is off.
+func loadOIDC(domain string) (*OIDCConfig, error) {
+	issuer := strings.TrimRight(strings.TrimSpace(os.Getenv("SNIKKET_WEB_OIDC_ISSUER")), "/")
+	if issuer == "" {
+		return nil, nil
+	}
+	if err := validateHTTPURL("SNIKKET_WEB_OIDC_ISSUER", issuer); err != nil {
+		return nil, err
+	}
+
+	clientID := strings.TrimSpace(os.Getenv("SNIKKET_WEB_OIDC_CLIENT_ID"))
+	if clientID == "" {
+		return nil, fmt.Errorf("SNIKKET_WEB_OIDC_CLIENT_ID is required when SNIKKET_WEB_OIDC_ISSUER is set")
+	}
+	clientSecret := os.Getenv("SNIKKET_WEB_OIDC_CLIENT_SECRET")
+	if clientSecret == "" {
+		return nil, fmt.Errorf("SNIKKET_WEB_OIDC_CLIENT_SECRET is required when SNIKKET_WEB_OIDC_ISSUER is set")
+	}
+
+	redirect := strings.TrimSpace(os.Getenv("SNIKKET_WEB_OIDC_REDIRECT_URL"))
+	if redirect == "" {
+		redirect = "https://" + domain + "/auth/oidc/callback"
+	}
+	if err := validateHTTPURL("SNIKKET_WEB_OIDC_REDIRECT_URL", redirect); err != nil {
+		return nil, err
+	}
+
+	claim := envOr("SNIKKET_WEB_OIDC_USERNAME_CLAIM", "preferred_username")
+	scopes := strings.Fields(envOr("SNIKKET_WEB_OIDC_SCOPES", "openid profile email"))
+	if len(scopes) == 0 {
+		scopes = []string{"openid"}
+	}
+	foundOpenID := false
+	for _, scope := range scopes {
+		if scope == "openid" {
+			foundOpenID = true
+		}
+	}
+	if !foundOpenID {
+		scopes = append([]string{"openid"}, scopes...)
+	}
+
+	return &OIDCConfig{
+		Issuer:        issuer,
+		ClientID:      clientID,
+		ClientSecret:  clientSecret,
+		RedirectURL:   redirect,
+		UsernameClaim: claim,
+		Scopes:        scopes,
 	}, nil
 }
 

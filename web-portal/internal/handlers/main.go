@@ -62,6 +62,10 @@ type loginPage struct {
 func (a *App) handleLoginForm(w http.ResponseWriter, r *http.Request) {
 	sess := a.Sessions.Get(r)
 	if sess.HasSession() {
+		if sess.IsOIDC() {
+			http.Redirect(w, r, pathUserApp, http.StatusSeeOther)
+			return
+		}
 		ok, err := a.Prosody.TestSession(r.Context(), sess.Token(), sess.JID())
 		if err == nil && ok {
 			http.Redirect(w, r, pathUserHome, http.StatusSeeOther)

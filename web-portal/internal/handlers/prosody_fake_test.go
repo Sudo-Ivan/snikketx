@@ -19,9 +19,30 @@ type fakeProsody struct {
 	listUsers   func(ctx context.Context, token string) ([]prosody.AdminUserInfo, error)
 	listGroups  func(ctx context.Context, token string) ([]prosody.AdminGroupInfo, error)
 	listInvites func(ctx context.Context, token string) ([]prosody.AdminInviteInfo, error)
+	login       func(ctx context.Context, address, password string) (*prosody.TokenInfo, error)
+	logout      func(ctx context.Context, token string) error
+
+	getUserByLocalpart  func(ctx context.Context, token, localpart string) (*prosody.AdminUserInfo, error)
+	createAccountInvite func(ctx context.Context, token string, opts prosody.AccountInviteOptions) (*prosody.AdminInviteInfo, error)
+	createPasswordReset func(ctx context.Context, token, localpart string, ttl int) (*prosody.AdminInviteInfo, error)
+	registerWithToken   func(ctx context.Context, inviteToken, username, password string) (string, error)
 }
 
 func (f *fakeProsody) IsClientRegistered() bool { return true }
+
+func (f *fakeProsody) Login(ctx context.Context, address, password string) (*prosody.TokenInfo, error) {
+	if f.login == nil {
+		return nil, errors.New("login not stubbed")
+	}
+	return f.login(ctx, address, password)
+}
+
+func (f *fakeProsody) Logout(ctx context.Context, token string) error {
+	if f.logout == nil {
+		return nil
+	}
+	return f.logout(ctx, token)
+}
 
 func (f *fakeProsody) GetSystemMetrics(ctx context.Context, token string) (map[string]any, error) {
 	return map[string]any{}, nil
@@ -43,6 +64,34 @@ func (f *fakeProsody) ListInvites(ctx context.Context, token string) ([]prosody.
 		return nil, nil
 	}
 	return f.listInvites(ctx, token)
+}
+
+func (f *fakeProsody) GetUserByLocalpart(ctx context.Context, token, localpart string) (*prosody.AdminUserInfo, error) {
+	if f.getUserByLocalpart == nil {
+		return nil, &prosody.HTTPError{Status: http.StatusNotFound}
+	}
+	return f.getUserByLocalpart(ctx, token, localpart)
+}
+
+func (f *fakeProsody) CreateAccountInvite(ctx context.Context, token string, opts prosody.AccountInviteOptions) (*prosody.AdminInviteInfo, error) {
+	if f.createAccountInvite == nil {
+		return &prosody.AdminInviteInfo{Token: "reg-token"}, nil
+	}
+	return f.createAccountInvite(ctx, token, opts)
+}
+
+func (f *fakeProsody) CreatePasswordResetInvite(ctx context.Context, token, localpart string, ttl int) (*prosody.AdminInviteInfo, error) {
+	if f.createPasswordReset == nil {
+		return &prosody.AdminInviteInfo{Token: "reset-token"}, nil
+	}
+	return f.createPasswordReset(ctx, token, localpart, ttl)
+}
+
+func (f *fakeProsody) RegisterWithToken(ctx context.Context, inviteToken, username, password string) (string, error) {
+	if f.registerWithToken == nil {
+		return "alice@example.test", nil
+	}
+	return f.registerWithToken(ctx, inviteToken, username, password)
 }
 
 func TestAdminUsersWithFakeBackend(t *testing.T) {

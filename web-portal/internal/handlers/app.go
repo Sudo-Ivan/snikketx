@@ -22,7 +22,9 @@ import (
 	"github.com/sudo-ivan/snikketx/web-portal/internal/credstore"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/csrf"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/health"
+	"github.com/sudo-ivan/snikketx/web-portal/internal/linkpreview"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/metrics"
+	"github.com/sudo-ivan/snikketx/web-portal/internal/oidc"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/session"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/updater"
 	"github.com/sudo-ivan/snikketx/web-portal/internal/webui"
@@ -54,12 +56,23 @@ type App struct {
 	// Credentials stores passkeys and TOTP secrets. Nil disables the
 	// second-factor features.
 	Credentials *credstore.Store
-	Updater     *updater.Client
-	Backup      *backupclient.Client
-	AppCache    *appcache.Cache
-	APKGate     *appcache.DownloadLimiter
-	Started     time.Time
-	Static      http.Handler
+	// OIDC is the configured external identity provider. Nil disables
+	// single sign-on.
+	OIDC *oidc.Provider
+	// Service is the cached login of the portal service account used for
+	// operator level calls like single sign-on account provisioning. Nil
+	// disables those calls.
+	Service  *serviceAuth
+	Updater  *updater.Client
+	Backup   *backupclient.Client
+	AppCache *appcache.Cache
+	APKGate  *appcache.DownloadLimiter
+	Started  time.Time
+	Static   http.Handler
+	// LinkPreview fetches OpenGraph metadata for the API endpoints.
+	// LinkPreviewGate caps lookups per authenticated account.
+	LinkPreview     LinkPreviewer
+	LinkPreviewGate *linkpreview.Limiter
 
 	healthMu     sync.Mutex
 	healthAt     time.Time
@@ -84,7 +97,9 @@ func (a *App) Routes() http.Handler {
 	// their own authentication and skip session, CSRF and browser security
 	// header handling.
 	a.mountXMPPProxy(mux)
+	a.mountLinkPreview(mux)
 	a.mountMain(mux)
+	a.mountOIDC(mux)
 	a.mountSecurity(mux)
 	a.mountUser(mux)
 	a.mountAdmin(mux)
@@ -300,6 +315,8 @@ func routeGroup(path string) string {
 		return "invite"
 	case strings.HasPrefix(path, "/avatar/"):
 		return "avatar"
+	case strings.HasPrefix(path, "/api/"):
+		return "api"
 	case strings.HasPrefix(path, "/_health"):
 		return "health"
 	case path == "/metrics":

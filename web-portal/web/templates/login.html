@@ -17,5 +17,9 @@
 		</div>
 		<button type="submit" class="btn btn-primary btn-block">{{template "icon" "log-in"}}<span>{{t "login.submit"}}</span></button>
 	</form>
+	{{if .OIDCEnabled}}
+	<p class="muted or-divider">or</p>
+	<a class="btn btn-block" href="/auth/oidc/login">{{template "icon" "key"}}<span>Sign in with single sign-on</span></a>
+	{{end}}
 </section>
 {{end}}

@@ -46,6 +46,18 @@ const (
 	// the first valid code.
 	KeyTOTPSetup = "_totp_setup"
 
+	// KeyOIDC marks a session that was established through the external
+	// identity provider instead of the Prosody password grant. Such a
+	// session carries no Prosody bearer token.
+	KeyOIDC = "oidc"
+	// The OIDC flow keys hold the transient state of a running
+	// authorization code round trip: the anti-forgery state, the ID token
+	// nonce, the PKCE verifier and the issue timestamp.
+	KeyOIDCState    = "_oidc_state"
+	KeyOIDCNonce    = "_oidc_nonce"
+	KeyOIDCVerifier = "_oidc_verifier"
+	KeyOIDCAt       = "_oidc_at"
+
 	cookieMaxAge  = 12 * time.Hour
 	cookieVersion = 1
 )
@@ -144,10 +156,18 @@ func (s *Store) Clear(w http.ResponseWriter) {
 	})
 }
 
-func (d Data) Token() string    { return d[KeyToken] }
-func (d Data) Scope() string    { return d[KeyScope] }
-func (d Data) JID() string      { return d[KeyJID] }
-func (d Data) HasSession() bool { return d.Token() != "" }
+func (d Data) Token() string { return d[KeyToken] }
+func (d Data) Scope() string { return d[KeyScope] }
+func (d Data) JID() string   { return d[KeyJID] }
+
+// IsOIDC reports whether the session was established through the external
+// identity provider. OIDC sessions carry a JID but no Prosody bearer token,
+// so callers must not pass Token() to the backend for them.
+func (d Data) IsOIDC() bool { return d[KeyOIDC] != "" }
+
+// HasSession reports whether the caller is signed in, either through a
+// Prosody token or through the identity provider.
+func (d Data) HasSession() bool { return d.Token() != "" || d.IsOIDC() }
 
 func (d Data) IsAdmin() bool {
 	scope := d.Scope()
@@ -166,15 +186,26 @@ func (d Data) IsAdmin() bool {
 }
 
 func (d Data) SetAuth(token, scope, jid string) {
+	delete(d, KeyOIDC)
 	d[KeyToken] = token
 	d[KeyScope] = scope
 	d[KeyJID] = jid
+}
+
+// SetOIDCAuth marks the session as established through the external identity
+// provider. No Prosody token is stored: there is no password to trade for one.
+func (d Data) SetOIDCAuth(jid string) {
+	delete(d, KeyToken)
+	delete(d, KeyScope)
+	d[KeyJID] = jid
+	d[KeyOIDC] = "1"
 }
 
 func (d Data) ClearAuth() {
 	delete(d, KeyToken)
 	delete(d, KeyScope)
 	delete(d, KeyJID)
+	delete(d, KeyOIDC)
 }
 
 // SetPendingAuth stores a freshly issued token under the pending keys while
@@ -232,7 +263,20 @@ func (d Data) RotateAuthSurface() {
 	delete(d, KeyFlashC)
 	delete(d, KeyWebAuthn)
 	delete(d, KeyTOTPSetup)
+	delete(d, KeyOIDCState)
+	delete(d, KeyOIDCNonce)
+	delete(d, KeyOIDCVerifier)
+	delete(d, KeyOIDCAt)
 	d.ClearPending()
+}
+
+// ClearOIDCFlow drops the transient state of a running single sign-on
+// round trip.
+func (d Data) ClearOIDCFlow() {
+	delete(d, KeyOIDCState)
+	delete(d, KeyOIDCNonce)
+	delete(d, KeyOIDCVerifier)
+	delete(d, KeyOIDCAt)
 }
 
 func (d Data) PushFlash(msg, category string) {

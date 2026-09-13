@@ -8,6 +8,18 @@
 </section>
 
 <div class="grid grid-cards">
+	{{if .IsOIDC}}
+	<a class="card card-action" href="/user/app">
+		<span class="card-action-icon">{{template "icon" "smartphone"}}</span>
+		<h2>Connect an app</h2>
+		<p class="muted">Add this account to a chat app with a one-time setup link.</p>
+	</a>
+	<a class="card card-action" href="/user/security">
+		<span class="card-action-icon">{{template "icon" "shield"}}</span>
+		<h2>Security</h2>
+		<p class="muted">Manage passkeys and two-factor options for this portal.</p>
+	</a>
+	{{else}}
 	<a class="card card-action" href="/user/profile">
 		<span class="card-action-icon">{{template "icon" "circle-user"}}</span>
 		<h2>Profile</h2>
@@ -23,6 +35,7 @@
 		<h2>Account data</h2>
 		<p class="muted">Download a copy of your contacts and your profile data.</p>
 	</a>
+	{{end}}
 	{{if .IsAdmin}}
 	<a class="card card-action" href="/admin/">
 		<span class="card-action-icon">{{template "icon" "shield"}}</span>

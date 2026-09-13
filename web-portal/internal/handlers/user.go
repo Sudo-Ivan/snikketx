@@ -54,7 +54,7 @@ type userHomePage struct {
 // handleUserHome shows the account overview with the profile summary and, when
 // the account is allowed to see them, the server counters.
 func (a *App) handleUserHome(w http.ResponseWriter, r *http.Request) {
-	sess, ok := a.requireSession(w, r)
+	sess, ok := a.requireTokenSession(w, r)
 	if !ok {
 		return
 	}
@@ -93,7 +93,7 @@ type pageOnly struct {
 
 // handlePasswordForm shows the password change form.
 func (a *App) handlePasswordForm(w http.ResponseWriter, r *http.Request) {
-	sess, ok := a.requireSession(w, r)
+	sess, ok := a.requireTokenSession(w, r)
 	if !ok {
 		return
 	}
@@ -104,7 +104,7 @@ func (a *App) handlePasswordForm(w http.ResponseWriter, r *http.Request) {
 // handlePasswordSubmit changes the account password and replaces the session
 // token with the one issued during the change.
 func (a *App) handlePasswordSubmit(w http.ResponseWriter, r *http.Request) {
-	sess, ok := a.requireSession(w, r)
+	sess, ok := a.requireTokenSession(w, r)
 	if !ok {
 		return
 	}
@@ -241,7 +241,7 @@ func (a *App) loadProfilePage(w http.ResponseWriter, r *http.Request, sess sessi
 // handleProfileForm shows the profile form with the published nickname and the
 // current profile visibility.
 func (a *App) handleProfileForm(w http.ResponseWriter, r *http.Request) {
-	sess, ok := a.requireSession(w, r)
+	sess, ok := a.requireTokenSession(w, r)
 	if !ok {
 		return
 	}
@@ -262,7 +262,7 @@ func (a *App) handleProfileForm(w http.ResponseWriter, r *http.Request) {
 
 // handleProfileSubmit publishes a new nickname, avatar and profile visibility.
 func (a *App) handleProfileSubmit(w http.ResponseWriter, r *http.Request) {
-	sess, ok := a.requireSession(w, r)
+	sess, ok := a.requireTokenSession(w, r)
 	if !ok {
 		return
 	}
@@ -338,7 +338,7 @@ func (a *App) handleProfileSubmit(w http.ResponseWriter, r *http.Request) {
 
 // handleProfileSessions revokes one or every registered client for the caller.
 func (a *App) handleProfileSessions(w http.ResponseWriter, r *http.Request) {
-	sess, ok := a.requireSession(w, r)
+	sess, ok := a.requireTokenSession(w, r)
 	if !ok {
 		return
 	}
@@ -384,7 +384,7 @@ func validAccessModel(value string) bool {
 
 // handleManageDataForm shows the account data export page.
 func (a *App) handleManageDataForm(w http.ResponseWriter, r *http.Request) {
-	sess, ok := a.requireSession(w, r)
+	sess, ok := a.requireTokenSession(w, r)
 	if !ok {
 		return
 	}
@@ -394,7 +394,7 @@ func (a *App) handleManageDataForm(w http.ResponseWriter, r *http.Request) {
 
 // handleManageDataSubmit exports the account data as a XEP-0227 document.
 func (a *App) handleManageDataSubmit(w http.ResponseWriter, r *http.Request) {
-	sess, ok := a.requireSession(w, r)
+	sess, ok := a.requireTokenSession(w, r)
 	if !ok {
 		return
 	}
@@ -436,8 +436,10 @@ func (a *App) handleLogoutSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := a.Prosody.Logout(r.Context(), sess.Token()); err != nil {
-		a.recordError(r, err)
+	if !sess.IsOIDC() {
+		if err := a.Prosody.Logout(r.Context(), sess.Token()); err != nil {
+			a.recordError(r, err)
+		}
 	}
 
 	sess.ClearAuth()

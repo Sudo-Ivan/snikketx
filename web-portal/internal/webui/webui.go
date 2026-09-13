@@ -173,23 +173,30 @@ type UserSummary struct {
 // PageData is the base data every page template can rely on. Page specific
 // structs embed it so its fields stay reachable as top level template fields.
 type PageData struct {
-	Title               string
-	SiteName            string
-	Domain              string
-	Lang                string
-	Shell               string
-	Nav                 string
-	Theme               string
-	CSRF                string
-	RequestID           string
-	Version             string
-	BuildCommit         string
-	BuildDate           string
-	Uptime              string
-	HealthStatus        string
-	HealthLabel         string
-	HasSession          bool
-	IsAdmin             bool
+	Title        string
+	SiteName     string
+	Domain       string
+	Lang         string
+	Shell        string
+	Nav          string
+	Theme        string
+	CSRF         string
+	RequestID    string
+	Version      string
+	BuildCommit  string
+	BuildDate    string
+	Uptime       string
+	HealthStatus string
+	HealthLabel  string
+	HasSession   bool
+	IsAdmin      bool
+	// IsOIDC marks a session established through the external identity
+	// provider. It carries no Prosody token, so templates hide features
+	// that need one, like the password change form.
+	IsOIDC bool
+	// OIDCEnabled reports whether an external identity provider is
+	// configured, so public pages can offer the single sign-on button.
+	OIDCEnabled         bool
 	ShowMetrics         bool
 	TOSURI              string
 	PrivacyURI          string
