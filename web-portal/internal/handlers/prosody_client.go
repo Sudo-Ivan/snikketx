@@ -75,6 +75,7 @@ type ProsodyClient interface {
 	GetUpdatesInfo(ctx context.Context, token string) (*prosody.UpdatesInfo, error)
 	ExportAccountPackage(ctx context.Context, token, username string) ([]byte, error)
 	ImportAccountPackage(ctx context.Context, token, username string, packageJSON []byte) error
+	RestartServer(ctx context.Context, token string) error
 
 	// mod_register_api and mod_xep227 public and migration endpoints.
 	GetPublicInviteByID(ctx context.Context, id string) (*prosody.PublicInviteInfo, error)

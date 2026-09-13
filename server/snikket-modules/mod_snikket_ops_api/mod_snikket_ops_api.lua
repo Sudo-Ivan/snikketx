@@ -612,8 +612,22 @@ local function handle_account_import(event)
 	return json_ok(event, { username = username, written = list(written) });
 end
 
+local function handle_server_restart(event)
+	local session, code = require_admin(event);
+	if code then return code; end
+	local who = session_username(session) or "unknown";
+	module:log("warn", "Server restart requested via ops API by %s", who);
+	-- Answer the request first, then exit. The service supervisor
+	-- (s6 in the container image) brings Prosody straight back up.
+	module:add_timer(1, function ()
+		prosody.shutdown("Restart requested by " .. who .. " via the web portal");
+	end);
+	return json_ok(event, { restarting = true });
+end
+
 module:provides("http", {
 	route = {
+		["POST /server/restart"] = handle_server_restart;
 		["GET /clients"] = handle_clients;
 		["DELETE /clients/*"] = handle_revoke_client;
 		["GET /me/clients"] = handle_me_clients;

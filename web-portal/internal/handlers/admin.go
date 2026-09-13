@@ -73,6 +73,7 @@ func (a *App) mountAdmin(mux *http.ServeMux) {
 
 	mux.HandleFunc("GET "+pathAdminSystem, a.handleSystemForm)
 	mux.HandleFunc("POST "+pathAdminSystem, a.handleSystemSubmit)
+	mux.HandleFunc("POST /admin/system/restart", a.handleSystemRestart)
 	mux.HandleFunc("GET "+pathAdminHealth, a.handleAdminHealth)
 	mux.HandleFunc("GET /admin/audit/export.csv", a.handleAuditExportCSV)
 	mux.HandleFunc("GET /admin/audit/export.json", a.handleAuditExportJSON)

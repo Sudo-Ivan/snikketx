@@ -95,6 +95,21 @@ func (a *App) handleSystemSubmit(w http.ResponseWriter, r *http.Request) {
 	a.flashRedirect(w, r, sess, "Announcement sent.", "success", pathAdminSystem)
 }
 
+// handleSystemRestart asks Prosody to exit so the service supervisor
+// restarts it. Connections drop briefly.
+func (a *App) handleSystemRestart(w http.ResponseWriter, r *http.Request) {
+	sess, ok := a.requireAdmin(w, r)
+	if !ok {
+		return
+	}
+	if err := a.Prosody.RestartServer(r.Context(), sess.Token()); err != nil {
+		a.flashRedirect(w, r, sess, apiErrorMessage(err), "alert", pathAdminSystem)
+		return
+	}
+	a.recordAudit(r, sess, "server.restart", "", "")
+	a.flashRedirect(w, r, sess, "Restart requested. The chat server comes back in a few seconds.", "success", pathAdminSystem)
+}
+
 // adminHealthPage is the data behind the health page.
 type adminHealthPage struct {
 	webui.PageData

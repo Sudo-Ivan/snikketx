@@ -1,38 +1,50 @@
 {{define "content"}}
 <div class="page-head">
-	<h1>Bots</h1>
-	<p class="muted">Bots are virtual identities that can join chats and groups. Give each bot token to the program that should run it. Keep tokens secret, they cannot be shown again.</p>
+	<div class="page-head-copy">
+		<h1>Bots</h1>
+		<p class="muted">Bots are virtual identities that can join chats and groups. Give each bot token to the program that should run it. Keep tokens secret, they cannot be shown again.</p>
+	</div>
 </div>
 
 {{if .NewToken}}
-<section class="card" role="alert">
-	<h2>New bot token</h2>
-	<p class="muted">Copy this token now, it will not be shown again.</p>
-	<p><span class="mono">{{.NewToken}}</span></p>
+<section class="card card-accent-ok" role="alert" aria-labelledby="new-token-heading">
+	<div class="section-head">
+		<div>
+			<h2 id="new-token-heading">{{template "icon" "key"}}<span>New token for {{.NewBot}}</span></h2>
+			<p class="muted">Copy this token now. For security it is never stored in plain text and will not be shown again.</p>
+		</div>
+	</div>
+	{{template "copy_field" dict "ID" "new-bot-token" "Label" "New bot token" "Value" .NewToken}}
 </section>
 {{end}}
 
 <section class="card">
 	<div class="section-head">
 		<div>
-			<h2>Create a bot</h2>
+			<h2>{{template "icon" "plus"}}<span>Create a bot</span></h2>
 			<p class="muted">The bot address is <span class="mono">name@bots.{{.Domain}}</span>.</p>
 		</div>
 	</div>
 	<form method="post" action="/user/bots" class="form">
 		{{csrf .CSRF}}
-		<div class="field">
-			<label for="bot-name">Name</label>
-			<input id="bot-name" name="name" type="text" required maxlength="48"
-				pattern="[a-z0-9][a-z0-9._-]*" autocomplete="off"
-				placeholder="announce">
+		<div class="field-row">
+			<div class="field">
+				<label for="bot-name">Name</label>
+				<input id="bot-name" name="name" type="text" required maxlength="48"
+					pattern="[a-z0-9][a-z0-9._-]*" autocomplete="off"
+					placeholder="announce">
+				<span class="hint">Lowercase letters, digits, dots, underscores and hyphens.</span>
+			</div>
+			<div class="field">
+				<label for="bot-label">Label <span class="muted">(optional)</span></label>
+				<input id="bot-label" name="label" type="text" maxlength="128" autocomplete="off"
+					placeholder="Announcements bot">
+				<span class="hint">Shown in the list below, for example Announcements bot.</span>
+			</div>
 		</div>
-		<div class="field">
-			<label for="bot-label">Label <span class="muted">(optional)</span></label>
-			<input id="bot-label" name="label" type="text" maxlength="128" autocomplete="off"
-				placeholder="Announcements bot">
+		<div class="actions">
+			<button type="submit" class="btn btn-primary">{{template "icon" "plus"}}<span>Create bot</span></button>
 		</div>
-		<button type="submit" class="btn">{{template "icon" "plus"}}<span>Create bot</span></button>
 	</form>
 </section>
 
@@ -40,84 +52,92 @@
 {{range $bot := .Bots}}
 <section class="card">
 	<div class="section-head">
-		<div>
-			<h2>{{if .Label}}{{.Label}} <span class="muted">({{$bot.Name}})</span>{{else}}{{$bot.Name}}{{end}}</h2>
-			<p class="muted"><span class="mono">{{.JID}}</span></p>
-			<p class="muted">
-				{{if .Disabled}}<span class="badge badge-warn">Disabled</span>{{else}}<span class="badge">Active</span>{{end}}
-				Created {{formatUnixInt .Created}}
-			</p>
+		<div class="bot-head">
+			<span class="icon-tile{{if .Disabled}} icon-tile-muted{{end}}" aria-hidden="true">{{template "icon" "cpu"}}</span>
+			<div class="bot-head-text">
+				<h2>{{if .Label}}{{.Label}} <span class="muted bot-name-suffix">({{$bot.Name}})</span>{{else}}{{$bot.Name}}{{end}}</h2>
+				<p class="muted"><span class="mono">{{.JID}}</span></p>
+				<p class="bot-meta">
+					{{if .Disabled}}<span class="badge badge-warn">Disabled</span>{{else}}<span class="badge badge-ok">Active</span>{{end}}
+					<span class="muted">Created {{formatUnixInt .Created}}</span>
+				</p>
+			</div>
 		</div>
 		<div class="section-actions">
 			<form method="post" action="/user/bots/{{$bot.Name}}/toggle" class="inline-form">
 				{{csrf $.CSRF}}
 				{{if .Disabled}}
-				<button type="submit" class="btn btn-ghost">{{template "icon" "check"}}<span>Enable</span></button>
+				<button type="submit" class="btn btn-secondary">{{template "icon" "check"}}<span>Enable</span></button>
 				{{else}}
-				<button type="submit" class="btn btn-ghost">{{template "icon" "pause"}}<span>Disable</span></button>
+				<button type="submit" class="btn btn-secondary">{{template "icon" "pause"}}<span>Disable</span></button>
 				{{end}}
 			</form>
 			<form method="post" action="/user/bots/{{$bot.Name}}/delete" class="inline-form">
 				{{csrf $.CSRF}}
-				<button type="submit" class="btn btn-ghost btn-icon btn-danger-ghost" title="Delete bot" onclick="return confirm('Delete bot {{$bot.Name}}? This cannot be undone.');">{{template "icon" "trash"}}</button>
+				<button type="submit" class="btn btn-ghost btn-icon btn-danger-ghost" title="Delete bot" aria-label="Delete bot {{$bot.Name}}" onclick="return confirm('Delete bot {{$bot.Name}}? This cannot be undone.');">{{template "icon" "trash"}}</button>
 			</form>
 		</div>
 	</div>
 
-	<h3>Tokens</h3>
-	{{with index $.Tokens $bot.Name}}
-	<div class="table-wrap">
-		<table class="table">
-			<thead>
-				<tr>
-					<th scope="col">ID</th>
-					<th scope="col">Scopes</th>
-					<th scope="col">Created</th>
-					<th scope="col">Expires</th>
-					<th scope="col">Last used</th>
-					<th scope="col"><span class="sr-only">Actions</span></th>
-				</tr>
-			</thead>
-			<tbody>
-				{{range .}}
-				<tr>
-					<td><span class="mono">{{.ID}}</span></td>
-					<td class="muted">{{range $i, $s := .Scopes}}{{if $i}}, {{end}}{{$s}}{{end}}</td>
-					<td class="muted">{{formatUnixInt .Created}}</td>
-					<td class="muted">{{if .Expires}}{{formatUnixInt .Expires}}{{else}}Never{{end}}</td>
-					<td class="muted">{{if .LastUsed}}{{formatUnixInt .LastUsed}}{{else}}Never{{end}}</td>
-					<td>
-						<form method="post" action="/user/bots/{{$bot.Name}}/tokens/{{.ID}}/delete" class="inline-form">
-							{{csrf $.CSRF}}
-							<button type="submit" class="btn btn-ghost btn-icon btn-danger-ghost" title="Revoke token" onclick="return confirm('Revoke this token?');">{{template "icon" "x"}}</button>
-						</form>
-					</td>
-				</tr>
-				{{end}}
-			</tbody>
-		</table>
-	</div>
-	{{else}}
-	<p class="muted">No tokens yet.</p>
-	{{end}}
+	<div class="subsection">
+		<div class="subsection-head">
+			<h3>{{template "icon" "key"}}<span>Tokens</span></h3>
+			{{with index $.Tokens $bot.Name}}<span class="badge">{{len .}} active</span>{{end}}
+		</div>
+		{{with index $.Tokens $bot.Name}}
+		<div class="table-wrap">
+			<table class="table">
+				<thead>
+					<tr>
+						<th scope="col">ID</th>
+						<th scope="col">Scopes</th>
+						<th scope="col">Created</th>
+						<th scope="col">Expires</th>
+						<th scope="col">Last used</th>
+						<th scope="col" class="col-icon"><span class="sr-only">Actions</span></th>
+					</tr>
+				</thead>
+				<tbody>
+					{{range .}}
+					<tr>
+						<td><span class="mono">{{.ID}}</span></td>
+						<td class="muted">{{range $i, $s := .Scopes}}{{if $i}}, {{end}}{{$s}}{{end}}</td>
+						<td class="muted">{{formatUnixInt .Created}}</td>
+						<td class="muted">{{if .Expires}}{{formatUnixInt .Expires}}{{else}}Never{{end}}</td>
+						<td class="muted">{{if .LastUsed}}{{formatUnixInt .LastUsed}}{{else}}Never{{end}}</td>
+						<td class="col-icon">
+							<form method="post" action="/user/bots/{{$bot.Name}}/tokens/{{.ID}}/delete" class="inline-form">
+								{{csrf $.CSRF}}
+								<button type="submit" class="btn btn-ghost btn-icon btn-small btn-danger-ghost" title="Revoke token" aria-label="Revoke token {{.ID}}" onclick="return confirm('Revoke this token?');">{{template "icon" "x"}}</button>
+							</form>
+						</td>
+					</tr>
+					{{end}}
+				</tbody>
+			</table>
+		</div>
+		{{else}}
+		<p class="muted">No tokens yet.</p>
+		{{end}}
 
-	<form method="post" action="/user/bots/{{$bot.Name}}/tokens" class="form form-inline">
-		{{csrf $.CSRF}}
-		<div class="field">
-			<label for="token-name-{{$bot.Name}}">Token name <span class="muted">(optional)</span></label>
-			<input id="token-name-{{$bot.Name}}" name="token_name" type="text" maxlength="64" autocomplete="off" placeholder="laptop-bot">
-		</div>
-		<div class="field">
-			<label for="token-ttl-{{$bot.Name}}">Expires after days <span class="muted">(optional)</span></label>
-			<input id="token-ttl-{{$bot.Name}}" name="ttl_days" type="number" min="1" max="365" autocomplete="off">
-		</div>
-		<button type="submit" class="btn">{{template "icon" "key"}}<span>New token</span></button>
-	</form>
+		<form method="post" action="/user/bots/{{$bot.Name}}/tokens" class="form form-inline card-sub">
+			{{csrf $.CSRF}}
+			<div class="field">
+				<label for="token-name-{{$bot.Name}}">Token name <span class="muted">(optional)</span></label>
+				<input id="token-name-{{$bot.Name}}" name="token_name" type="text" maxlength="64" autocomplete="off" placeholder="laptop-bot">
+			</div>
+			<div class="field">
+				<label for="token-ttl-{{$bot.Name}}">Expires after days <span class="muted">(optional)</span></label>
+				<input id="token-ttl-{{$bot.Name}}" name="ttl_days" type="number" min="1" max="365" autocomplete="off" placeholder="Never">
+			</div>
+			<button type="submit" class="btn btn-secondary">{{template "icon" "key"}}<span>New token</span></button>
+		</form>
+	</div>
 </section>
 {{end}}
 {{else}}
 <section class="card">
-	<p class="muted">You have no bots yet.</p>
+	{{template "empty_state" "No bots yet. Create your first bot above and hand its token to the program that should run it."}}
 </section>
 {{end}}
 {{end}}

@@ -20,6 +20,17 @@
 </section>
 
 <section class="card">
+	<h2>{{template "icon" "refresh"}}<span>Server controls</span></h2>
+	<p class="muted">Restarting drops all client connections for a few seconds while the chat server comes back up. Clients reconnect automatically.</p>
+	<form method="post" action="/admin/system/restart" class="form">
+		{{csrf .CSRF}}
+		<div class="actions">
+			<button type="submit" class="btn btn-danger-ghost" onclick="return confirm('Restart the chat server now? Everyone is disconnected briefly.');">{{template "icon" "refresh"}}<span>Restart chat server</span></button>
+		</div>
+	</form>
+</section>
+
+<section class="card">
 	<h2>{{template "icon" "server"}}<span>This deployment</span></h2>
 	<dl class="details">
 		<dt>Domain</dt><dd class="mono">{{.Domain}}</dd>

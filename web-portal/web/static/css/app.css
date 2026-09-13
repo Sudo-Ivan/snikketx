@@ -39,7 +39,7 @@
 	--space-5: 1.25rem;
 	--space-6: 1.5rem;
 	--stack-gap: var(--space-4);
-	--section-gap: var(--space-4);
+	--section-gap: var(--space-5);
 	--chrome-gap: var(--space-3);
 }
 
@@ -2153,6 +2153,14 @@ table.data tbody tr:hover > * {
 	border-radius: var(--radius);
 }
 
+.empty img {
+	margin-bottom: var(--space-3);
+}
+
+.empty p {
+	margin: 0;
+}
+
 @media (max-width: 900px) {
 	.admin {
 		grid-template-columns: 1fr;
@@ -2553,4 +2561,169 @@ table.data tbody tr:hover > * {
 	.slo-strip {
 		grid-template-columns: 1fr;
 	}
+}
+
+/* Card and section accents */
+
+.card-accent-ok {
+	border-color: color-mix(in srgb, var(--ok) 45%, var(--border));
+	background: color-mix(in srgb, var(--ok-bg) 60%, var(--panel));
+}
+
+.section-actions {
+	flex: 0 0 auto;
+	display: inline-flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+	align-items: center;
+}
+
+/* Icon tiles */
+
+.icon-tile {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 2.5rem;
+	height: 2.5rem;
+	flex: none;
+	border-radius: var(--radius);
+	border: 1px solid var(--border);
+	background: var(--panel-2);
+	color: var(--fg);
+}
+
+.icon-tile .icon {
+	width: 1.25rem;
+	height: 1.25rem;
+}
+
+.icon-tile-lg {
+	width: 3rem;
+	height: 3rem;
+}
+
+.icon-tile-lg .icon {
+	width: 1.5rem;
+	height: 1.5rem;
+}
+
+.icon-tile-muted {
+	color: var(--muted);
+	background: transparent;
+}
+
+/* Sub sections inside cards */
+
+.subsection {
+	margin-top: var(--space-4);
+	padding-top: var(--space-3);
+	border-top: 1px solid var(--border);
+}
+
+.subsection-head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-2) var(--space-3);
+	margin-bottom: var(--space-2);
+}
+
+.subsection-head h3 {
+	margin: 0;
+	display: flex;
+	align-items: center;
+	gap: 0.35rem;
+}
+
+.card-sub {
+	background: var(--panel-2);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	padding: var(--space-3);
+	margin-top: var(--space-3);
+}
+
+/* Form layouts */
+
+.field-row {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: var(--space-3);
+}
+
+@media (min-width: 44rem) {
+	.field-row {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+.form-inline .field {
+	flex: 1 1 10rem;
+}
+
+.form-inline .btn {
+	flex: 0 0 auto;
+}
+
+/* Empty states */
+
+.empty-state {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
+	gap: var(--space-2);
+	padding: var(--space-5) var(--space-4);
+}
+
+.empty-state h2 {
+	margin: var(--space-1) 0 0;
+}
+
+.empty-state p {
+	margin: 0;
+	max-width: 30rem;
+}
+
+/* Bots page */
+
+.bot-head {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--space-3);
+}
+
+.bot-head-text {
+	min-width: 0;
+}
+
+.bot-head-text h2 {
+	margin: 0 0 var(--space-1);
+}
+
+.bot-name-suffix {
+	font-weight: 400;
+	font-size: 0.8125rem;
+}
+
+.bot-meta {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-2);
+	margin: var(--space-1) 0 0;
+}
+
+/* Narrow action column in tables */
+
+.table .col-icon,
+table.data .col-icon {
+	width: 3rem;
+	text-align: right;
+}
+
+.table .col-icon .inline-form {
+	justify-content: flex-end;
 }

@@ -197,6 +197,18 @@ func (c *Client) opsEndpoint(parts ...string) string {
 	return path
 }
 
+// RestartServer asks mod_snikket_ops_api to shut Prosody down. The
+// container supervisor brings it straight back up, so callers only see
+// a brief drop.
+func (c *Client) RestartServer(ctx context.Context, token string) error {
+	resp, err := c.requestJSON(ctx, http.MethodPost, c.opsEndpoint("server", "restart"), token, nil)
+	if err != nil {
+		return err
+	}
+	defer closeBody(resp)
+	return errorFromResponse(resp)
+}
+
 // ListClientDevices returns registered clients across accounts.
 func (c *Client) ListClientDevices(ctx context.Context, token, user string) ([]ClientDevice, error) {
 	endpoint := c.opsEndpoint("clients")
