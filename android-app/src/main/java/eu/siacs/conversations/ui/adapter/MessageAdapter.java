@@ -71,8 +71,10 @@ import eu.siacs.conversations.entities.Message;
 import eu.siacs.conversations.entities.Message.FileParams;
 import eu.siacs.conversations.entities.RtpSessionStatus;
 import eu.siacs.conversations.entities.Transferable;
+import eu.siacs.conversations.http.LinkPreviewer;
 import eu.siacs.conversations.persistance.FileBackend;
 import eu.siacs.conversations.services.NotificationService;
+import eu.siacs.conversations.services.XmppConnectionService;
 import eu.siacs.conversations.ui.Activities;
 import eu.siacs.conversations.ui.BindingAdapters;
 import eu.siacs.conversations.ui.ConversationFragment;
@@ -90,6 +92,7 @@ import eu.siacs.conversations.ui.widget.ClickableMovementMethod;
 import eu.siacs.conversations.utils.CryptoHelper;
 import eu.siacs.conversations.utils.Emoticons;
 import eu.siacs.conversations.utils.GeoHelper;
+import eu.siacs.conversations.utils.MessageStyling;
 import eu.siacs.conversations.utils.MessageUtils;
 import eu.siacs.conversations.utils.StylingHelper;
 import eu.siacs.conversations.utils.TimeFrameUtils;
@@ -131,6 +134,7 @@ public class MessageAdapter extends ArrayAdapter<Message> {
     private OnContactPictureLongClicked mOnContactPictureLongClickedListener;
     private OnReplyClicked mOnReplyClickedListener;
     private BubbleDesign bubbleDesign = new BubbleDesign(false, false, false, true, true);
+    private boolean showLinkPreviews;
     private final boolean mForceNames;
     // uuids of XEP-0382 spoilers the user tapped open; intentionally not persisted so the
     // spoiler is concealed again as soon as the view is recreated
@@ -319,11 +323,14 @@ public class MessageAdapter extends ArrayAdapter<Message> {
         final String bodyLanguage = message.getBodyLanguage();
         final ImmutableList.Builder<String> timeInfoBuilder = new ImmutableList.Builder<>();
 
+        final String displayName;
         if (mForceNames || showUserNickname) {
-            final String displayName = UIHelper.getMessageDisplayName(message);
+            displayName = UIHelper.getMessageDisplayName(message);
             if (displayName != null) {
                 timeInfoBuilder.add(displayName);
             }
+        } else {
+            displayName = null;
         }
         // Disable file size display in Snikket
         // Most other messaging apps don't display this so prominently, it's
@@ -342,7 +349,18 @@ public class MessageAdapter extends ArrayAdapter<Message> {
             timeInfoBuilder.add(formattedTime);
         }
         final var timeInfo = timeInfoBuilder.build();
-        viewHolder.time().setText(Joiner.on(" · ").join(timeInfo));
+        final String timeText = Joiner.on(" · ").join(timeInfo);
+        if (displayName != null && timeText.startsWith(displayName)) {
+            final var spannedTime = new SpannableString(timeText);
+            spannedTime.setSpan(
+                    new ForegroundColorSpan(message.getAvatarBackgroundColor()),
+                    0,
+                    displayName.length(),
+                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+            viewHolder.time().setText(spannedTime);
+        } else {
+            viewHolder.time().setText(timeText);
+        }
     }
 
     public static @DrawableRes Integer getMessageStatusAsDrawable(
@@ -704,7 +722,7 @@ public class MessageAdapter extends ArrayAdapter<Message> {
             }
         }
 
-        StylingHelper.format(body, viewHolder.messageBody().getCurrentTextColor());
+        MessageStyling.format(body, viewHolder.messageBody().getCurrentTextColor());
         Linkify.addLinks(body);
         FixedURLSpan.fix(body);
         if (highlightedTerm != null) {
@@ -713,6 +731,112 @@ public class MessageAdapter extends ArrayAdapter<Message> {
         viewHolder.messageBody().setAutoLinkMask(0);
         viewHolder.messageBody().setText(body);
         viewHolder.messageBody().setMovementMethod(ClickableMovementMethod.getInstance());
+        displayLinkPreview(viewHolder, message, bubbleColor, rawBody);
+    }
+
+    private void displayLinkPreview(
+            final BubbleMessageItemViewHolder viewHolder,
+            final Message message,
+            final BubbleColor bubbleColor,
+            final String rawBody) {
+        final LinearLayout container = viewHolder.linkPreview();
+        container.setVisibility(View.GONE);
+        container.setOnClickListener(null);
+        container.setTag(null);
+        if (!showLinkPreviews) {
+            return;
+        }
+        if (message.getType() != Message.TYPE_TEXT && message.getType() != Message.TYPE_PRIVATE) {
+            return;
+        }
+        final String url = firstWebLink(rawBody);
+        if (url == null) {
+            return;
+        }
+        final XmppConnectionService service = activity.xmppConnectionService;
+        if (service == null || !activity.xmppConnectionServiceBound) {
+            return;
+        }
+        final var account = message.getConversation().getAccount();
+        container.setTag(url);
+        LinkPreviewer.fetch(
+                service,
+                account,
+                url,
+                preview -> bindLinkPreview(container, url, preview, bubbleColor, service, account));
+    }
+
+    private void bindLinkPreview(
+            final LinearLayout container,
+            final String url,
+            @Nullable final LinkPreviewer.Preview preview,
+            final BubbleColor bubbleColor,
+            final XmppConnectionService service,
+            final Account account) {
+        if (preview == null || preview.isEmpty() || !url.equals(container.getTag())) {
+            return;
+        }
+        final TextView title = container.findViewById(R.id.link_preview_title);
+        final TextView description = container.findViewById(R.id.link_preview_description);
+        final TextView siteName = container.findViewById(R.id.link_preview_site_name);
+        final ImageView favicon = container.findViewById(R.id.link_preview_favicon);
+        final ImageView thumbnail = container.findViewById(R.id.link_preview_thumbnail);
+        final int variantColor = bubbleToOnSurfaceVariant(container, bubbleColor);
+        title.setTextColor(bubbleToOnSurfaceColor(container, bubbleColor));
+        description.setTextColor(variantColor);
+        siteName.setTextColor(variantColor);
+        title.setText(
+                Strings.isNullOrEmpty(preview.title)
+                        ? Strings.isNullOrEmpty(preview.siteName) ? url : preview.siteName
+                        : preview.title);
+        if (Strings.isNullOrEmpty(preview.description)) {
+            description.setVisibility(View.GONE);
+        } else {
+            description.setVisibility(View.VISIBLE);
+            description.setText(preview.description);
+        }
+        siteName.setText(Strings.isNullOrEmpty(preview.siteName) ? url : preview.siteName);
+        favicon.setImageDrawable(null);
+        favicon.setVisibility(View.GONE);
+        thumbnail.setImageDrawable(null);
+        thumbnail.setVisibility(View.GONE);
+        container.setVisibility(View.VISIBLE);
+        container.setOnClickListener(v -> FixedURLSpan.open(v, preview.url));
+        if (!Strings.isNullOrEmpty(preview.favicon)) {
+            LinkPreviewer.loadImage(
+                    service,
+                    account,
+                    preview.favicon,
+                    bitmap -> {
+                        if (bitmap != null && url.equals(container.getTag())) {
+                            favicon.setImageBitmap(bitmap);
+                            favicon.setVisibility(View.VISIBLE);
+                        }
+                    });
+        }
+        if (!Strings.isNullOrEmpty(preview.image)) {
+            LinkPreviewer.loadImage(
+                    service,
+                    account,
+                    preview.image,
+                    bitmap -> {
+                        if (bitmap != null && url.equals(container.getTag())) {
+                            thumbnail.setImageBitmap(bitmap);
+                            thumbnail.setVisibility(View.VISIBLE);
+                        }
+                    });
+        }
+    }
+
+    @Nullable
+    private static String firstWebLink(final String body) {
+        for (final var link : Linkify.getLinks(body)) {
+            final var scheme = link.getScheme();
+            if ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme)) {
+                return link.asUri().toString();
+            }
+        }
+        return null;
     }
 
     /**
@@ -1143,6 +1267,8 @@ public class MessageAdapter extends ArrayAdapter<Message> {
 
         resetClickListener(
                 viewHolder.messageBox(), viewHolder.messageBody(), viewHolder.replyQuote());
+        viewHolder.linkPreview().setVisibility(View.GONE);
+        viewHolder.linkPreview().setTag(null);
 
         displayReplyQuote(viewHolder, message, bubbleColor);
 
@@ -1688,6 +1814,7 @@ public class MessageAdapter extends ArrayAdapter<Message> {
                         appSettings.isLargeFont(),
                         appSettings.isShowAvatars11(),
                         appSettings.isShowAvatarsAccounts());
+        this.showLinkPreviews = appSettings.isShowLinkPreviews();
     }
 
     public void setHighlightedTerm(List<String> terms) {
@@ -1879,6 +2006,8 @@ public class MessageAdapter extends ArrayAdapter<Message> {
         protected abstract TextView replyQuoteAuthor();
 
         protected abstract TextView replyQuoteBody();
+
+        protected abstract LinearLayout linkPreview();
     }
 
     private static class StartBubbleMessageItemViewHolder extends BubbleMessageItemViewHolder {
@@ -1972,6 +2101,11 @@ public class MessageAdapter extends ArrayAdapter<Message> {
         protected TextView replyQuoteBody() {
             return this.binding.messageContent.replyQuoteBody;
         }
+
+        @Override
+        protected LinearLayout linkPreview() {
+            return this.binding.messageContent.linkPreview;
+        }
     }
 
     private static class EndBubbleMessageItemViewHolder extends BubbleMessageItemViewHolder {
@@ -2061,6 +2195,11 @@ public class MessageAdapter extends ArrayAdapter<Message> {
         @Override
         protected TextView replyQuoteBody() {
             return this.binding.messageContent.replyQuoteBody;
+        }
+
+        @Override
+        protected LinearLayout linkPreview() {
+            return this.binding.messageContent.linkPreview;
         }
     }
 

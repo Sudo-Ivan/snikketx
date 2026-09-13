@@ -50,32 +50,73 @@
             android:scrollbars="vertical"
             app:layout_behavior="@string/appbar_scrolling_view_behavior" />
 
-        <RelativeLayout
+        <androidx.core.widget.NestedScrollView
             android:id="@+id/empty_chat_hint"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:layout_marginHorizontal="48dp"
-            android:visibility="gone">
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fillViewport="true"
+            android:visibility="gone"
+            app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
-            <ImageView
-                android:id="@+id/empty_chat_hint_image"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_centerHorizontal="true"
-                android:importantForAccessibility="no"
-                android:src="@drawable/ic_forum_thin_48dp"
-                app:tint="?colorPrimaryFixedDim" />
-
-            <TextView
-                android:id="@+id/empty_chat_hint_text"
-                style="?textAppearanceBodyMedium"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_below="@+id/empty_chat_hint_image"
                 android:gravity="center"
-                android:text="@string/empty_conversations_list_hint" />
-        </RelativeLayout>
+                android:orientation="vertical"
+                android:paddingHorizontal="48dp"
+                android:paddingVertical="24dp">
+
+                <ImageView
+                    android:id="@+id/empty_chat_hint_image"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_forum_thin_48dp"
+                    app:tint="?colorPrimaryFixedDim" />
+
+                <TextView
+                    android:id="@+id/empty_chat_hint_text"
+                    style="?textAppearanceBodyMedium"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:text="@string/empty_conversations_list_hint" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/empty_state_start_chat"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="24dp"
+                    android:text="@string/start_chat"
+                    app:icon="@drawable/ic_chat_24dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/empty_state_scan_qr"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/scan_qr_code"
+                    app:icon="@drawable/ic_qr_code_scanner_24dp" />
+
+                <TextView
+                    android:id="@+id/suggested_contacts_title"
+                    style="?textAppearanceTitleMedium"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="32dp"
+                    android:text="@string/suggested_contacts"
+                    android:visibility="gone" />
+
+                <LinearLayout
+                    android:id="@+id/suggested_contacts"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="vertical"
+                    android:visibility="gone" />
+            </LinearLayout>
+        </androidx.core.widget.NestedScrollView>
 
         <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
             android:id="@+id/fab"

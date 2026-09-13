@@ -81,6 +81,7 @@ public class AppSettings {
     public static final String CHAT_WALLPAPER = "chat_wallpaper";
     public static final String VOICE_PLAYBACK_SPEED = "voice_playback_speed";
     public static final String WIDGET_SHOW_MESSAGE_PREVIEW = "widget_show_message_preview";
+    public static final String SHOW_LINK_PREVIEWS = "show_link_previews";
     public static final String APP_LOCK = "app_lock";
     public static final String APP_LOCK_TIMEOUT = "app_lock_timeout";
 
@@ -266,6 +267,10 @@ public class AppSettings {
 
     public boolean isDynamicColorsDesired() {
         return getBooleanPreference(AppSettings.DYNAMIC_COLORS, R.bool.dynamic_colors);
+    }
+
+    public boolean isShowLinkPreviews() {
+        return getBooleanPreference(SHOW_LINK_PREVIEWS, R.bool.show_link_previews);
     }
 
     public boolean isWidgetShowMessagePreview() {

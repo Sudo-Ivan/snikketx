@@ -51,5 +51,6 @@
     <bool name="align_start">false</bool>
     <bool name="use_shared_storage">false</bool>
     <bool name="app_lock">false</bool>
+    <bool name="show_link_previews">false</bool>
     <integer name="app_lock_timeout">0</integer>
 </resources>

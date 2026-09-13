@@ -50,6 +50,14 @@
             android:title="@string/pref_use_relays" />
 
     </PreferenceCategory>
+    <PreferenceCategory android:title="@string/pref_category_content">
+        <SwitchPreferenceCompat
+            android:defaultValue="@bool/show_link_previews"
+            android:icon="@drawable/ic_link_24dp"
+            android:key="show_link_previews"
+            android:summary="@string/pref_show_link_previews_summary"
+            android:title="@string/pref_show_link_previews" />
+    </PreferenceCategory>
     <PreferenceCategory android:title="@string/pref_category_application">
         <SwitchPreferenceCompat
             android:defaultValue="@bool/send_crash_reports"

@@ -75,6 +75,8 @@ import eu.siacs.conversations.BuildConfig;
 import eu.siacs.conversations.Config;
 import eu.siacs.conversations.R;
 import eu.siacs.conversations.databinding.FragmentConversationsOverviewBinding;
+import eu.siacs.conversations.databinding.ItemContactBinding;
+import eu.siacs.conversations.entities.Contact;
 import eu.siacs.conversations.entities.Conversation;
 import eu.siacs.conversations.entities.Conversational;
 import eu.siacs.conversations.services.QuickConversationsService;
@@ -83,12 +85,14 @@ import eu.siacs.conversations.ui.adapter.ConversationAdapter;
 import eu.siacs.conversations.ui.adapter.SearchSuggestionAdapter;
 import eu.siacs.conversations.ui.interfaces.OnConversationArchived;
 import eu.siacs.conversations.ui.interfaces.OnConversationSelected;
+import eu.siacs.conversations.ui.util.AvatarWorkerTask;
 import eu.siacs.conversations.ui.util.PendingActionHelper;
 import eu.siacs.conversations.ui.util.PendingItem;
 import eu.siacs.conversations.ui.util.ScrollState;
 import eu.siacs.conversations.ui.widget.AccountPickerDialog;
 import eu.siacs.conversations.utils.AccountUtils;
 import eu.siacs.conversations.utils.CharSequences;
+import eu.siacs.conversations.utils.IrregularUnicodeDetector;
 import eu.siacs.conversations.utils.UIHelper;
 import eu.siacs.conversations.utils.XmppUriLauncher;
 import eu.siacs.conversations.xmpp.manager.BookmarkManager;
@@ -110,6 +114,7 @@ public class ConversationsOverviewFragment extends XmppFragment {
             ConversationsOverviewFragment.class.getName() + ".scroll_state";
     private static final String STATE_SELECTED_FOLDER =
             ConversationsOverviewFragment.class.getName() + ".selected_folder";
+    private static final int MAX_SUGGESTED_CONTACTS = 3;
 
     private final List<Conversation> conversations = new ArrayList<>();
     private final PendingItem<Conversation> swipedConversation = new PendingItem<>();
@@ -458,6 +463,15 @@ public class ConversationsOverviewFragment extends XmppFragment {
                 });
         this.binding.fab.setOnClickListener(
                 (view) -> StartConversationActivity.launch(getActivity()));
+        this.binding.emptyStateStartChat.setOnClickListener(
+                (view) -> StartConversationActivity.launch(getActivity()));
+        this.binding.emptyStateScanQr.setOnClickListener(
+                (view) -> {
+                    if (requireActivity()
+                            instanceof QrCodeScanningActivity qrCodeScanningActivity) {
+                        qrCodeScanningActivity.requestPermissionAndScanQrCode();
+                    }
+                });
 
         this.conversationsAdapter =
                 new ConversationAdapter(requireXmppActivity(), this.conversations);
@@ -690,6 +704,7 @@ public class ConversationsOverviewFragment extends XmppFragment {
         if (this.conversations.isEmpty()) {
             this.binding.list.setVisibility(View.GONE);
             this.binding.emptyChatHint.setVisibility(View.VISIBLE);
+            refreshEmptyState();
         } else {
             this.binding.emptyChatHint.setVisibility(View.GONE);
             this.binding.list.setVisibility(View.VISIBLE);
@@ -701,10 +716,68 @@ public class ConversationsOverviewFragment extends XmppFragment {
         }
     }
 
+    private void refreshEmptyState() {
+        this.binding.emptyStateScanQr.setVisibility(
+                requireXmppActivity().isCameraFeatureAvailable() ? View.VISIBLE : View.GONE);
+        final var suggestions = suggestedContacts();
+        this.binding.suggestedContactsTitle.setVisibility(
+                suggestions.isEmpty() ? View.GONE : View.VISIBLE);
+        this.binding.suggestedContacts.setVisibility(
+                suggestions.isEmpty() ? View.GONE : View.VISIBLE);
+        this.binding.suggestedContacts.removeAllViews();
+        final var inflater = LayoutInflater.from(requireContext());
+        for (final var contact : suggestions) {
+            final ItemContactBinding row =
+                    DataBindingUtil.inflate(
+                            inflater, R.layout.item_contact, this.binding.suggestedContacts, false);
+            row.tags.setVisibility(View.GONE);
+            row.contactDisplayName.setText(contact.getDisplayName());
+            final var address = contact.getAddress();
+            if (address != null) {
+                row.contactJid.setVisibility(View.VISIBLE);
+                row.contactJid.setText(IrregularUnicodeDetector.style(requireContext(), address));
+            } else {
+                row.contactJid.setVisibility(View.GONE);
+            }
+            AvatarWorkerTask.loadAvatar(contact, row.contactPhoto, R.dimen.avatar);
+            row.getRoot().setOnClickListener(v -> openConversationWith(contact));
+            this.binding.suggestedContacts.addView(row.getRoot());
+        }
+    }
+
+    private List<Contact> suggestedContacts() {
+        final var service = requireXmppActivity().xmppConnectionService;
+        if (service == null) {
+            return Collections.emptyList();
+        }
+        final var contacts = new ArrayList<Contact>();
+        for (final var account : service.getAccounts()) {
+            if (account == null || !account.isEnabled() || account.getXmppConnection() == null) {
+                continue;
+            }
+            for (final var contact : account.getRoster().getContacts()) {
+                if (contact.showInRoster() && !contact.isSelf()) {
+                    contacts.add(contact);
+                }
+            }
+        }
+        Collections.sort(contacts);
+        return contacts.subList(0, Math.min(contacts.size(), MAX_SUGGESTED_CONTACTS));
+    }
+
+    private void openConversationWith(final Contact contact) {
+        final var activity = requireXmppActivity();
+        final var conversation =
+                activity.xmppConnectionService.findOrCreateConversation(
+                        contact.getAccount(), contact.getAddress(), false, true);
+        activity.switchToConversation(conversation);
+    }
+
     private void toggleHintVisibility() {
         if (this.conversations.isEmpty()) {
             this.binding.list.setVisibility(View.GONE);
             this.binding.emptyChatHint.setVisibility(View.VISIBLE);
+            refreshEmptyState();
         } else {
             this.binding.emptyChatHint.setVisibility(View.GONE);
             this.binding.list.setVisibility(View.VISIBLE);

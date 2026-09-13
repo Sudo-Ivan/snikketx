@@ -32,6 +32,11 @@
         android:visible="false" />
 
     <item
+        android:id="@+id/forward_message"
+        android:title="@string/forward"
+        android:visible="false" />
+
+    <item
         android:id="@+id/copy_message"
         android:title="@string/copy_to_clipboard"
         android:visible="false" />

@@ -64,7 +64,7 @@ public final class Config {
     public static final Bitmap.CompressFormat IMAGE_FORMAT = Bitmap.CompressFormat.JPEG;
     public static final int IMAGE_QUALITY = 75;
 
-    public static final boolean USE_OPUS_VOICE_MESSAGES = false;
+    public static final boolean USE_OPUS_VOICE_MESSAGES = true;
 
     public static final int MESSAGE_MERGE_WINDOW = 90_000;
 

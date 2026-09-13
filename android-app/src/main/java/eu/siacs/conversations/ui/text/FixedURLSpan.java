@@ -56,6 +56,10 @@ public class FixedURLSpan extends URLSpan {
         super(url);
     }
 
+    public static void open(final View widget, final String url) {
+        new FixedURLSpan(url).onClick(widget);
+    }
+
     public static void fix(final Spannable spannable) {
         for (final URLSpan urlspan : spannable.getSpans(0, spannable.length() - 1, URLSpan.class)) {
             final int start = spannable.getSpanStart(urlspan);

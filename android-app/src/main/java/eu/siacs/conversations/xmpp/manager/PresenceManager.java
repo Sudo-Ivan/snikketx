@@ -64,7 +64,22 @@ public class PresenceManager extends AbstractManager {
             return;
         }
         if (from.isBareJid() && getManager(MultiUserChatManager.class).isMuc(from.asBareJid())) {
-            // the old vCard updates will end up here
+            // the old vCard updates will end up here. servers like Prosody 13
+            // announce the room avatar hash as vcard-temp:x:update presence
+            // from the room's bare jid (XEP-0486)
+            if (type == null) {
+                final var vCardUpdate = presence.getExtension(VCardUpdate.class);
+                if (vCardUpdate != null) {
+                    final var hash = vCardUpdate.getHash();
+                    final var avatarManager = getManager(AvatarManager.class);
+                    if (hash != null) {
+                        avatarManager.handleVCardUpdate(from, hash);
+                    } else if (vCardUpdate.getPhoto() != null) {
+                        // an empty photo element signals avatar removal
+                        avatarManager.handleDelete(from);
+                    }
+                }
+            }
             return;
         }
         if (type == null) {

@@ -266,6 +266,7 @@ public class ConversationFragment extends XmppFragment
     public static final int REQUEST_COMMIT_ATTACHMENTS = 0x0212;
     public static final int REQUEST_START_AUDIO_CALL = 0x213;
     public static final int REQUEST_START_VIDEO_CALL = 0x214;
+    public static final int REQUEST_FORWARD_MESSAGE = 0x0215;
     public static final int ATTACHMENT_CHOICE_CHOOSE_IMAGE = 0x0301;
     public static final int ATTACHMENT_CHOICE_TAKE_PHOTO = 0x0302;
     public static final int ATTACHMENT_CHOICE_CHOOSE_FILE = 0x0303;
@@ -848,6 +849,7 @@ public class ConversationFragment extends XmppFragment
     private int lastCompletionCursor;
     private boolean firstWord = false;
     private Message mPendingDownloadableMessage;
+    private Message mPendingForwardMessage;
 
     private static ConversationFragment findConversationFragment(AppCompatActivity activity) {
         final var main = activity.getSupportFragmentManager().findFragmentById(R.id.main_fragment);
@@ -1230,6 +1232,9 @@ public class ConversationFragment extends XmppFragment
             case REQUEST_START_VIDEO_CALL:
                 triggerRtpSession(RtpSessionActivity.ACTION_MAKE_VIDEO_CALL);
                 break;
+            case REQUEST_FORWARD_MESSAGE:
+                forwardMessageResult(data);
+                break;
             case ATTACHMENT_CHOICE_CHOOSE_IMAGE:
                 final List<Attachment> imageUris =
                         Attachment.extractAttachments(
@@ -1398,6 +1403,9 @@ public class ConversationFragment extends XmppFragment
                             "cleared pending photo uri after negative activity result");
                 }
                 break;
+            case REQUEST_FORWARD_MESSAGE:
+                this.mPendingForwardMessage = null;
+                break;
         }
     }
 
@@ -1450,6 +1458,9 @@ public class ConversationFragment extends XmppFragment
                 continue;
             } else if (attachmentChoice.type() == AttachmentChoice.Type.CONTACT
                     && !showContactHideRecording) {
+                continue;
+            } else if (attachmentChoice.type() == AttachmentChoice.Type.VIDEO
+                    && !isVideoCaptureSupported()) {
                 continue;
             }
             final int id = View.generateViewId();
@@ -1533,6 +1544,12 @@ public class ConversationFragment extends XmppFragment
         this.binding.textInput.setCustomInsertionActionModeCallback(
                 new EditMessageActionModeCallback(this.binding.textInput));
         return binding.getRoot();
+    }
+
+    private boolean isVideoCaptureSupported() {
+        return new Intent(MediaStore.ACTION_VIDEO_CAPTURE)
+                        .resolveActivity(requireContext().getPackageManager())
+                != null;
     }
 
     private void toggleAttachmentChoicesVisibility() {
@@ -1704,6 +1721,7 @@ public class ConversationFragment extends XmppFragment
             final MenuItem correctMessage = menu.findItem(R.id.correct_message);
             final MenuItem viewEditHistory = menu.findItem(R.id.view_edit_history);
             final MenuItem shareWith = menu.findItem(R.id.share_with);
+            final MenuItem forwardMessage = menu.findItem(R.id.forward_message);
             final MenuItem sendAgain = menu.findItem(R.id.send_again);
             final MenuItem retryAsP2P = menu.findItem(R.id.send_again_as_p2p);
             final MenuItem copyUrl = menu.findItem(R.id.copy_url);
@@ -1829,6 +1847,7 @@ public class ConversationFragment extends XmppFragment
                             && !unInitiatedButKnownSize
                             && t == null) {
                 shareWith.setVisible(true);
+                forwardMessage.setVisible(!encrypted);
             }
             if (m.getStatus() == Message.STATUS_SEND_FAILED) {
                 sendAgain.setVisible(true);
@@ -1898,6 +1917,9 @@ public class ConversationFragment extends XmppFragment
         final int itemId = item.getItemId();
         if (itemId == R.id.share_with) {
             ShareUtil.share(requireXmppActivity(), selectedMessage);
+            return true;
+        } else if (itemId == R.id.forward_message) {
+            forwardMessage(selectedMessage);
             return true;
         } else if (itemId == R.id.correct_message) {
             correctMessage(selectedMessage);
@@ -1969,6 +1991,101 @@ public class ConversationFragment extends XmppFragment
         intent.putExtra(EditHistoryActivity.EXTRA_CONVERSATION_UUID, message.getConversationUuid());
         intent.putExtra(EditHistoryActivity.EXTRA_MESSAGE_UUID, message.getUuid());
         startActivity(intent);
+    }
+
+    private void forwardMessage(final Message message) {
+        this.mPendingForwardMessage = message;
+        final var intent = new Intent(getActivity(), ChooseContactActivity.class);
+        intent.putExtra(ChooseContactActivity.EXTRA_TITLE_RES_ID, R.string.forward);
+        intent.putExtra(ChooseContactActivity.EXTRA_SHOW_ENTER_JID, true);
+        intent.putExtra("direct_search", true);
+        startActivityForResult(intent, REQUEST_FORWARD_MESSAGE);
+    }
+
+    private void forwardMessageResult(final Intent data) {
+        final Message message = this.mPendingForwardMessage;
+        this.mPendingForwardMessage = null;
+        final var service = getXmppConnectionService();
+        final var jids = data == null ? null : ChooseContactActivity.extractJabberIds(data);
+        final var accountJid = data == null ? null : data.getStringExtra(EXTRA_ACCOUNT);
+        if (message == null || service == null || jids == null || jids.isEmpty()) {
+            return;
+        }
+        final Account account;
+        final Conversation target;
+        try {
+            account = accountJid == null ? null : service.findAccountByJid(Jid.of(accountJid));
+            target =
+                    account == null
+                            ? null
+                            : service.findOrCreateConversation(account, jids.get(0), false, true);
+        } catch (final IllegalArgumentException e) {
+            return;
+        }
+        if (target == null) {
+            return;
+        }
+        if (message.isFileOrImage()) {
+            forwardFileTo(service, target, message);
+        } else {
+            final Message forwarded =
+                    new Message(target, message.getBody(), target.getNextEncryption());
+            Message.configurePrivateMessage(forwarded);
+            final var future = service.encryptIfNeededAndSend(forwarded);
+            Futures.addCallback(
+                    future,
+                    new FutureCallback<>() {
+                        @Override
+                        public void onSuccess(final Void result) {
+                            notifyMessageForwarded();
+                        }
+
+                        @Override
+                        public void onFailure(@NonNull final Throwable t) {
+                            displayToastForException(t);
+                        }
+                    },
+                    ContextCompat.getMainExecutor(requireContext()));
+        }
+    }
+
+    private void forwardFileTo(
+            final XmppConnectionService service, final Conversation target, final Message message) {
+        final var file = service.getFileBackend().getFile(message);
+        if (!file.exists() || !file.canRead()) {
+            Toast.makeText(requireContext(), R.string.file_deleted, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        final var uri =
+                FileBackend.getUriForFile(requireContext(), file)
+                        .buildUpon()
+                        .appendQueryParameter("uuid", message.getUuid())
+                        .build();
+        requireXmppActivity().delegateUriPermissionsToService(uri);
+        final var future =
+                service.attachFileToConversation(
+                        target, uri, message.getMimeType(), message.isVoiceMessage());
+        Futures.addCallback(
+                future,
+                new FutureCallback<>() {
+                    @Override
+                    public void onSuccess(final Void result) {
+                        notifyMessageForwarded();
+                    }
+
+                    @Override
+                    public void onFailure(@NonNull final Throwable t) {
+                        displayToastForException(t);
+                    }
+                },
+                ContextCompat.getMainExecutor(requireContext()));
+    }
+
+    private void notifyMessageForwarded() {
+        final var context = getContext();
+        if (context != null) {
+            Toast.makeText(context, R.string.message_forwarded, Toast.LENGTH_SHORT).show();
+        }
     }
 
     private PinnedMessagesManager pinnedMessagesManager() {
@@ -2722,7 +2839,9 @@ public class ConversationFragment extends XmppFragment
                         }
                     case ATTACHMENT_CHOICE_RECORD_VIDEO:
                         {
-                            yield new Intent(MediaStore.ACTION_VIDEO_CAPTURE);
+                            final var intent = new Intent(MediaStore.ACTION_VIDEO_CAPTURE);
+                            intent.putExtra(MediaStore.EXTRA_VIDEO_QUALITY, 1);
+                            yield intent;
                         }
                     case ATTACHMENT_CHOICE_TAKE_PHOTO:
                         {

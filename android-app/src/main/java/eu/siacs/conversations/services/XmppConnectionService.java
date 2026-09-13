@@ -366,6 +366,14 @@ public class XmppConnectionService extends Service {
 
     public ListenableFuture<Void> attachFileToConversation(
             final Conversation conversation, final Uri uri, final String type) {
+        return attachFileToConversation(conversation, uri, type, false);
+    }
+
+    public ListenableFuture<Void> attachFileToConversation(
+            final Conversation conversation,
+            final Uri uri,
+            final String type,
+            final boolean voiceMessage) {
         final Message message;
         if (conversation.getNextEncryption() == Message.ENCRYPTION_PGP) {
             message = new Message(conversation, "", Message.ENCRYPTION_DECRYPTED);
@@ -376,6 +384,7 @@ public class XmppConnectionService extends Service {
             message.setCounterpart(conversation.getNextCounterpart());
             message.setType(Message.TYPE_FILE);
         }
+        message.setVoiceMessage(voiceMessage);
         final var future = submitAttachToConversation(uri, type, message);
         return Futures.transformAsync(
                 future, v -> encryptIfNeededAndSend(message), MoreExecutors.directExecutor());
