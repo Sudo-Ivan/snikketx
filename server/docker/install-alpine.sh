@@ -134,7 +134,9 @@ for m in \
   mod_snikket_data_policy \
   mod_snikket_tombstones \
   mod_snikket_invites_quota \
-  mod_snikket_badinage
+  mod_snikket_badinage \
+  mod_snikketx_bots \
+  mod_auth_snikket
 do
   ln -sfn "/usr/local/lib/snikket-modules/$m" "/etc/prosody/modules/$m"
 done

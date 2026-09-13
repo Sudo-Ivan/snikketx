@@ -13,6 +13,8 @@ nav:
     - advanced/dns.md
     - advanced/firewall.md
     - advanced/reverse_proxy.md
+    - advanced/bots.md
+    - advanced/single_sign_on.md
 
 markdown_extensions:
   - admonition

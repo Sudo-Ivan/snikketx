@@ -13,6 +13,7 @@ local UPLOAD_STORAGE_GB = Lua.tonumber(ENV_SNIKKET_UPLOAD_STORAGE_GB);
 local DAILY_UPLOAD_LIMIT_PER_USER_GB = Lua.tonumber(ENV_SNIKKET_DAILY_UPLOAD_LIMIT_PER_USER_GB);
 
 local LDAP_ENABLED = ENV_SNIKKET_TWEAK_LDAP == "1";
+local OAUTH_ENABLED = ENV_SNIKKET_TWEAK_OAUTH == "1";
 
 if Lua.prosody.process_type == "prosody" and not Lua.prosody.config_loaded then
 	-- Wait at startup for certificates
@@ -301,7 +302,22 @@ log = {
 authorization = "internal"
 allow_unencrypted_plain_auth = false
 
-if LDAP_ENABLED then
+if OAUTH_ENABLED then
+	-- mod_auth_snikket wraps the password backend (internal_hashed, or
+	-- ldap2 when LDAP is enabled) and adds SASL OAUTHBEARER validated
+	-- against an external IdP userinfo endpoint. The discovery URL is
+	-- relayed to XEP-0493 clients such as Badinage.
+	authentication = "snikket"
+	oauth_backend = LDAP_ENABLED and "ldap2" or "internal_hashed"
+	oauth_discovery_url = ENV_SNIKKET_OAUTH_DISCOVERY_URL
+	oauth_validation_endpoint = Lua.assert(ENV_SNIKKET_OAUTH_VALIDATION_ENDPOINT,
+		"SNIKKET_OAUTH_VALIDATION_ENDPOINT is required when SNIKKET_TWEAK_OAUTH=1")
+	oauth_username_field = ENV_SNIKKET_OAUTH_USERNAME_FIELD
+	oauth_scope = ENV_SNIKKET_OAUTH_SCOPE
+	-- LDAP still needs PLAIN for its simple bind, otherwise keep the
+	-- local policy of rejecting cleartext passwords.
+	disable_sasl_mechanisms = LDAP_ENABLED and {} or { "PLAIN" }
+elseif LDAP_ENABLED then
 	-- mod_auth_ldap2 only supports SASL PLAIN over an LDAP simple bind:
 	-- passwords reach the server in plaintext and are protected only by
 	-- TLS (c2s_require_encryption stays enabled). PLAIN must not be
@@ -398,8 +414,15 @@ isolate_except_domains = { "push.snikket.net", "push-ios.snikket.net", "push.qua
 VirtualHost (DOMAIN)
 	contact_uri = "https://" .. DOMAIN .. "/"
 
+	if OAUTH_ENABLED then
+		-- oauth_* options live in the global section, the host only
+		-- switches its provider.
+		authentication = "snikket"
+	end
 	if LDAP_ENABLED then
-		authentication = "ldap2"
+		if not OAUTH_ENABLED then
+			authentication = "ldap2"
+		end
 		-- Accounts come from the directory, so invite-based account
 		-- registration is not meaningful when LDAP auth is enabled.
 		-- hostname may be a plain host, host:port or an ldaps:// URI.
@@ -407,14 +430,17 @@ VirtualHost (DOMAIN)
 			hostname = Lua.assert(ENV_SNIKKET_LDAP_HOST, "SNIKKET_LDAP_HOST is required when SNIKKET_TWEAK_LDAP=1")
 				.. (ENV_SNIKKET_LDAP_PORT and (":"..ENV_SNIKKET_LDAP_PORT) or "");
 			bind_dn = ENV_SNIKKET_LDAP_BIND_DN;
-			bind_password = ENV_SNIKKET_LDAP_BIND_PASSWORD
+			bind_password = (
+				ENV_SNIKKET_LDAP_BIND_PASSWORD ~= nil
+					and ENV_SNIKKET_LDAP_BIND_PASSWORD ~= ""
+					and ENV_SNIKKET_LDAP_BIND_PASSWORD)
 				or (ENV_SNIKKET_LDAP_BIND_PASSWORD_FILE and FileLine(ENV_SNIKKET_LDAP_BIND_PASSWORD_FILE));
 			use_tls = (ENV_SNIKKET_LDAP_USE_TLS == "1");
 			user = {
 				basedn = ENV_SNIKKET_LDAP_USER_BASE_DN;
 				usernamefield = ENV_SNIKKET_LDAP_USERNAME_FIELD or "uid";
 				namefield = ENV_SNIKKET_LDAP_NAME_FIELD or "cn";
-				filter = ENV_SNIKKET_LDAP_USER_FILTER;
+				filter = ENV_SNIKKET_LDAP_USER_FILTER or "";
 			};
 		}
 		if ENV_SNIKKET_LDAP_GROUP_BASE_DN then
@@ -425,10 +451,19 @@ VirtualHost (DOMAIN)
 			}
 		end
 		ldap = ldap_config
-		-- groups_migration enumerates local accounts, which do not exist
-		-- under LDAP auth
-		modules_disabled = { "groups_migration" }
-	else
+		allow_registration = false
+		-- groups_migration enumerates local accounts, and the register
+		-- modules would create local accounts that cannot authenticate
+		-- against the directory. All are disabled under LDAP auth.
+		modules_disabled = {
+			"groups_migration";
+			"register";
+			"register_limits";
+			"invites_register";
+			"invites_register_api";
+			"invites_bootstrap";
+		}
+	elseif not OAUTH_ENABLED then
 		authentication = "internal_hashed"
 	end
 
@@ -545,5 +580,20 @@ Component ("share."..DOMAIN) "http_file_share"
 	modules_disabled = {
 		"s2s";
 	}
+
+if ENV_SNIKKET_TWEAK_BOTS == "1" then
+	-- Virtual bot identities: JSON API + webhook/SSE/WebSocket access,
+	-- no real accounts. See mod_snikketx_bots docs.
+	Component ("bots."..DOMAIN) "snikketx_bots"
+		bot_muc_hosts = { "groups."..DOMAIN }
+		-- Extra bearer tokens accepted for the management API. Static
+		-- admin sessions via mod_tokenauth (prosodyctl token) also work.
+		if ENV_SNIKKET_TWEAK_BOTS_ADMIN_TOKEN then
+			bot_admin_tokens = { ENV_SNIKKET_TWEAK_BOTS_ADMIN_TOKEN }
+		end
+		modules_disabled = {
+			"s2s";
+		}
+end
 
 Include (ENV_SNIKKET_TWEAK_EXTRA_CONFIG or "/snikket/prosody/*.cfg.lua")
