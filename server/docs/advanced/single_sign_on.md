@@ -82,7 +82,11 @@ Requirements on the identity provider:
 
 - An OIDC/OAuth discovery document at the configured URL.
 - Dynamic client registration (RFC 7591), because Badinage registers
-  itself on first use.
+  itself on first use. Pocket ID does not implement RFC 7591. It
+  supports Client ID Metadata Documents instead, where the client ID
+  is an HTTPS URL serving the client metadata. Enable that feature
+  and allowlist the Badinage metadata URL in Pocket ID, or use an
+  IdP with dynamic registration for the XMPP sign-on path.
 - A userinfo endpoint that returns the configured username field
   (`preferred_username` when the `profile` scope is granted).
 

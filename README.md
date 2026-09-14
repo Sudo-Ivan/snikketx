@@ -23,6 +23,17 @@ Put `chat.localhost` in `/etc/hosts` as `127.0.0.1` if needed. HTTP edge is port
 ### New production host
 
 ```
+./scripts/setup.sh
+```
+
+The setup wizard runs everything: base config, optional migration from
+classic Snikket, optional OIDC/LDAP auth, DNS records, certificate
+mode, preflight, start, firewall and postcheck. Preview it first with
+`./scripts/setup.sh --dry-run`.
+
+Or drive each step manually:
+
+```
 ./scripts/init.sh
 ./scripts/preflight.sh
 make up

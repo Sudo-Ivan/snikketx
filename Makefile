@@ -1,5 +1,5 @@
 .PHONY: all docker docker-server docker-portal docker-proxy docker-certs docker-updater docker-backup \
-	init-dev up up-dev down down-dev status status-prod logs logs-prod admin invite preflight \
+	init-dev up up-dev down down-dev setup status status-prod logs logs-prod admin invite preflight \
 	backup backup-status restore migrate rollback update postcheck verify screenshot
 
 IMAGE_PREFIX ?= ghcr.io/sudo-ivan/snikketx
@@ -46,6 +46,9 @@ docker-backup:
 
 init-dev:
 	./scripts/init.sh --dev
+
+setup:
+	./scripts/setup.sh
 
 up:
 	./scripts/start.sh
