@@ -101,7 +101,7 @@ services:
   snikket_certs:
     <<: [*defaults, *cap-drop, *env-file]
     image: ghcr.io/sudo-ivan/snikketx/cert-manager:${SNIKKETX_IMAGE_TAG:-latest}
-    container_name: snikket-certs
+    container_name: snikketx-certs
     environment:
       # Only used by scripts/enable-dns-acme.sh installs. Empty keeps
       # certbot on the default HTTP-01 webroot challenge.
@@ -122,7 +122,7 @@ services:
   snikket_portal:
     <<: [*defaults, *cap-drop, *read-only, *tmpfs, *env-file]
     image: ghcr.io/sudo-ivan/snikketx/web-portal:${SNIKKETX_IMAGE_TAG:-latest}
-    container_name: snikket-portal
+    container_name: snikketx-portal
     user: "10001:10001"
     environment:
       SNIKKET_TWEAK_PORTAL_INTERNAL_HTTP_INTERFACE: "0.0.0.0"
@@ -145,7 +145,7 @@ services:
   snikket_server:
     <<: [*defaults, *cap-drop, *env-file]
     image: ghcr.io/sudo-ivan/snikketx/server:${SNIKKETX_IMAGE_TAG:-latest}
-    container_name: snikket
+    container_name: snikketx-server
     cap_add:
       - CHOWN
       - SETUID
@@ -186,7 +186,7 @@ services:
   snikket_updater:
     <<: [*defaults, *env-file]
     image: ghcr.io/sudo-ivan/snikketx/updater:${SNIKKETX_IMAGE_TAG:-latest}
-    container_name: snikket-updater
+    container_name: snikketx-updater
     environment:
       SNIKKET_UPDATER_TOKEN: ${SNIKKET_UPDATER_TOKEN:-snikket-updater-local}
       SNIKKET_UPDATER_COMPOSE_DIR: /work
@@ -210,7 +210,7 @@ services:
   snikket_backup:
     <<: [*defaults, *env-file]
     image: ghcr.io/sudo-ivan/snikketx/backup:${SNIKKETX_IMAGE_TAG:-latest}
-    container_name: snikket-backup
+    container_name: snikketx-backup
     environment:
       SNIKKET_BACKUP_TOKEN: ${SNIKKET_BACKUP_TOKEN:-snikket-backup-local}
       SNIKKET_BACKUP_COMPOSE_DIR: /work

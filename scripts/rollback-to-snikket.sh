@@ -54,6 +54,7 @@ done
 # deploy/migrate/state.env is written by migrate-from-snikket.sh and provides
 # CLASSIC_FROM plus BACKUP_DIR (the snikketx-backup-* dir) as fallbacks.
 # Explicit flags win over state.env values.
+MIGRATE_MODE=""
 if [[ -f deploy/migrate/state.env ]]; then
 	saved_from="$FROM_DIR"
 	saved_backup="$BACKUP_DIR"
@@ -73,6 +74,24 @@ if [[ -z "$BACKUP_DIR" && -f backups/LAST_PRE_MIGRATE ]]; then
 	BACKUP_DIR=$(cat backups/LAST_PRE_MIGRATE)
 fi
 
+# In copy mode the classic volume was never touched, so data restore is
+# only needed to carry post-migration changes back. Ask first.
+RESTORE_DATA=1
+if [[ "$MIGRATE_MODE" == "copy" ]]; then
+	if [[ "$YES" -eq 1 ]]; then
+		RESTORE_DATA=0
+	elif [[ -t 0 ]]; then
+		echo "Classic volume is untouched (copy-mode migration)."
+		read -r -p "Restore the newest data from the backup into classic anyway? [y/N] " rd_ans
+		case "$rd_ans" in
+		y | Y) RESTORE_DATA=1 ;;
+		*) RESTORE_DATA=0 ;;
+		esac
+	else
+		RESTORE_DATA=0
+	fi
+fi
+
 # BACKUP_DIR may point at a snikketx-backup-* dir or at a parent dir that
 # holds several of them. Pick the newest dir containing a data tarball.
 find_data_tar() {
@@ -81,24 +100,31 @@ find_data_tar() {
 		ls -1 "$dir"/snikket-data-*.tar.gz 2>/dev/null | head -n1
 	fi
 }
-DATA_TAR=$(find_data_tar "$BACKUP_DIR")
-if [[ -z "$DATA_TAR" && -d "$BACKUP_DIR" ]]; then
-	nested=$(ls -1dt "$BACKUP_DIR"/snikketx-backup-* 2>/dev/null | head -n1 || true)
-	if [[ -n "$nested" ]]; then
-		DATA_TAR=$(find_data_tar "$nested")
-		[[ -n "$DATA_TAR" ]] && BACKUP_DIR="$nested"
+DATA_TAR=""
+if [[ "$RESTORE_DATA" -eq 1 ]]; then
+	DATA_TAR=$(find_data_tar "$BACKUP_DIR")
+	if [[ -z "$DATA_TAR" && -d "$BACKUP_DIR" ]]; then
+		nested=$(ls -1dt "$BACKUP_DIR"/snikketx-backup-* 2>/dev/null | head -n1 || true)
+		if [[ -n "$nested" ]]; then
+			DATA_TAR=$(find_data_tar "$nested")
+			[[ -n "$DATA_TAR" ]] && BACKUP_DIR="$nested"
+		fi
 	fi
+	if [[ -z "$DATA_TAR" ]]; then
+		echo "No snikket-data-*.tar.gz found under ${BACKUP_DIR:-<unset>}" >&2
+		echo "Pass --backup-dir pointing at a snikketx-backup-* directory." >&2
+		exit 1
+	fi
+	BACKUP_DIR="$(cd "$BACKUP_DIR" && pwd)"
 fi
-if [[ -z "$DATA_TAR" ]]; then
-	echo "No snikket-data-*.tar.gz found under ${BACKUP_DIR:-<unset>}" >&2
-	echo "Pass --backup-dir pointing at a snikketx-backup-* directory." >&2
-	exit 1
-fi
-BACKUP_DIR="$(cd "$BACKUP_DIR" && pwd)"
 
 if [[ "$YES" -ne 1 ]]; then
-	echo "This will stop SnikketX and restore Prosody data into classic stack at ${FROM_DIR}"
-	echo "from ${DATA_TAR}"
+	echo "This will stop SnikketX and bring the classic stack back up at ${FROM_DIR}"
+	if [[ -n "$DATA_TAR" ]]; then
+		echo "and restore Prosody data from ${DATA_TAR}"
+	else
+		echo "(classic volume is untouched, no data restore needed)"
+	fi
 	echo -n "Continue? [y/N] "
 	read -r -n1 ans
 	echo ""
@@ -133,11 +159,16 @@ if [[ "$CLASSIC_COMPOSE_FOUND" -eq 0 ]]; then
 	exit 1
 fi
 (cd "$FROM_DIR" && snikketx_docker_compose up -d snikket_server 2>/dev/null || snikketx_docker_compose up -d) || true
-# Ensure snikket container exists
+# Ensure the classic snikket container exists
 sleep 2
 
-echo "== Restore Prosody data =="
-./scripts/restore.sh "$DATA_TAR" --yes
+if [[ "$RESTORE_DATA" -eq 1 && -n "$DATA_TAR" ]]; then
+	echo "== Restore Prosody data =="
+	# Point restore.sh at the classic container so data lands in the
+	# classic volume regardless of migration mode.
+	SNIKKETX_CONTAINER_SERVER="$SNIKKETX_CLASSIC_CONTAINER_SERVER" \
+		./scripts/restore.sh "$DATA_TAR" --yes
+fi
 
 # Restore classic snikket.conf if we have it
 if [[ -f "$BACKUP_DIR/snikket.conf" ]]; then

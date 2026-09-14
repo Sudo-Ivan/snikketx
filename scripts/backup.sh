@@ -27,7 +27,7 @@ When the backup sidecar is reachable, this script asks it to run a backup and
 then copies the newest archive into DEST. Pass --local to always use docker
 directly (needed for migrate and offline hosts).
 
---data-only   Only archive /snikket from container snikket (classic-compatible)
+--data-only   Only archive /snikket from the server container (classic-compatible)
 --local       Skip the backup sidecar and run docker steps here
 EOF
 }
@@ -113,6 +113,8 @@ backup_via_service() {
 	mkdir -p "$out"
 	docker run --rm -v "$vol":/data:ro -v "$out":/out "$SNIKKETX_HELPER_IMAGE" \
 		sh -c "cp -a /data/archives/${name}/. /out/"
+	# Same sidecar checksums the local path writes.
+	(cd "$out" && sha256sum -- *.tar.gz >SHA256SUMS.txt 2>/dev/null) || true
 	echo "Backup copied to ${out}"
 	return 0
 }
@@ -130,13 +132,22 @@ mkdir -p "$OUT"
 
 ALPINE="$SNIKKETX_HELPER_IMAGE"
 
-if ! docker container inspect "$SNIKKETX_CONTAINER_SERVER" >/dev/null 2>&1; then
+# Prefer the SnikketX server container, fall back to the classic
+# Snikket container name so pre-migration backups still work.
+DATA_CONTAINER=""
+for cand in "$SNIKKETX_CONTAINER_SERVER" "$SNIKKETX_CLASSIC_CONTAINER_SERVER"; do
+	if docker container inspect "$cand" >/dev/null 2>&1; then
+		DATA_CONTAINER="$cand"
+		break
+	fi
+done
+if [[ -z "$DATA_CONTAINER" ]]; then
 	echo "Container '${SNIKKETX_CONTAINER_SERVER}' not found. Start the stack (or classic Snikket) first." >&2
 	exit 1
 fi
 
 echo "Backing up /snikket (accounts, chats/MAM, MUCs, uploads) ..."
-docker run --rm --volumes-from="$SNIKKETX_CONTAINER_SERVER" -v "$OUT":/backup "$ALPINE" \
+docker run --rm --volumes-from="$DATA_CONTAINER" -v "$OUT":/backup "$ALPINE" \
 	tar czf "/backup/snikket-data-${STAMP}.tar.gz" /snikket
 
 if [[ -f snikket.conf ]]; then
@@ -169,6 +180,14 @@ if [[ "$FULL" -eq 1 ]]; then
 	archive_named_volume "$SNIKKETX_VOL_BACKUP_DATA" backup-data
 	archive_named_volume "$SNIKKETX_VOL_PORTAL_DATA_CLASSIC" portal-data-classic
 fi
+
+# SHA-256 sidecars for every archive, plus an aggregate file so the
+# whole set can be verified with: sha256sum -c SHA256SUMS.txt
+(cd "$OUT" && sha256sum -- *.tar.gz >SHA256SUMS.txt 2>/dev/null) || true
+for f in "$OUT"/*.tar.gz; do
+	[[ -f "$f" ]] || continue
+	(cd "$OUT" && sha256sum "$(basename "$f")" >"$(basename "$f").sha256")
+done
 
 {
 	echo "SnikketX backup ${STAMP}"

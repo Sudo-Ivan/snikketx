@@ -43,9 +43,9 @@ echo "log:  $(pwd)/post-check.log"
 echo ""
 echo "== Containers =="
 
-required=(snikket snikket-portal snikketx-traefik)
+required=("$SNIKKETX_CONTAINER_SERVER" "$SNIKKETX_CONTAINER_PORTAL" "$SNIKKETX_CONTAINER_TRAEFIK")
 if [[ "$COMPOSE_MODE" == "prod" ]]; then
-	required+=(snikket-certs snikket-updater snikket-backup)
+	required+=("$SNIKKETX_CONTAINER_CERTS" "$SNIKKETX_CONTAINER_UPDATER" "$SNIKKETX_CONTAINER_BACKUP")
 fi
 
 for c in "${required[@]}"; do
@@ -125,10 +125,10 @@ if [[ "$code" =~ ^(200|302|303)$ ]]; then
 	ok "GET ${base}/login -> ${code}"
 elif [[ "$code" == "502" || "$code" == "503" ]]; then
 	fail "GET ${base}/login -> ${code} (edge up but portal upstream not answering)"
-	hint "check: docker logs snikket-portal"
-	echo "  --- last log lines for snikket-portal ---"
-	docker logs snikket-portal --tail 15 2>&1 | sed 's/^/  /' || true
-	echo "  --- end snikket-portal logs ---"
+	hint "check: docker logs ${SNIKKETX_CONTAINER_PORTAL}"
+	echo "  --- last log lines for ${SNIKKETX_CONTAINER_PORTAL} ---"
+	docker logs "$SNIKKETX_CONTAINER_PORTAL" --tail 15 2>&1 | sed 's/^/  /' || true
+	echo "  --- end ${SNIKKETX_CONTAINER_PORTAL} logs ---"
 else
 	fail "GET ${base}/login -> ${code} (edge not ready)"
 	hint "first ACME issuance can take a minute. check: docker logs snikketx-traefik"
@@ -142,7 +142,7 @@ echo "== Portal and Prosody =="
 
 # Portal has a Docker healthcheck when the image defines one.
 portal_health=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{end}}' \
-	snikket-portal 2>/dev/null || echo "")
+	"$SNIKKETX_CONTAINER_PORTAL" 2>/dev/null || echo "")
 if [[ "$portal_health" == "healthy" ]]; then
 	ok "portal healthcheck reports healthy"
 elif [[ -n "$portal_health" ]]; then
@@ -152,34 +152,34 @@ else
 fi
 
 # Prosody diagnostics: running state, certs, recent errors.
-if docker exec snikket prosodyctl status >/dev/null 2>&1; then
+if docker exec "$SNIKKETX_CONTAINER_SERVER" prosodyctl status >/dev/null 2>&1; then
 	ok "prosodyctl status: running"
 else
-	fail "prosodyctl status failed in container snikket"
-	hint "check: docker logs snikket"
+	fail "prosodyctl status failed in container ${SNIKKETX_CONTAINER_SERVER}"
+	hint "check: docker logs ${SNIKKETX_CONTAINER_SERVER}"
 fi
 
-if docker exec snikket test -f "/snikket/letsencrypt/live/${domain}/fullchain.pem" 2>/dev/null; then
+if docker exec "$SNIKKETX_CONTAINER_SERVER" test -f "/snikket/letsencrypt/live/${domain}/fullchain.pem" 2>/dev/null; then
 	ok "XMPP cert exists for ${domain} (/snikket/letsencrypt/live)"
 else
-	warn "no letsencrypt cert for ${domain} inside container snikket"
-	hint "cert-manager issues these. check: docker logs snikket-certs"
+	warn "no letsencrypt cert for ${domain} inside container ${SNIKKETX_CONTAINER_SERVER}"
+	hint "cert-manager issues these. check: docker logs ${SNIKKETX_CONTAINER_CERTS}"
 fi
 
-prosody_errors=$(docker logs snikket --since 15m 2>&1 \
+prosody_errors=$(docker logs "$SNIKKETX_CONTAINER_SERVER" --since 15m 2>&1 \
 	| grep -icE 'error|crit' || true)
 if [[ "$prosody_errors" -gt 0 ]]; then
 	warn "prosody logged ${prosody_errors} error lines in the last 15m"
-	docker logs snikket --since 15m 2>&1 \
+	docker logs "$SNIKKETX_CONTAINER_SERVER" --since 15m 2>&1 \
 		| grep -iE 'error|crit' | tail -10 | sed 's/^/  /'
 else
 	ok "no prosody errors in the last 15m"
 fi
 
-if docker logs snikket --since 60m 2>&1 \
+if docker logs "$SNIKKETX_CONTAINER_SERVER" --since 60m 2>&1 \
 	| grep -qiE "(error|fail|cannot|denied).*turndb|turndb.*(error|fail|cannot|denied)"; then
 	warn "prosody TURN database error seen in the last hour (turndb)"
-	hint "check /snikket/turnserver/turndb permissions inside container snikket"
+	hint "check /snikket/turnserver/turndb permissions inside container ${SNIKKETX_CONTAINER_SERVER}"
 fi
 
 echo ""
@@ -187,24 +187,24 @@ echo "== Calls, STUN and TURN =="
 
 # These are configuration checks. A real media test still needs two
 # XMPP clients to place a call, ideally one behind a restrictive NAT.
-if docker exec snikket pidof turnserver >/dev/null 2>&1; then
-	ok "coturn (turnserver) is running inside container snikket"
+if docker exec "$SNIKKETX_CONTAINER_SERVER" pidof turnserver >/dev/null 2>&1; then
+	ok "coturn (turnserver) is running inside container ${SNIKKETX_CONTAINER_SERVER}"
 else
-	fail "turnserver is not running inside container snikket"
-	hint "check: docker logs snikket | grep -i turn"
+	fail "turnserver is not running inside container ${SNIKKETX_CONTAINER_SERVER}"
+	hint "check: docker logs ${SNIKKETX_CONTAINER_SERVER} | grep -i turn"
 fi
 
-if docker exec snikket test -f /snikket/turnserver/turndb 2>/dev/null; then
+if docker exec "$SNIKKETX_CONTAINER_SERVER" test -f /snikket/turnserver/turndb 2>/dev/null; then
 	ok "TURN credential database exists (/snikket/turnserver/turndb)"
 else
 	warn "TURN credential database missing"
-	hint "turnserver creates it on first credential. check: docker logs snikket | grep -i turn"
+	hint "turnserver creates it on first credential. check: docker logs ${SNIKKETX_CONTAINER_SERVER} | grep -i turn"
 fi
 
 turn_min="${SNIKKET_TURN_MIN_PORT:-49152}"
 turn_max="${SNIKKET_TURN_MAX_PORT:-49251}"
 # coturn gets the range as --min-port/--max-port command line args.
-turn_args=$(docker exec snikket sh -c \
+turn_args=$(docker exec "$SNIKKETX_CONTAINER_SERVER" sh -c \
 	'tr "\0" " " < /proc/$(pidof turnserver | tr " " "\n" | head -1)/cmdline' \
 	2>/dev/null || true)
 conf_min=$(printf '%s' "$turn_args" | sed -n 's/.*--min-port \([0-9]*\).*/\1/p')
@@ -224,7 +224,7 @@ fi
 # Compose, so the range endpoints are checked instead.
 for spec in "3478/udp" "3478/tcp" "5349/tcp" "5349/udp" \
 	"${turn_min}/udp" "${turn_max}/udp"; do
-	if docker inspect snikket --format '{{json .HostConfig.PortBindings}}' 2>/dev/null \
+	if docker inspect "$SNIKKETX_CONTAINER_SERVER" --format '{{json .HostConfig.PortBindings}}' 2>/dev/null \
 		| grep -q "${spec}"; then
 		ok "container publishes ${spec}"
 	else

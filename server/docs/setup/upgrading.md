@@ -75,7 +75,7 @@ currently using:
 SSH into the system where SnikketX is installed, and run the following command:
 
 ```shell
-docker exec snikket prosodyctl about | head -n1
+docker exec snikketx-server prosodyctl about | head -n1
 ```
 
 [snikket-selfhosted]: https://github.com/snikket-im/snikket-selfhosted

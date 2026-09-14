@@ -17,8 +17,9 @@ usage() {
 	cat <<'EOF'
 Usage: ./scripts/restore.sh /absolute/path/to/snikket-data-*.tar.gz [flags]
 
-Restores Prosody /snikket from a backup tarball into container snikket
-(accounts, MAM chats, MUCs, uploads). Stack should be stopped or snikket stopped.
+Restores Prosody /snikket from a backup tarball into the server container
+(accounts, MAM chats, MUCs, uploads). Stack should be stopped or the server
+container stopped.
 
 --full      Also restore portal/traefik/updater sibling tarballs and host conf
 --yes       Skip confirmation prompt
@@ -79,10 +80,38 @@ SRC_BASE=$(basename "$ARCHIVE")
 stamp=${SRC_BASE#snikket-data-}
 stamp=${stamp%.tar.gz}
 
+# Verify integrity when the backup carries a sha256 sidecar or an
+# aggregate SHA256SUMS file. Refuse to restore a corrupted archive.
+verify_archive() {
+	local archive="$1" dir base
+	dir=$(dirname "$archive")
+	base=$(basename "$archive")
+	if [[ -f "${dir}/${base}.sha256" ]]; then
+		(cd "$dir" && sha256sum -c "${base}.sha256" >/dev/null 2>&1) || return 1
+		return 0
+	fi
+	if [[ -f "${dir}/SHA256SUMS.txt" ]] && grep -q "${base}" "${dir}/SHA256SUMS.txt" 2>/dev/null; then
+		(cd "$dir" && grep " ${base}\$" SHA256SUMS.txt | sha256sum -c - >/dev/null 2>&1) || return 1
+		return 0
+	fi
+	return 2 # no checksum available
+}
+
+verify_rc=0
+verify_archive "$ARCHIVE" || verify_rc=$?
+case "$verify_rc" in
+0) echo "Checksum verified: ${SRC_BASE}" ;;
+1)
+	echo "Checksum mismatch for ${SRC_BASE}, refusing to restore." >&2
+	exit 1
+	;;
+*) echo "No checksum sidecar for ${SRC_BASE}, skipping integrity check" ;;
+esac
+
 if [[ "$DRY_RUN" -eq 1 ]]; then
 	echo "Dry-run restore plan"
 	echo "  Prosody data: ${ARCHIVE}"
-	echo "  Will replace /snikket in container snikket"
+	echo "  Will replace /snikket in container ${SNIKKETX_CONTAINER_SERVER}"
 	if [[ "$FULL" -eq 1 ]]; then
 		echo "  Full restore enabled"
 		for f in \
@@ -115,7 +144,7 @@ else
 fi
 
 if [[ "$YES" -ne 1 ]]; then
-	echo "WARNING: This will replace all data currently under /snikket in the snikket container"
+	echo "WARNING: This will replace all data currently under /snikket in the ${SNIKKETX_CONTAINER_SERVER} container"
 	echo "         with the contents of the provided backup. Existing data will be lost."
 	echo -n "Continue? [y/N] "
 	read -r -n1 continue_answer
@@ -151,15 +180,27 @@ restore_vol() {
 }
 
 if [[ "$FULL" -eq 1 ]]; then
-	restore_vol "${SRC_DIR}/portal-data-${stamp}.tar.gz" "$SNIKKETX_VOL_PORTAL_DATA"
-	if [[ -f "${SRC_DIR}/traefik-data-${stamp}.tar.gz" ]]; then
-		restore_vol "${SRC_DIR}/traefik-data-${stamp}.tar.gz" "$SNIKKETX_VOL_TRAEFIK_DATA"
-	else
-		# Pre-Traefik backups used the ravenguard-data label.
-		restore_vol "${SRC_DIR}/ravenguard-data-${stamp}.tar.gz" "$SNIKKETX_VOL_TRAEFIK_DATA"
-	fi
-	restore_vol "${SRC_DIR}/updater-data-${stamp}.tar.gz" "$SNIKKETX_VOL_UPDATER_DATA"
-	restore_vol "${SRC_DIR}/backup-data-${stamp}.tar.gz" "$SNIKKETX_VOL_BACKUP_DATA"
+	for side in portal-data traefik-data updater-data backup-data; do
+		tb="${SRC_DIR}/${side}-${stamp}.tar.gz"
+		if [[ "$side" == "traefik-data" && ! -f "$tb" ]]; then
+			# Pre-Traefik backups used the ravenguard-data label.
+			tb="${SRC_DIR}/ravenguard-data-${stamp}.tar.gz"
+		fi
+		if [[ -f "$tb" ]]; then
+			verify_rc=0
+			verify_archive "$tb" || verify_rc=$?
+			if [[ "$verify_rc" -eq 1 ]]; then
+				echo "Checksum mismatch for $(basename "$tb"), refusing to restore." >&2
+				exit 1
+			fi
+		fi
+		case "$side" in
+		portal-data) restore_vol "$tb" "$SNIKKETX_VOL_PORTAL_DATA" ;;
+		traefik-data) restore_vol "$tb" "$SNIKKETX_VOL_TRAEFIK_DATA" ;;
+		updater-data) restore_vol "$tb" "$SNIKKETX_VOL_UPDATER_DATA" ;;
+		backup-data) restore_vol "$tb" "$SNIKKETX_VOL_BACKUP_DATA" ;;
+		esac
+	done
 	if [[ -f "${SRC_DIR}/snikket.conf" ]]; then
 		cp -a "${SRC_DIR}/snikket.conf" ./snikket.conf
 		echo "Restored snikket.conf"

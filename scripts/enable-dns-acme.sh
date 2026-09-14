@@ -118,7 +118,7 @@ certificates stay valid and renew through Cloudflare from now on.
 Watch the next issuance with:
 
   docker logs -f snikketx-traefik
-  docker logs -f snikket-certs
+  docker logs -f snikketx-certs
 
 If the DNS records for ${domain} still need to be created, run:
 

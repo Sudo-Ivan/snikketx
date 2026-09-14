@@ -8,12 +8,18 @@ fi
 SNIKKETX_COMPOSE_LIB=1
 
 # Shared stack constants. Used by the scripts that source this file.
-export SNIKKETX_CONTAINER_SERVER="snikket"
-export SNIKKETX_CONTAINER_CERTS="snikket-certs"
-export SNIKKETX_CONTAINER_PORTAL="snikket-portal"
-export SNIKKETX_CONTAINER_UPDATER="snikket-updater"
-export SNIKKETX_CONTAINER_BACKUP="snikket-backup"
+export SNIKKETX_CONTAINER_SERVER="${SNIKKETX_CONTAINER_SERVER:-snikketx-server}"
+export SNIKKETX_CONTAINER_CERTS="snikketx-certs"
+export SNIKKETX_CONTAINER_PORTAL="snikketx-portal"
+export SNIKKETX_CONTAINER_UPDATER="snikketx-updater"
+export SNIKKETX_CONTAINER_BACKUP="snikketx-backup"
 export SNIKKETX_CONTAINER_TRAEFIK="snikketx-traefik"
+# Container names used by the classic Snikket compose stack. Kept
+# distinct from ours so a classic install can be brought back up after
+# make down without name collisions.
+export SNIKKETX_CLASSIC_CONTAINER_SERVER="snikket"
+export SNIKKETX_CLASSIC_CONTAINER_PORTAL="snikket-portal"
+export SNIKKETX_CLASSIC_CONTAINER_CERTS="snikket-certs"
 
 export SNIKKETX_VOL_SNIKKET_DATA="snikketx_snikket_data"
 export SNIKKETX_VOL_PORTAL_DATA="snikketx_portal_data"

@@ -179,7 +179,7 @@ and try again.
 Now SnikketX is running, it's time to set up your first account. To create yourself an admin account, run the following command:
 
 ```bash
-docker exec snikket create-invite --admin --group default
+docker exec snikketx-server create-invite --admin --group default
 ```
 
 Follow the link to open the invitation, and follow the instructions get signed in.

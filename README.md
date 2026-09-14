@@ -60,18 +60,25 @@ make migrate FROM=/etc/snikket BACKUP_DIR=/var/backups/snikketx
 What it does:
 
 1. Tars `/snikket` out of the running classic `snikket` container and stores
-   the classic `snikket.conf` and compose file in the backup dir.
+   the classic `snikket.conf` and compose file in the backup dir, with
+   SHA-256 sidecars for every archive.
 2. Detects the classic data volume from the container's mounts (named volume
    or bind mount), before `docker compose down` removes the containers.
    Directory name and `COMPOSE_PROJECT_NAME` do not matter.
-3. Stops the classic stack and removes leftover classic containers so the
-   shared `snikket` container name is free.
-4. Writes `deploy/migrate/docker-compose.migrate.yml` so the `snikket_data`
-   volume points at the classic data, copies `snikket.conf`, and merges the
-   required keys into `.env` (existing keys like `SNIKKETX_IMAGE_TAG` or
-   Restic credentials are preserved).
+3. Stops the classic stack.
+4. Copies the classic data into the `snikketx_snikket_data` volume, so the
+   classic volume or bind mount stays byte-for-byte intact for rollback.
+   Pass `--share` to mount the classic data directly instead (the old
+   behaviour). Copies `snikket.conf` and merges the required keys into
+   `.env` (existing keys like `SNIKKETX_IMAGE_TAG` or Restic credentials
+   are preserved).
 5. Runs preflight and starts SnikketX.
 6. Records rollback state in `deploy/migrate/state.env`.
+
+All SnikketX containers are named `snikketx-*` and all volumes are
+`snikketx_*`, so nothing collides with the classic stack's `snikket*`
+names. Rolling back is `make down` in the SnikketX checkout followed by
+`docker compose up -d` in the classic directory.
 
 Both `docker compose` (plugin) and `docker-compose` (v1 binary) are
 supported. Add `MIGRATE_FLAGS=--yes` to skip the confirmation prompt.
@@ -203,7 +210,7 @@ path goes to `acme_webroot` so `snikket_certs` can keep issuing XMPP certs.
 
 Configure schedule, retention, and offsite under **Admin -> Backup**. Use `./scripts/restore.sh ... --dry-run` to validate an archive without writing.
 
-Classic Snikket used the same `/snikket` layout and container name `snikket`, so the data tarball is compatible for migrate/rollback.
+Classic Snikket uses the same `/snikket` layout, so the data tarball is compatible for migrate/rollback. Every archive gets a `.sha256` sidecar plus an aggregate `SHA256SUMS.txt`, verified automatically by `restore.sh`.
 
 ## Layout
 

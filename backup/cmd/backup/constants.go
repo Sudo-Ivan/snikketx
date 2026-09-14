@@ -99,7 +99,7 @@ const (
 
 // Docker resources touched by backups.
 const (
-	snikketContainer  = "snikket"
+	snikketContainer  = "snikketx-server"
 	snikketDataPath   = "/snikket"
 	helperBackupMount = "/backup"
 	helperDataMount   = "/data"
