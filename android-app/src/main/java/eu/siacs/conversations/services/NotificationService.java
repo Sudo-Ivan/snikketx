@@ -61,6 +61,7 @@ import eu.siacs.conversations.ui.ConversationsActivity;
 import eu.siacs.conversations.ui.EditAccountActivity;
 import eu.siacs.conversations.ui.RtpSessionActivity;
 import eu.siacs.conversations.utils.AccountUtils;
+import eu.siacs.conversations.utils.AppLockManager;
 import eu.siacs.conversations.utils.Compatibility;
 import eu.siacs.conversations.utils.GeoHelper;
 import eu.siacs.conversations.utils.TorServiceUtils;
@@ -409,7 +410,17 @@ public class NotificationService {
                 && message.getStatus() == Message.STATUS_RECEIVED;
     }
 
+    // during a duress session messages on hidden accounts must not surface in
+    // notifications
+    private static boolean hiddenByDuress(final Message message) {
+        final var conversation = message.getConversation();
+        return conversation != null && AppLockManager.isHidden(conversation.getAccount());
+    }
+
     public void pushFromBacklog(final Message message) {
+        if (hiddenByDuress(message)) {
+            return;
+        }
         if (notifyMessage(message)) {
             synchronized (notifications) {
                 getBacklogMessageCounter((Conversation) message.getConversation())
@@ -500,6 +511,9 @@ public class NotificationService {
     }
 
     public void push(final Message message) {
+        if (hiddenByDuress(message)) {
+            return;
+        }
         synchronized (CATCHUP_LOCK) {
             final XmppConnection connection =
                     message.getConversation().getAccount().getXmppConnection();
@@ -513,6 +527,9 @@ public class NotificationService {
     }
 
     public void pushFailedDelivery(final Message message) {
+        if (hiddenByDuress(message)) {
+            return;
+        }
         final Conversation conversation = (Conversation) message.getConversation();
         if (this.mIsInForeground
                 && !new Device(mXmppConnectionService).isScreenLocked()

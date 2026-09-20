@@ -103,6 +103,30 @@
 		<item>@string/video_original</item>
 	</string-array>
 
+	<string-array name="attachment_storage_values">
+		<item>private</item>
+		<item>shared</item>
+	</string-array>
+
+	<string-array name="attachment_storage_entries">
+		<item>@string/attachment_storage_private</item>
+		<item>@string/attachment_storage_shared</item>
+	</string-array>
+
+	<string-array name="duress_action_values">
+		<item>none</item>
+		<item>wipe</item>
+		<item>decoy</item>
+		<item>fake</item>
+	</string-array>
+
+	<string-array name="duress_action_entries">
+		<item>@string/duress_action_none</item>
+		<item>@string/duress_action_wipe</item>
+		<item>@string/duress_action_decoy</item>
+		<item>@string/duress_action_fake</item>
+	</string-array>
+
 	<string-array name="channel_discovery_entries">
 		<item>@string/jabber_network</item>
 		<item>@string/local_server</item>

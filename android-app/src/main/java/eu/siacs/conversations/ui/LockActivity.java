@@ -2,7 +2,9 @@ package eu.siacs.conversations.ui;
 
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
 import android.view.WindowManager;
+import android.view.inputmethod.EditorInfo;
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -10,6 +12,7 @@ import androidx.biometric.BiometricManager;
 import androidx.biometric.BiometricPrompt;
 import androidx.core.content.ContextCompat;
 import androidx.databinding.DataBindingUtil;
+import eu.siacs.conversations.AppSettings;
 import eu.siacs.conversations.Config;
 import eu.siacs.conversations.R;
 import eu.siacs.conversations.databinding.ActivityLockBinding;
@@ -22,6 +25,7 @@ public class LockActivity extends XmppActivity {
                     | BiometricManager.Authenticators.DEVICE_CREDENTIAL;
 
     private ActivityLockBinding binding;
+    private volatile boolean wipePending = false;
 
     @Override
     protected void onCreate(@Nullable final Bundle savedInstanceState) {
@@ -29,7 +33,6 @@ public class LockActivity extends XmppActivity {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
         this.binding = DataBindingUtil.setContentView(this, R.layout.activity_lock);
         this.binding.message.setText(getString(R.string.app_locked, getString(R.string.app_name)));
-        this.binding.unlock.setOnClickListener(v -> showPrompt());
         final var actionBar = getSupportActionBar();
         if (actionBar != null) {
             actionBar.hide();
@@ -43,7 +46,25 @@ public class LockActivity extends XmppActivity {
                                 moveTaskToBack(true);
                             }
                         });
-        showPrompt();
+        if (new AppSettings(this).getAppLockCredential().isEmpty()) {
+            this.binding.unlock.setOnClickListener(v -> showPrompt());
+            showPrompt();
+        } else {
+            // a custom PIN is configured; biometrics stay reachable via the
+            // secondary button so the PIN field remains the primary input
+            this.binding.pinLayout.setVisibility(View.VISIBLE);
+            this.binding.biometricUnlock.setVisibility(View.VISIBLE);
+            this.binding.biometricUnlock.setOnClickListener(v -> showPrompt());
+            this.binding.unlock.setOnClickListener(v -> submitCredential());
+            this.binding.pin.setOnEditorActionListener(
+                    (v, actionId, event) -> {
+                        if (actionId == EditorInfo.IME_ACTION_DONE) {
+                            submitCredential();
+                            return true;
+                        }
+                        return false;
+                    });
+        }
     }
 
     @Override
@@ -52,12 +73,58 @@ public class LockActivity extends XmppActivity {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_SECURE);
     }
 
+    private void submitCredential() {
+        final var editable = this.binding.pin.getText();
+        final String entered = editable == null ? "" : editable.toString();
+        final var appSettings = new AppSettings(this);
+        if (AppLockManager.verifyCredential(appSettings.getAppLockCredential(), entered)) {
+            AppLockManager.unlock();
+            finish();
+            return;
+        }
+        if (AppLockManager.verifyCredential(appSettings.getDuressCredential(), entered)) {
+            runDuressAction(appSettings);
+            return;
+        }
+        this.binding.pinLayout.setError(getString(R.string.wrong_pin_or_password));
+        this.binding.pin.setText("");
+    }
+
+    private void runDuressAction(final AppSettings appSettings) {
+        switch (appSettings.getDuressAction()) {
+            case "wipe" -> {
+                this.wipePending = true;
+                this.binding.pin.setEnabled(false);
+                this.binding.pinLayout.setEnabled(false);
+                this.binding.unlock.setEnabled(false);
+                if (xmppConnectionService != null) {
+                    xmppConnectionService.wipeAllUserData();
+                }
+            }
+            case "decoy" -> {
+                final var uuid = appSettings.getDuressAccount();
+                AppLockManager.activateDuress(uuid.isEmpty() ? null : uuid, false);
+                finish();
+            }
+            case "fake" -> {
+                AppLockManager.activateDuress(null, true);
+                finish();
+            }
+            default -> {
+                AppLockManager.unlock();
+                finish();
+            }
+        }
+    }
+
     private void showPrompt() {
         final var biometricManager = BiometricManager.from(this);
         final int canAuthenticate = biometricManager.canAuthenticate(AUTHENTICATORS);
         if (canAuthenticate != BiometricManager.BIOMETRIC_SUCCESS) {
             Log.d(Config.LOGTAG, "canAuthenticate()=" + canAuthenticate);
-            this.binding.message.setText(R.string.no_unlock_method_available);
+            if (this.binding.pinLayout.getVisibility() != View.VISIBLE) {
+                this.binding.message.setText(R.string.no_unlock_method_available);
+            }
             return;
         }
         final var prompt =
@@ -78,7 +145,8 @@ public class LockActivity extends XmppActivity {
                                 Log.d(
                                         Config.LOGTAG,
                                         "authentication error " + errorCode + ": " + errString);
-                                if (errorCode == BiometricPrompt.ERROR_NO_DEVICE_CREDENTIAL) {
+                                if (errorCode == BiometricPrompt.ERROR_NO_DEVICE_CREDENTIAL
+                                        && binding.pinLayout.getVisibility() != View.VISIBLE) {
                                     binding.message.setText(R.string.no_screen_lock_configured);
                                 }
                             }
@@ -95,5 +163,9 @@ public class LockActivity extends XmppActivity {
     protected void refreshUiReal() {}
 
     @Override
-    protected void onBackendConnected() {}
+    protected void onBackendConnected() {
+        if (wipePending && xmppConnectionService != null) {
+            xmppConnectionService.wipeAllUserData();
+        }
+    }
 }

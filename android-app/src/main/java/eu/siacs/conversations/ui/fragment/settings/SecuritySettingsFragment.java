@@ -4,6 +4,9 @@ import android.app.KeyguardManager;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Bundle;
+import android.text.InputType;
+import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -37,11 +40,19 @@ public class SecuritySettingsFragment extends XmppPreferenceFragment {
                 findPreference(AppSettings.AUTOMATIC_MESSAGE_DELETION);
         final SwitchPreferenceCompat appLock = findPreference(AppSettings.APP_LOCK);
         final ListPreference appLockTimeout = findPreference(AppSettings.APP_LOCK_TIMEOUT);
+        final Preference appLockCredential = findPreference(AppSettings.APP_LOCK_CREDENTIAL);
+        final Preference duressCredential = findPreference(AppSettings.DURESS_CREDENTIAL);
+        final ListPreference duressAction = findPreference(AppSettings.DURESS_ACTION);
+        final ListPreference duressAccount = findPreference(AppSettings.DURESS_ACCOUNT);
         final Preference serverConnection = findPreference(SERVER_CONNECTION);
         if (omemo == null
                 || automaticMessageDeletion == null
                 || appLock == null
                 || appLockTimeout == null
+                || appLockCredential == null
+                || duressCredential == null
+                || duressAction == null
+                || duressAccount == null
                 || serverConnection == null) {
             throw new IllegalStateException("The preference resource file is missing preferences");
         }
@@ -61,7 +72,11 @@ public class SecuritySettingsFragment extends XmppPreferenceFragment {
                     }
                     final var keyguardManager =
                             requireContext().getSystemService(KeyguardManager.class);
-                    if (keyguardManager == null || !keyguardManager.isDeviceSecure()) {
+                    final boolean deviceSecure =
+                            keyguardManager != null && keyguardManager.isDeviceSecure();
+                    final boolean hasPin =
+                            !new AppSettings(requireContext()).getAppLockCredential().isEmpty();
+                    if (!deviceSecure && !hasPin) {
                         Toast.makeText(
                                         requireContext(),
                                         R.string.app_lock_requires_screen_lock,
@@ -72,8 +87,46 @@ public class SecuritySettingsFragment extends XmppPreferenceFragment {
                     AppLockManager.unlock();
                     return true;
                 });
+        refreshCredentialSummaries();
+        duressAccount.setEnabled(
+                "decoy".equals(new AppSettings(requireContext()).getDuressAction()));
         if (QuickConversationsService.isQuicksy()) {
             serverConnection.setVisible(false);
+        }
+    }
+
+    @Override
+    public void onBackendConnected() {
+        final ListPreference duressAccount = findPreference(AppSettings.DURESS_ACCOUNT);
+        if (duressAccount == null) {
+            return;
+        }
+        final var accounts = requireService().getAccounts();
+        final var entries = new ArrayList<CharSequence>();
+        final var values = new ArrayList<CharSequence>();
+        for (final var account : accounts) {
+            entries.add(account.getJid().asBareJid().toString());
+            values.add(account.getUuid());
+        }
+        duressAccount.setEntries(entries.toArray(new CharSequence[0]));
+        duressAccount.setEntryValues(values.toArray(new CharSequence[0]));
+    }
+
+    private void refreshCredentialSummaries() {
+        final var appSettings = new AppSettings(requireContext());
+        final Preference appLockCredential = findPreference(AppSettings.APP_LOCK_CREDENTIAL);
+        final Preference duressCredential = findPreference(AppSettings.DURESS_CREDENTIAL);
+        if (appLockCredential != null) {
+            appLockCredential.setSummary(
+                    appSettings.getAppLockCredential().isEmpty()
+                            ? R.string.pin_not_set
+                            : R.string.pin_is_set);
+        }
+        if (duressCredential != null) {
+            duressCredential.setSummary(
+                    appSettings.getDuressCredential().isEmpty()
+                            ? R.string.pin_not_set
+                            : R.string.pin_is_set);
         }
     }
 
@@ -94,6 +147,13 @@ public class SecuritySettingsFragment extends XmppPreferenceFragment {
             case AppSettings.AUTOMATIC_MESSAGE_DELETION -> {
                 requireService().expireOldMessages(true);
             }
+            case AppSettings.DURESS_ACTION -> {
+                final ListPreference duressAccount = findPreference(AppSettings.DURESS_ACCOUNT);
+                if (duressAccount != null) {
+                    duressAccount.setEnabled(
+                            "decoy".equals(new AppSettings(requireContext()).getDuressAction()));
+                }
+            }
         }
     }
 
@@ -109,7 +169,80 @@ public class SecuritySettingsFragment extends XmppPreferenceFragment {
             showRemoveCertificatesDialog();
             return true;
         }
+        if (AppSettings.APP_LOCK_CREDENTIAL.equals(preference.getKey())) {
+            showCredentialDialog(false);
+            return true;
+        }
+        if (AppSettings.DURESS_CREDENTIAL.equals(preference.getKey())) {
+            showCredentialDialog(true);
+            return true;
+        }
         return super.onPreferenceTreeClick(preference);
+    }
+
+    private void showCredentialDialog(final boolean duress) {
+        final var appSettings = new AppSettings(requireContext());
+        final String existing =
+                duress ? appSettings.getDuressCredential() : appSettings.getAppLockCredential();
+        final var input = new EditText(requireContext());
+        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        input.setHint(duress ? R.string.pref_duress_pin : R.string.pref_app_lock_pin);
+        final int margin = (int) (24 * getResources().getDisplayMetrics().density);
+        final var container = new FrameLayout(requireContext());
+        final var layoutParams =
+                new FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.WRAP_CONTENT);
+        layoutParams.leftMargin = margin;
+        layoutParams.rightMargin = margin;
+        input.setLayoutParams(layoutParams);
+        container.addView(input);
+        final var builder = new MaterialAlertDialogBuilder(requireActivity());
+        builder.setTitle(duress ? R.string.pref_duress_pin : R.string.pref_app_lock_pin);
+        builder.setView(container);
+        builder.setNegativeButton(R.string.cancel, null);
+        builder.setPositiveButton(
+                R.string.save,
+                (dialog, which) -> saveCredential(duress, input.getText().toString()));
+        if (!existing.isEmpty()) {
+            builder.setNeutralButton(
+                    R.string.remove_pin,
+                    (dialog, which) -> {
+                        if (duress) {
+                            appSettings.setDuressCredential(null);
+                        } else {
+                            appSettings.setAppLockCredential(null);
+                        }
+                        refreshCredentialSummaries();
+                    });
+        }
+        builder.create().show();
+    }
+
+    private void saveCredential(final boolean duress, final String secret) {
+        if (secret == null || secret.length() < 4) {
+            Toast.makeText(requireContext(), R.string.pin_too_short, Toast.LENGTH_LONG).show();
+            return;
+        }
+        final var appSettings = new AppSettings(requireContext());
+        // the two credentials must not collide; otherwise the duress PIN would be
+        // reachable by the primary PIN and vice versa
+        final String other =
+                duress ? appSettings.getAppLockCredential() : appSettings.getDuressCredential();
+        if (AppLockManager.verifyCredential(other, secret)) {
+            Toast.makeText(requireContext(), R.string.pins_must_differ, Toast.LENGTH_LONG).show();
+            return;
+        }
+        final var hashed = AppLockManager.hashCredential(secret);
+        if (hashed == null) {
+            return;
+        }
+        if (duress) {
+            appSettings.setDuressCredential(hashed);
+        } else {
+            appSettings.setAppLockCredential(hashed);
+        }
+        refreshCredentialSummaries();
     }
 
     private void showRemoveCertificatesDialog() {

@@ -91,6 +91,7 @@ import eu.siacs.conversations.ui.util.PendingItem;
 import eu.siacs.conversations.ui.util.ScrollState;
 import eu.siacs.conversations.ui.widget.AccountPickerDialog;
 import eu.siacs.conversations.utils.AccountUtils;
+import eu.siacs.conversations.utils.AppLockManager;
 import eu.siacs.conversations.utils.CharSequences;
 import eu.siacs.conversations.utils.IrregularUnicodeDetector;
 import eu.siacs.conversations.utils.UIHelper;
@@ -775,7 +776,9 @@ public class ConversationsOverviewFragment extends XmppFragment {
     private List<Contact> suggestedContacts() {
         final var activity = getActivity();
         final var service =
-                activity instanceof XmppActivity ? ((XmppActivity) activity).xmppConnectionService : null;
+                activity instanceof XmppActivity
+                        ? ((XmppActivity) activity).xmppConnectionService
+                        : null;
         if (service == null) {
             return Collections.emptyList();
         }
@@ -925,6 +928,9 @@ public class ConversationsOverviewFragment extends XmppFragment {
         final var service = requireXmppActivity().xmppConnectionService;
         if (service != null) {
             for (final var c : service.getConversations()) {
+                if (AppLockManager.isHidden(c.getAccount())) {
+                    continue;
+                }
                 final var folder = c.getFolder();
                 if (!Strings.isNullOrEmpty(folder)) {
                     folderNames.add(folder);

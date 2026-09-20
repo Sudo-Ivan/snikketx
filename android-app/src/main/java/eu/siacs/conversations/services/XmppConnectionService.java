@@ -89,6 +89,7 @@ import eu.siacs.conversations.ui.interfaces.OnAvatarPublication;
 import eu.siacs.conversations.ui.interfaces.OnMediaLoaded;
 import eu.siacs.conversations.ui.interfaces.OnSearchResultsAvailable;
 import eu.siacs.conversations.utils.AccountUtils;
+import eu.siacs.conversations.utils.AppLockManager;
 import eu.siacs.conversations.utils.Compatibility;
 import eu.siacs.conversations.utils.ConversationsFileObserver;
 import eu.siacs.conversations.utils.CryptoHelper;
@@ -2055,63 +2056,73 @@ public class XmppConnectionService extends Service {
                     "finished restoring conversations in " + diffConversationsRestore + "ms");
             Runnable runnable =
                     () -> {
-                        if (DatabaseBackend.requiresMessageIndexRebuild()) {
-                            DatabaseBackend.getInstance(this).rebuildMessagesIndex();
-                        }
-                        final var deletion = appSettings.getAutomaticMessageDeletionInstant();
-                        mLastExpiryRun.set(SystemClock.elapsedRealtime());
-                        if (deletion.isPresent()) {
-                            Log.d(
-                                    Config.LOGTAG,
-                                    "deleting messages that are older than " + deletion.get());
-                            final var files = databaseBackend.expireOldMessages(deletion.get());
-                            FILE_ATTACHMENT_EXECUTOR.execute(() -> deleteFiles(files));
-                        }
-                        Log.d(Config.LOGTAG, "restoring roster...");
-                        for (final Account account : accounts) {
-                            account.getXmppConnection().getManager(RosterManager.class).restore();
-                        }
-                        // avatars may have been requested (and their placeholders
-                        // cached) while the roster was not yet restored
-                        getAvatarService().evictAll();
-                        getBitmapCache().evictAll();
-                        loadPhoneContacts();
-                        warmAvatars();
-                        Log.d(Config.LOGTAG, "restoring messages...");
-                        final long startMessageRestore = SystemClock.elapsedRealtime();
-                        final Conversation quickLoad = QuickLoader.get(this.conversations);
-                        if (quickLoad != null) {
-                            restoreMessages(quickLoad);
-                            updateConversationUi();
-                            final long diffMessageRestore =
-                                    SystemClock.elapsedRealtime() - startMessageRestore;
-                            Log.d(
-                                    Config.LOGTAG,
-                                    "quickly restored "
-                                            + quickLoad.getName()
-                                            + " after "
-                                            + diffMessageRestore
-                                            + "ms");
-                        }
-                        // restore remaining conversations. re-check QuickLoader on every
-                        // iteration so a conversation the user just opened gets restored
-                        // next instead of waiting for the entire backlog
-                        final var pending = new ArrayList<>(this.conversations);
-                        pending.remove(quickLoad);
-                        while (!pending.isEmpty()) {
-                            final Conversation requested = QuickLoader.get(pending);
-                            final Conversation next =
-                                    requested == null ? pending.get(0) : requested;
-                            restoreMessages(next);
-                            pending.remove(next);
-                            if (requested != null) {
-                                // the conversation is likely open right now. refresh the UI
-                                // immediately rather than at the end of the entire restore
-                                updateConversationUi();
+                        // the latch must count down even if restoring throws. otherwise
+                        // the connection waits forever in bind and never fetches history
+                        long startMessageRestore = SystemClock.elapsedRealtime();
+                        try {
+                            if (DatabaseBackend.requiresMessageIndexRebuild()) {
+                                DatabaseBackend.getInstance(this).rebuildMessagesIndex();
                             }
+                            final var deletion = appSettings.getAutomaticMessageDeletionInstant();
+                            mLastExpiryRun.set(SystemClock.elapsedRealtime());
+                            if (deletion.isPresent()) {
+                                Log.d(
+                                        Config.LOGTAG,
+                                        "deleting messages that are older than " + deletion.get());
+                                final var files = databaseBackend.expireOldMessages(deletion.get());
+                                FILE_ATTACHMENT_EXECUTOR.execute(() -> deleteFiles(files));
+                            }
+                            Log.d(Config.LOGTAG, "restoring roster...");
+                            for (final Account account : accounts) {
+                                account.getXmppConnection()
+                                        .getManager(RosterManager.class)
+                                        .restore();
+                            }
+                            // avatars may have been requested (and their placeholders
+                            // cached) while the roster was not yet restored
+                            getAvatarService().evictAll();
+                            getBitmapCache().evictAll();
+                            loadPhoneContacts();
+                            warmAvatars();
+                            Log.d(Config.LOGTAG, "restoring messages...");
+                            startMessageRestore = SystemClock.elapsedRealtime();
+                            final Conversation quickLoad = QuickLoader.get(this.conversations);
+                            if (quickLoad != null) {
+                                restoreMessages(quickLoad);
+                                updateConversationUi();
+                                final long diffMessageRestore =
+                                        SystemClock.elapsedRealtime() - startMessageRestore;
+                                Log.d(
+                                        Config.LOGTAG,
+                                        "quickly restored "
+                                                + quickLoad.getName()
+                                                + " after "
+                                                + diffMessageRestore
+                                                + "ms");
+                            }
+                            // restore remaining conversations. re-check QuickLoader on every
+                            // iteration so a conversation the user just opened gets restored
+                            // next instead of waiting for the entire backlog
+                            final var pending = new ArrayList<>(this.conversations);
+                            pending.remove(quickLoad);
+                            while (!pending.isEmpty()) {
+                                final Conversation requested = QuickLoader.get(pending);
+                                final Conversation next =
+                                        requested == null ? pending.get(0) : requested;
+                                restoreMessages(next);
+                                pending.remove(next);
+                                if (requested != null) {
+                                    // the conversation is likely open right now. refresh the UI
+                                    // immediately rather than at the end of the entire restore
+                                    updateConversationUi();
+                                }
+                            }
+                            mNotificationService.finishBacklog();
+                        } catch (final Exception e) {
+                            Log.e(Config.LOGTAG, "unable to restore from database", e);
+                        } finally {
+                            restoredFromDatabaseLatch.countDown();
                         }
-                        mNotificationService.finishBacklog();
-                        restoredFromDatabaseLatch.countDown();
                         // flush scheduled messages that became overdue while the
                         // service was not running and arm the next wakeup
                         scheduleNextScheduledMessageSweep();
@@ -2292,10 +2303,11 @@ public class XmppConnectionService extends Service {
             }
         }
         list.clear();
+        final var source = visibleConversations();
         if (includeNoFileUpload) {
-            list.addAll(getConversations());
+            list.addAll(source);
         } else {
-            for (Conversation conversation : getConversations()) {
+            for (Conversation conversation : source) {
                 if (conversation.getMode() == Conversation.MODE_SINGLE
                         || (conversation.getAccount().httpUploadAvailable()
                                 && conversation.getMucOptions().participating())) {
@@ -2385,7 +2397,191 @@ public class XmppConnectionService extends Service {
     }
 
     public List<Account> getAccounts() {
+        if (AppLockManager.isDuressActive()) {
+            return getDuressAccounts();
+        }
         return this.accounts;
+    }
+
+    private List<Account> getDuressAccounts() {
+        if (AppLockManager.isDuressFake()) {
+            return Collections.singletonList(getOrCreateDuressAccount());
+        }
+        final var uuid = AppLockManager.getDuressAccountUuid();
+        if (uuid != null && this.accounts != null) {
+            for (final var account : this.accounts) {
+                if (uuid.equals(account.getUuid())) {
+                    return Collections.singletonList(account);
+                }
+            }
+        }
+        return Collections.emptyList();
+    }
+
+    // deletes the database, all app private files and every preference. used by the
+    // duress PIN 'wipe' action. the process exits afterwards so no in-memory state
+    // survives
+    public void wipeAllUserData() {
+        new Thread(
+                        () -> {
+                            try {
+                                final var notificationManager =
+                                        getSystemService(NotificationManager.class);
+                                if (notificationManager != null) {
+                                    notificationManager.cancelAll();
+                                }
+                            } catch (final Exception e) {
+                                // keep wiping even if notifications can not be cancelled
+                            }
+                            try {
+                                this.databaseBackend.close();
+                            } catch (final Exception e) {
+                                // database may already be closed
+                            }
+                            getApplicationContext().deleteDatabase(DatabaseBackend.DATABASE_NAME);
+                            deleteRecursively(getFilesDir());
+                            deleteRecursively(getCacheDir());
+                            getPreferences().edit().clear().commit();
+                            android.os.Process.killProcess(android.os.Process.myPid());
+                            System.exit(0);
+                        },
+                        "duress-wipe")
+                .start();
+    }
+
+    private static void deleteRecursively(final File file) {
+        if (file == null || !file.exists()) {
+            return;
+        }
+        if (file.isDirectory()) {
+            final var children = file.listFiles();
+            if (children != null) {
+                for (final var child : children) {
+                    deleteRecursively(child);
+                }
+            }
+        }
+        if (!file.delete()) {
+            Log.d(Config.LOGTAG, "unable to delete " + file.getAbsolutePath());
+        }
+    }
+
+    private Account duressFakeAccount;
+    private List<Conversation> duressFakeConversations;
+
+    private synchronized Account getOrCreateDuressAccount() {
+        if (this.duressFakeAccount == null) {
+            final var domain = duressDomain();
+            final var account = new Account(Jid.of("jordan@" + domain), "");
+            // a real (never connected) XmppConnection keeps the managers the UI
+            // asks for from being null
+            account.setXmppConnection(new XmppConnection(account, this));
+            this.duressFakeAccount = account;
+        }
+        return this.duressFakeAccount;
+    }
+
+    private String duressDomain() {
+        if (this.accounts != null && !this.accounts.isEmpty()) {
+            final var domain = this.accounts.get(0).getJid().getDomain();
+            if (domain != null) {
+                return domain.toString();
+            }
+        }
+        if (Config.MAGIC_CREATE_DOMAIN != null) {
+            return Config.MAGIC_CREATE_DOMAIN;
+        }
+        return "example.com";
+    }
+
+    private synchronized List<Conversation> getOrCreateDuressConversations() {
+        if (this.duressFakeConversations == null) {
+            final var account = getOrCreateDuressAccount();
+            final var domain = account.getJid().getDomain();
+            final var conversations = new ArrayList<Conversation>();
+            conversations.add(
+                    fakeConversation(
+                            account,
+                            "Sam",
+                            Jid.of("sam@" + domain),
+                            new String[][] {
+                                {"in", "Are you still coming on Saturday?"},
+                                {"out", "Yes, I will be there around six"},
+                                {"in", "Perfect. See you then"}
+                            }));
+            conversations.add(
+                    fakeConversation(
+                            account,
+                            "Mom",
+                            Jid.of("mom@" + domain),
+                            new String[][] {
+                                {"in", "Call me when you get a chance"},
+                                {"out", "Will do, busy this afternoon"},
+                                {"in", "No rush, have a good day"}
+                            }));
+            conversations.add(
+                    fakeConversation(
+                            account,
+                            "Work",
+                            Jid.of("office@" + domain),
+                            new String[][] {
+                                {"in", "Meeting moved to 3pm tomorrow"},
+                                {"out", "Thanks for the heads up"},
+                                {"out", "I will send the notes after"}
+                            }));
+            this.duressFakeConversations = conversations;
+        }
+        return this.duressFakeConversations;
+    }
+
+    private static Conversation fakeConversation(
+            final Account account,
+            final String name,
+            final Jid counterpart,
+            final String[][] script) {
+        final var conversation =
+                new Conversation(name, account, counterpart, Conversation.MODE_SINGLE);
+        conversation.setHasMessagesLeftOnServer(false);
+        final var now = System.currentTimeMillis();
+        for (int i = 0; i < script.length; ++i) {
+            final var row = script[i];
+            final var received = "in".equals(row[0]);
+            final var message =
+                    new Message(
+                            conversation,
+                            row[1],
+                            Message.ENCRYPTION_NONE,
+                            received ? Message.STATUS_RECEIVED : Message.STATUS_SEND_DISPLAYED);
+            // spread the scripted messages out so the newest sits at the bottom
+            message.setTime(now - (script.length - i) * 3_600_000L - i * 120_000L);
+            message.markRead();
+            conversation.add(message);
+        }
+        return conversation;
+    }
+
+    // the conversations visible in the overview. in a duress session this is either
+    // the decoy account or the fabricated data set
+    private List<Conversation> visibleConversations() {
+        if (!AppLockManager.isDuressActive()) {
+            return this.conversations;
+        }
+        if (AppLockManager.isDuressFake()) {
+            return getOrCreateDuressConversations();
+        }
+        final var uuid = AppLockManager.getDuressAccountUuid();
+        if (uuid == null) {
+            return Collections.emptyList();
+        }
+        final var filtered = new ArrayList<Conversation>();
+        for (final var conversation : this.conversations) {
+            final var account = conversation.getAccount();
+            if (uuid.equals(conversation.getAccountUuid())
+                    || (account != null && uuid.equals(account.getUuid()))) {
+                filtered.add(conversation);
+            }
+        }
+        return filtered;
     }
 
     public Conversation find(final Contact contact) {

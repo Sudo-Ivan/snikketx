@@ -64,6 +64,11 @@ public final class SentryHelper {
         SentryAndroid.init(
                 appContext,
                 options -> {
+                    // a user supplied DSN overrides the one declared in the manifest
+                    final String customDsn = appSettings.getCrashReportDsn();
+                    if (!customDsn.isEmpty()) {
+                        options.setDsn(customDsn);
+                    }
                     final String dsn = options.getDsn();
                     // a disabled SDK installs no integrations and captures nothing; guarding on
                     // an empty or missing dsn additionally avoids the SDK throwing on init
@@ -94,13 +99,18 @@ public final class SentryHelper {
         }
         preferenceListener =
                 (sharedPreferences, key) -> {
-                    if (!AppSettings.SEND_CRASH_REPORTS.equals(key)) {
-                        return;
-                    }
-                    if (new AppSettings(context).isSendCrashReports()) {
-                        init(context);
-                    } else {
+                    if (AppSettings.SEND_CRASH_REPORTS.equals(key)) {
+                        if (new AppSettings(context).isSendCrashReports()) {
+                            init(context);
+                        } else {
+                            Sentry.close();
+                        }
+                    } else if (AppSettings.CRASH_REPORT_DSN.equals(key)) {
+                        // a changed DSN only takes effect after re-initialising the SDK
                         Sentry.close();
+                        if (new AppSettings(context).isSendCrashReports()) {
+                            init(context);
+                        }
                     }
                 };
         PreferenceManager.getDefaultSharedPreferences(context)

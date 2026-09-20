@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
-    <SwitchPreferenceCompat
-        android:defaultValue="@bool/use_shared_storage"
+    <ListPreference
+        android:defaultValue="@string/attachment_storage"
+        android:entries="@array/attachment_storage_entries"
+        android:entryValues="@array/attachment_storage_values"
         android:icon="@drawable/ic_save_24dp"
-        android:key="use_shared_storage"
-        android:summary="@string/pref_save_to_gallery_summary"
-        android:title="@string/pref_save_to_gallery" />
+        android:key="attachment_storage"
+        android:title="@string/pref_attachment_storage"
+        app:useSimpleSummaryProvider="true" />
     <PreferenceCategory android:title="@string/pref_category_receiving">
         <ListPreference
             android:defaultValue="@integer/auto_accept_filesize"

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
     <PreferenceCategory android:title="@string/pref_category_e2ee">
         <ListPreference
             android:defaultValue="@string/omemo_setting_default"
@@ -58,6 +59,27 @@
             android:icon="@drawable/ic_screen_lock_portrait_24dp"
             android:key="app_lock_timeout"
             android:title="@string/pref_app_lock_timeout" />
+        <Preference
+            android:icon="@drawable/ic_lock_24dp"
+            android:key="app_lock_credential"
+            android:title="@string/pref_app_lock_pin" />
+        <Preference
+            android:icon="@drawable/ic_lock_open_outline_24dp"
+            android:key="duress_credential"
+            android:title="@string/pref_duress_pin" />
+        <ListPreference
+            android:defaultValue="none"
+            android:entries="@array/duress_action_entries"
+            android:entryValues="@array/duress_action_values"
+            android:icon="@drawable/ic_domino_mask_24dp"
+            android:key="duress_action"
+            android:title="@string/pref_duress_action"
+            app:useSimpleSummaryProvider="true" />
+        <ListPreference
+            android:icon="@drawable/ic_person_24dp"
+            android:key="duress_account"
+            android:title="@string/pref_duress_account"
+            app:useSimpleSummaryProvider="true" />
         <ListPreference
             android:defaultValue="@integer/automatic_message_deletion"
             android:icon="@drawable/ic_auto_delete_24dp"

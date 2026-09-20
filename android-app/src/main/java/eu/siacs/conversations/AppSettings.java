@@ -65,6 +65,7 @@ public class AppSettings {
     public static final String USE_RELAYS = "use_relays";
     public static final String CHANNEL_DISCOVERY_METHOD = "channel_discovery_method";
     public static final String SEND_CRASH_REPORTS = "send_crash_reports";
+    public static final String CRASH_REPORT_DSN = "crash_report_dsn";
     public static final String COLORFUL_CHAT_BUBBLES = "use_green_background";
     public static final String LARGE_FONT = "large_font";
     public static final String SHOW_AVATARS_11 = "show_avatars";
@@ -77,6 +78,7 @@ public class AppSettings {
     public static final String VIDEO_COMPRESSION = "video_compression";
     public static final String AUTO_SEND_RECORDING = "auto_send_recording";
     public static final String USE_SHARED_STORAGE = "use_shared_storage";
+    public static final String ATTACHMENT_STORAGE = "attachment_storage";
     public static final String QUICK_ACTION = "quick_action_button";
     public static final String CHAT_WALLPAPER = "chat_wallpaper";
     public static final String VOICE_PLAYBACK_SPEED = "voice_playback_speed";
@@ -84,6 +86,10 @@ public class AppSettings {
     public static final String SHOW_LINK_PREVIEWS = "show_link_previews";
     public static final String APP_LOCK = "app_lock";
     public static final String APP_LOCK_TIMEOUT = "app_lock_timeout";
+    public static final String APP_LOCK_CREDENTIAL = "app_lock_credential";
+    public static final String DURESS_CREDENTIAL = "duress_credential";
+    public static final String DURESS_ACTION = "duress_action";
+    public static final String DURESS_ACCOUNT = "duress_account";
 
     private static final String ACCEPT_INVITES_FROM_STRANGERS = "accept_invites_from_strangers";
     private static final String NOTIFICATIONS_FROM_STRANGERS = "notifications_from_strangers";
@@ -220,7 +226,29 @@ public class AppSettings {
     }
 
     public boolean isUseSharedStorage() {
-        return getBooleanPreference(USE_SHARED_STORAGE, R.bool.use_shared_storage);
+        final SharedPreferences sharedPreferences =
+                PreferenceManager.getDefaultSharedPreferences(context);
+        if (!sharedPreferences.contains(ATTACHMENT_STORAGE)
+                && sharedPreferences.contains(USE_SHARED_STORAGE)) {
+            // migrate the legacy boolean once so the new attachment_storage
+            // preference reflects the previously chosen storage location
+            sharedPreferences
+                    .edit()
+                    .putString(
+                            ATTACHMENT_STORAGE,
+                            sharedPreferences.getBoolean(
+                                            USE_SHARED_STORAGE,
+                                            context.getResources()
+                                                    .getBoolean(R.bool.use_shared_storage))
+                                    ? "shared"
+                                    : "private")
+                    .apply();
+        }
+        return "shared"
+                .equals(
+                        sharedPreferences.getString(
+                                ATTACHMENT_STORAGE,
+                                context.getString(R.string.attachment_storage)));
     }
 
     public boolean isUseTor() {
@@ -284,6 +312,53 @@ public class AppSettings {
 
     public long getAppLockTimeout() {
         return getLongPreference(APP_LOCK_TIMEOUT, R.integer.app_lock_timeout);
+    }
+
+    // stored as salt:hash by AppLockManager.hashCredential; empty means no PIN is set
+    public String getAppLockCredential() {
+        final SharedPreferences sharedPreferences =
+                PreferenceManager.getDefaultSharedPreferences(context);
+        return Strings.nullToEmpty(sharedPreferences.getString(APP_LOCK_CREDENTIAL, ""));
+    }
+
+    public void setAppLockCredential(final String credential) {
+        final SharedPreferences sharedPreferences =
+                PreferenceManager.getDefaultSharedPreferences(context);
+        if (Strings.isNullOrEmpty(credential)) {
+            sharedPreferences.edit().remove(APP_LOCK_CREDENTIAL).apply();
+        } else {
+            sharedPreferences.edit().putString(APP_LOCK_CREDENTIAL, credential).apply();
+        }
+    }
+
+    public String getDuressCredential() {
+        final SharedPreferences sharedPreferences =
+                PreferenceManager.getDefaultSharedPreferences(context);
+        return Strings.nullToEmpty(sharedPreferences.getString(DURESS_CREDENTIAL, ""));
+    }
+
+    public void setDuressCredential(final String credential) {
+        final SharedPreferences sharedPreferences =
+                PreferenceManager.getDefaultSharedPreferences(context);
+        if (Strings.isNullOrEmpty(credential)) {
+            sharedPreferences.edit().remove(DURESS_CREDENTIAL).apply();
+        } else {
+            sharedPreferences.edit().putString(DURESS_CREDENTIAL, credential).apply();
+        }
+    }
+
+    // one of none, wipe, decoy, fake
+    public String getDuressAction() {
+        final SharedPreferences sharedPreferences =
+                PreferenceManager.getDefaultSharedPreferences(context);
+        return Strings.nullToEmpty(sharedPreferences.getString(DURESS_ACTION, "none"));
+    }
+
+    // uuid of the account that stays visible when the decoy duress action runs
+    public String getDuressAccount() {
+        final SharedPreferences sharedPreferences =
+                PreferenceManager.getDefaultSharedPreferences(context);
+        return Strings.nullToEmpty(sharedPreferences.getString(DURESS_ACCOUNT, ""));
     }
 
     public int getDesiredNightMode() {
@@ -379,6 +454,14 @@ public class AppSettings {
 
     public boolean isSendCrashReports() {
         return getBooleanPreference(SEND_CRASH_REPORTS, R.bool.send_crash_reports);
+    }
+
+    // a user supplied DSN for the crash reporting backend. empty means the DSN
+    // compiled into the manifest is used
+    public String getCrashReportDsn() {
+        final SharedPreferences sharedPreferences =
+                PreferenceManager.getDefaultSharedPreferences(context);
+        return Strings.nullToEmpty(sharedPreferences.getString(CRASH_REPORT_DSN, "")).trim();
     }
 
     public boolean isDisplayEnterKey() {

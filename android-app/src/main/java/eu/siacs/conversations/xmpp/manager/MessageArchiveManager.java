@@ -50,9 +50,18 @@ public class MessageArchiveManager extends AbstractManager {
     }
 
     public void catchup() {
+        final ArrayList<Query> pendingQueries;
         synchronized (this.queries) {
-            // TODO there was no 'kill' before but maybe we need one?
-            this.queries.clear();
+            pendingQueries = new ArrayList<>(this.queries);
+        }
+        // kill in-flight queries properly instead of just dropping them. this fires the
+        // UI update in finalizeQuery so the 'fetching history' state can not get stuck
+        for (final Query query : pendingQueries) {
+            try {
+                this.kill(query);
+            } catch (final IllegalStateException e) {
+                // query finished between snapshot and kill. nothing left to do
+            }
         }
         final var mamReferenceByMessage =
                 MamReference.max(
@@ -139,44 +148,50 @@ public class MessageArchiveManager extends AbstractManager {
 
     public Query query(
             Conversation conversation, MamReference start, long end, boolean allowCatchup) {
-        synchronized (this.queries) {
-            final var deletion =
-                    new AppSettings(mXmppConnectionService).getAutomaticMessageDeletionInstant();
-            final Query query;
+        if (end != 0 && start.greaterThan(end)) {
+            return null;
+        }
+        final var deletion =
+                new AppSettings(mXmppConnectionService).getAutomaticMessageDeletionInstant();
+        final Query query;
+        Query reverseCatchup = null;
 
-            final MamReference startActual;
-            if (deletion.isPresent()) {
-                startActual = MamReference.max(start, deletion.get().toEpochMilli());
-            } else {
-                startActual = start;
-            }
-            if (start.timestamp() == 0) {
-                query = new Query(conversation, startActual, end, false);
-                query.reference = conversation.getFirstMamReference();
-            } else {
-                if (allowCatchup) {
-                    MamReference maxCatchup =
-                            MamReference.max(
-                                    startActual,
-                                    System.currentTimeMillis() - Config.MAM_MAX_CATCHUP);
-                    if (maxCatchup.greaterThan(startActual)) {
-                        Query reverseCatchup =
-                                new Query(conversation, startActual, maxCatchup.timestamp(), false);
-                        this.queries.add(reverseCatchup);
-                        this.execute(reverseCatchup);
-                    }
-                    query = new Query(conversation, maxCatchup, end, true);
-                } else {
-                    query = new Query(conversation, startActual, end, false);
+        final MamReference startActual;
+        if (deletion.isPresent()) {
+            startActual = MamReference.max(start, deletion.get().toEpochMilli());
+        } else {
+            startActual = start;
+        }
+        if (start.timestamp() == 0) {
+            query = new Query(conversation, startActual, end, false);
+            query.reference = conversation.getFirstMamReference();
+        } else {
+            if (allowCatchup) {
+                MamReference maxCatchup =
+                        MamReference.max(
+                                startActual, System.currentTimeMillis() - Config.MAM_MAX_CATCHUP);
+                if (maxCatchup.greaterThan(startActual)) {
+                    reverseCatchup =
+                            new Query(conversation, startActual, maxCatchup.timestamp(), false);
                 }
+                query = new Query(conversation, maxCatchup, end, true);
+            } else {
+                query = new Query(conversation, startActual, end, false);
             }
-            if (end != 0 && start.greaterThan(end)) {
-                return null;
+        }
+        synchronized (this.queries) {
+            if (reverseCatchup != null) {
+                this.queries.add(reverseCatchup);
             }
             this.queries.add(query);
-            this.execute(query);
-            return query;
         }
+        // execute outside the queries lock. sending the IQ synchronizes on the
+        // connection and must not block other threads inspecting the query set
+        if (reverseCatchup != null) {
+            this.execute(reverseCatchup);
+        }
+        this.execute(query);
+        return query;
     }
 
     private ListenableFuture<Fin> execute(

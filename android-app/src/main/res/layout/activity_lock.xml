@@ -23,12 +23,37 @@
             android:gravity="center_horizontal"
             android:textAppearance="?textAppearanceTitleLarge" />
 
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/pin_layout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:hint="@string/enter_pin_or_password"
+            android:visibility="gone">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/pin"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:imeOptions="actionDone"
+                android:inputType="textPassword" />
+        </com.google.android.material.textfield.TextInputLayout>
+
         <com.google.android.material.button.MaterialButton
             android:id="@+id/unlock"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
             android:text="@string/unlock" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/biometric_unlock"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/use_device_unlock"
+            android:visibility="gone" />
 
     </LinearLayout>
 </layout>
