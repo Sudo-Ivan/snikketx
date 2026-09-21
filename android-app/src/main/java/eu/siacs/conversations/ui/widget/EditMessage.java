@@ -4,6 +4,7 @@ import android.content.Context;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.text.Editable;
 import android.text.InputFilter;
 import android.text.InputType;
@@ -29,7 +30,9 @@ public class EditMessage extends AppCompatEditText {
             (source, start, end, dest, dstart, dend) ->
                     source instanceof Spanned ? source.toString() : source;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
-    protected Handler mTypingHandler = new Handler();
+    // bound to the main looper so this view can also be constructed on a pre-inflate
+    // thread
+    protected Handler mTypingHandler = new Handler(Looper.getMainLooper());
     protected KeyboardListener keyboardListener;
     private OnCommitContentListener mCommitContentListener = null;
     private String[] mimeTypes = null;

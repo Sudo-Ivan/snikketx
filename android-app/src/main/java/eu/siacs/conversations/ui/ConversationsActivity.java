@@ -44,6 +44,8 @@ import android.os.Bundle;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.KeyEvent;
+import android.view.LayoutInflater;
+import android.view.View;
 import android.widget.Toast;
 import androidx.annotation.IdRes;
 import androidx.annotation.NonNull;
@@ -76,6 +78,9 @@ import eu.siacs.conversations.utils.UpdateChecker;
 import eu.siacs.conversations.xmpp.OnUpdateBlocklist;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicReference;
 import org.openintents.openpgp.util.OpenPgpApi;
 
 public class ConversationsActivity extends QrCodeProcessingActivity
@@ -112,10 +117,43 @@ public class ConversationsActivity extends QrCodeProcessingActivity
     private static final @IdRes int[] FRAGMENT_ID_NOTIFICATION_ORDER = {
         R.id.secondary_fragment, R.id.main_fragment
     };
+    // pre-inflates the heavy conversation layout off the UI thread so opening a chat
+    // does not stall on view construction
+    private static final Executor VIEW_PREINFLATER = Executors.newSingleThreadExecutor();
+
     private final PendingItem<Intent> pendingViewIntent = new PendingItem<>();
     private final PendingItem<ActivityResult> postponedActivityResult = new PendingItem<>();
+    private final AtomicReference<View> preinflatedConversationView = new AtomicReference<>();
     private ActivityConversationsBinding binding;
+    private LayoutInflater conversationViewInflater;
     private boolean mActivityPaused = true;
+
+    @Nullable
+    public View takePreinflatedConversationView() {
+        final View view = preinflatedConversationView.getAndSet(null);
+        scheduleConversationViewPreinflate();
+        return view;
+    }
+
+    private void scheduleConversationViewPreinflate() {
+        if (preinflatedConversationView.get() != null || isFinishing()) {
+            return;
+        }
+        final var inflater = this.conversationViewInflater;
+        if (inflater == null) {
+            return;
+        }
+        VIEW_PREINFLATER.execute(
+                () -> {
+                    try {
+                        final var view =
+                                inflater.inflate(R.layout.fragment_conversation, null, false);
+                        preinflatedConversationView.compareAndSet(null, view);
+                    } catch (final Throwable e) {
+                        Log.d(Config.LOGTAG, "could not pre-inflate conversation view", e);
+                    }
+                });
+    }
 
     private static boolean isViewOrShareIntent(Intent i) {
         Log.d(Config.LOGTAG, "action: " + (i == null ? null : i.getAction()));
@@ -353,6 +391,8 @@ public class ConversationsActivity extends QrCodeProcessingActivity
         super.onCreate(savedInstanceState);
         OmemoSetting.load(this);
         this.binding = DataBindingUtil.setContentView(this, R.layout.activity_conversations);
+        this.conversationViewInflater = getLayoutInflater().cloneInContext(this);
+        scheduleConversationViewPreinflate();
         Activities.setStatusAndNavigationBarColors(this, binding.getRoot());
         this.getSupportFragmentManager()
                 .addOnBackStackChangedListener(this::showDialogsIfMainIsOverview);
@@ -524,6 +564,13 @@ public class ConversationsActivity extends QrCodeProcessingActivity
     public void onResume() {
         super.onResume();
         this.mActivityPaused = false;
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        preinflatedConversationView.set(null);
+        conversationViewInflater = null;
     }
 
     private void initializeFragments() {

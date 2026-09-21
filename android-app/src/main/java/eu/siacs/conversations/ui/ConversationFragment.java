@@ -201,7 +201,10 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class ConversationFragment extends XmppFragment
         implements EditMessage.KeyboardListener,
@@ -288,7 +291,12 @@ public class ConversationFragment extends XmppFragment
     private static final String STATE_LAST_MESSAGE_UUID = "state_last_message_uuid";
     private static final String STATE_ATTACHMENT_CHOICE_SHOWING = "state_attachment_choice_showing";
 
+    // prepares the display list (message copy, date separators, status rows) off the UI
+    // thread. serial so a stale refresh never overtakes a newer one
+    private static final Executor MESSAGE_LIST_PREPARER = Executors.newSingleThreadExecutor();
+
     private final List<Message> messageList = new ArrayList<>();
+    private final AtomicInteger refreshGeneration = new AtomicInteger();
     private final PendingItem<ActivityResult> postponedActivityResult = new PendingItem<>();
     private final PendingItem<String> pendingConversationsUuid = new PendingItem<>();
     private final PendingItem<ArrayList<Attachment>> pendingMediaPreviews = new PendingItem<>();
@@ -452,14 +460,32 @@ public class ConversationFragment extends XmppFragment
         final String uuid = message != null ? message.getUuid() : null;
         final View v = binding.messagesView.getChildAt(childPos);
         final int pxOffset = (v == null) ? 0 : v.getTop();
-        this.conversation.populateWithMessages(this.messageList);
-        try {
-            updateStatusMessages();
-        } catch (final IllegalStateException e) {
-            Log.d(Config.LOGTAG, "could not update status messages");
+        MESSAGE_LIST_PREPARER.execute(
+                () -> {
+                    final var prepared = prepareDisplayList(conversation);
+                    runOnUiThreadQuiet(
+                            () ->
+                                    applyPreparedMessagesAfterLoadMore(
+                                            prepared, conversation, uuid, pxOffset));
+                });
+    }
+
+    private void applyPreparedMessagesAfterLoadMore(
+            final List<Message> prepared,
+            final Conversation conversation,
+            final String uuid,
+            final int pxOffset) {
+        if (this.binding == null || this.conversation != conversation) {
+            conversation.messagesLoaded.set(true);
+            return;
         }
-        messageListAdapter.notifyDataSetChanged();
-        int pos = Math.max(getIndexOf(uuid, messageList), 0);
+        final int pos;
+        synchronized (this.messageList) {
+            this.messageList.clear();
+            this.messageList.addAll(prepared);
+            this.messageListAdapter.notifyDataSetChanged();
+            pos = Math.max(getIndexOf(uuid, messageList), 0);
+        }
         binding.messagesView.setSelectionFromTop(pos, pxOffset);
         if (messageLoaderToast != null) {
             messageLoaderToast.cancel();
@@ -1477,8 +1503,14 @@ public class ConversationFragment extends XmppFragment
             @NonNull final LayoutInflater inflater,
             final ViewGroup container,
             final Bundle savedInstanceState) {
-        this.binding =
-                DataBindingUtil.inflate(inflater, R.layout.fragment_conversation, container, false);
+        final View preinflated =
+                ((ConversationsActivity) requireActivity()).takePreinflatedConversationView();
+        this.binding = preinflated == null ? null : DataBindingUtil.bind(preinflated);
+        if (this.binding == null) {
+            this.binding =
+                    DataBindingUtil.inflate(
+                            inflater, R.layout.fragment_conversation, container, false);
+        }
         final var viewIdBuilder = new ImmutableList.Builder<Integer>();
         final var showContactHideRecording =
                 QuickConversationsService.isContactListIntegration(requireContext())
@@ -3576,30 +3608,35 @@ public class ConversationFragment extends XmppFragment
         this.binding.textInput.refreshIme(this.inputSettings);
         setTextInputColors();
         applyWallpaper();
-        refresh(false);
+        if (hasExtras || scrolledToBottomAndNoPending) {
+            resetUnreadMessagesCount();
+            refresh(
+                    false,
+                    () -> {
+                        Log.d(Config.LOGTAG, "jump to first unread message");
+                        final Message first = conversation.getFirstUnreadMessage();
+                        final int bottom;
+                        final int pos;
+                        final boolean jumpToBottom;
+                        synchronized (this.messageList) {
+                            bottom = Math.max(0, this.messageList.size() - 1);
+                            if (first == null) {
+                                pos = bottom;
+                                jumpToBottom = true;
+                            } else {
+                                int i = getIndexOf(first.getUuid(), this.messageList);
+                                pos = i < 0 ? bottom : i;
+                                jumpToBottom = false;
+                            }
+                        }
+                        setSelection(pos, jumpToBottom);
+                    });
+        } else {
+            refresh(false);
+        }
         this.binding.toolbar.invalidateMenu();
         this.conversation.messagesLoaded.set(true);
         Log.d(Config.LOGTAG, "scrolledToBottomAndNoPending=" + scrolledToBottomAndNoPending);
-
-        if (hasExtras || scrolledToBottomAndNoPending) {
-            resetUnreadMessagesCount();
-            synchronized (this.messageList) {
-                Log.d(Config.LOGTAG, "jump to first unread message");
-                final Message first = conversation.getFirstUnreadMessage();
-                final int bottom = Math.max(0, this.messageList.size() - 1);
-                final int pos;
-                final boolean jumpToBottom;
-                if (first == null) {
-                    pos = bottom;
-                    jumpToBottom = true;
-                } else {
-                    int i = getIndexOf(first.getUuid(), this.messageList);
-                    pos = i < 0 ? bottom : i;
-                    jumpToBottom = false;
-                }
-                setSelection(pos, jumpToBottom);
-            }
-        }
 
         this.binding.messagesView.post(this::fireReadEvent);
         // TODO if we only do this when this fragment is running on main it won't *bing* in tablet
@@ -3949,28 +3986,81 @@ public class ConversationFragment extends XmppFragment
         this.refresh(true);
     }
 
-    private void refresh(boolean notifyConversationRead) {
+    private void refresh(final boolean notifyConversationRead) {
+        refresh(notifyConversationRead, null);
+    }
+
+    private void refresh(final boolean notifyConversationRead, final Runnable postApply) {
+        final Conversation conversation = this.conversation;
+        if (conversation == null) {
+            return;
+        }
+        final int generation = refreshGeneration.incrementAndGet();
+        MESSAGE_LIST_PREPARER.execute(
+                () -> {
+                    if (generation != refreshGeneration.get()) {
+                        // a newer refresh was submitted. skip this one
+                        return;
+                    }
+                    final var prepared = prepareDisplayList(conversation);
+                    final int unreadCount =
+                            conversation.getReceivedMessagesCountSinceUuid(lastMessageUuid);
+                    runOnUiThreadQuiet(
+                            () ->
+                                    applyPreparedMessages(
+                                            prepared,
+                                            conversation,
+                                            generation,
+                                            unreadCount,
+                                            notifyConversationRead,
+                                            postApply));
+                });
+    }
+
+    private List<Message> prepareDisplayList(final Conversation conversation) {
+        final var prepared = new ArrayList<Message>();
+        conversation.populateWithMessages(prepared);
+        try {
+            updateStatusMessages(conversation, prepared);
+        } catch (final IllegalStateException e) {
+            Log.d(Config.LOGTAG, "could not update status messages");
+        }
+        return prepared;
+    }
+
+    private void applyPreparedMessages(
+            final List<Message> prepared,
+            final Conversation conversation,
+            final int generation,
+            final int unreadCount,
+            final boolean notifyConversationRead,
+            final Runnable postApply) {
+        if (this.binding == null
+                || this.conversation != conversation
+                || generation != refreshGeneration.get()) {
+            return;
+        }
         synchronized (this.messageList) {
-            if (this.conversation != null) {
-                conversation.populateWithMessages(this.messageList);
-                updateSnackBar(conversation);
-                updatePinnedMessagesBanner();
-                updateStatusMessages();
-                if (conversation.getReceivedMessagesCountSinceUuid(lastMessageUuid) != 0) {
-                    binding.unreadCountCustomView.setVisibility(View.VISIBLE);
-                    binding.unreadCountCustomView.setUnreadCount(
-                            conversation.getReceivedMessagesCountSinceUuid(lastMessageUuid));
-                }
-                this.messageListAdapter.notifyDataSetChanged();
-                updateChatMsgHint();
-                if (notifyConversationRead) {
-                    binding.messagesView.post(this::fireReadEvent);
-                }
-                updateSendButton();
-                updateAttachmentButton();
-                updateEditablity();
-                updateToolbar();
-            }
+            this.messageList.clear();
+            this.messageList.addAll(prepared);
+            this.messageListAdapter.notifyDataSetChanged();
+        }
+        updateSnackBar(conversation);
+        updatePinnedMessagesBanner();
+        if (unreadCount != 0) {
+            binding.unreadCountCustomView.setVisibility(View.VISIBLE);
+            binding.unreadCountCustomView.setUnreadCount(unreadCount);
+        }
+        updateChatMsgHint();
+        if (notifyConversationRead) {
+            binding.messagesView.post(this::fireReadEvent);
+        }
+        updateSendButton();
+        updateAttachmentButton();
+        updateEditablity();
+        updateToolbar();
+        if (postApply != null) {
+            postApply.run();
         }
     }
 
@@ -4162,10 +4252,11 @@ public class ConversationFragment extends XmppFragment
         }
     }
 
-    protected void updateStatusMessages() {
-        DateSeparator.addAll(this.messageList);
+    protected void updateStatusMessages(
+            final Conversation conversation, final List<Message> target) {
+        DateSeparator.addAll(target);
         if (showLoadMoreMessages(conversation)) {
-            this.messageList.add(0, Message.createLoadMoreMessage(conversation));
+            target.add(0, Message.createLoadMoreMessage(conversation));
         }
         if (conversation.getMode() == Conversation.MODE_SINGLE) {
             final var account = conversation.getAccount();
@@ -4180,12 +4271,12 @@ public class ConversationFragment extends XmppFragment
                             .getZonedDateTime(conversation.getAddress());
             final var zonedDateTime = getOrNull(zonedDateTimeFuture);
             if (Objects.equals(state, Composing.class)) {
-                this.messageList.add(
+                target.add(
                         Message.createStatusMessage(
                                 conversation,
                                 getString(R.string.contact_is_typing, conversation.getName())));
             } else if (Objects.equals(state, Paused.class)) {
-                this.messageList.add(
+                target.add(
                         Message.createStatusMessage(
                                 conversation,
                                 getString(
@@ -4198,7 +4289,7 @@ public class ConversationFragment extends XmppFragment
                         && EntityTimeManager.noRecentMessages(conversation)) {
                     final var dndMessage =
                             Message.createStatusMessage(conversation, MessageAdapter.BODY_DND);
-                    this.messageList.add(dndMessage);
+                    target.add(dndMessage);
                 } else if (zonedDateTime != null
                         && EntityTimeManager.isDifferentTimeZone(zonedDateTime)
                         && EntityTimeManager.isNightTime(zonedDateTime)
@@ -4207,16 +4298,16 @@ public class ConversationFragment extends XmppFragment
                             Message.createStatusMessage(
                                     conversation, MessageAdapter.BODY_LOCAL_TIME);
                     localTimeMessage.setTime(zonedDateTime.getOffset().getTotalSeconds());
-                    this.messageList.add(localTimeMessage);
+                    target.add(localTimeMessage);
                 }
-                for (int i = this.messageList.size() - 1; i >= 0; --i) {
-                    final Message message = this.messageList.get(i);
+                for (int i = target.size() - 1; i >= 0; --i) {
+                    final Message message = target.get(i);
                     if (message.getType() != Message.TYPE_STATUS) {
                         if (message.getStatus() == Message.STATUS_RECEIVED) {
                             return;
                         } else {
                             if (message.getStatus() == Message.STATUS_SEND_DISPLAYED) {
-                                this.messageList.add(
+                                target.add(
                                         i + 1,
                                         Message.createStatusMessage(
                                                 conversation,
@@ -4235,9 +4326,9 @@ public class ConversationFragment extends XmppFragment
             final Set<ReadByMarker> addedMarkers = new HashSet<>();
             final var usersChatState = mucOptions.getUsersWithChatState(5);
             if (mucOptions.isPrivateAndNonAnonymous()) {
-                for (int i = this.messageList.size() - 1; i >= 0; --i) {
+                for (int i = target.size() - 1; i >= 0; --i) {
                     final Set<ReadByMarker> markersForMessage =
-                            messageList.get(i).getReadByMarkers();
+                            target.get(i).getReadByMarkers();
                     final List<MucOptions.User> shownMarkers = new ArrayList<>();
                     for (ReadByMarker marker : markersForMessage) {
                         if (!ReadByMarker.contains(marker, addedMarkers)) {
@@ -4250,7 +4341,7 @@ public class ConversationFragment extends XmppFragment
                             }
                         }
                     }
-                    final ReadByMarker markerForSender = ReadByMarker.from(messageList.get(i));
+                    final ReadByMarker markerForSender = ReadByMarker.from(target.get(i));
                     final Message statusMessage;
                     final int size = shownMarkers.size();
                     if (size > 1) {
@@ -4285,7 +4376,7 @@ public class ConversationFragment extends XmppFragment
                         statusMessage = null;
                     }
                     if (statusMessage != null) {
-                        this.messageList.add(i + 1, statusMessage);
+                        target.add(i + 1, statusMessage);
                     }
                     addedMarkers.add(markerForSender);
                     if (ReadByMarker.allUsersRepresented(allUsers, addedMarkers)) {
@@ -4319,7 +4410,7 @@ public class ConversationFragment extends XmppFragment
                                 getString(id, UIHelper.concatNames(usersChatState.users())));
                 statusMessage.setCounterparts(usersChatState.users());
             }
-            this.messageList.add(statusMessage);
+            target.add(statusMessage);
         }
     }
 

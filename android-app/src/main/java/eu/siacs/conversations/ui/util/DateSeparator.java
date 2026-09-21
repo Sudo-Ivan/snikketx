@@ -20,9 +20,6 @@
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
  * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
  * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
- * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
@@ -31,20 +28,32 @@ package eu.siacs.conversations.ui.util;
 
 import eu.siacs.conversations.entities.IndividualMessage;
 import eu.siacs.conversations.entities.Message;
-import eu.siacs.conversations.utils.UIHelper;
+import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 
 public class DateSeparator {
 
     public static void addAll(List<Message> messages) {
-        for (int i = 0; i < messages.size(); ++i) {
-            final Message current = messages.get(i);
-            if (i == 0
-                    || !UIHelper.sameDay(
-                            messages.get(i - 1).getTimeSent(), current.getTimeSent())) {
-                messages.add(i, IndividualMessage.createDateSeparator(current));
-                i++;
-            }
+        if (messages.isEmpty()) {
+            return;
         }
+        // build into a scratch list. inserting separators mid list is quadratic on
+        // ArrayList because every insert shifts the tail
+        final var separated = new ArrayList<Message>(messages.size() + 8);
+        final var calendar = Calendar.getInstance();
+        int lastDayKey = -1;
+        for (final Message message : messages) {
+            calendar.setTimeInMillis(message.getTimeSent());
+            final int dayKey =
+                    calendar.get(Calendar.YEAR) * 1000 + calendar.get(Calendar.DAY_OF_YEAR);
+            if (dayKey != lastDayKey) {
+                separated.add(IndividualMessage.createDateSeparator(message));
+                lastDayKey = dayKey;
+            }
+            separated.add(message);
+        }
+        messages.clear();
+        messages.addAll(separated);
     }
 }
